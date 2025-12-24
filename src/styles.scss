@@ -1,0 +1,44 @@
+/* ============================================
+   CSS Variables для цветов темы
+   Измените эти переменные для изменения цветов всего приложения
+   ============================================ */
+:root {
+  /* Основной акцентный цвет (используется для активных элементов, плюсика, индикаторов) */
+  --primary-color: #15803d;
+  --primary-color-hover: #14532d;
+  
+  /* Цвет активной ссылки в sidebar */
+  --sidebar-active-bg: #f3f4f6;
+  --sidebar-active-text: #1f2937;
+  --sidebar-active-indicator: var(--primary-color);
+  
+  /* Цвет плюсика в кнопке Create */
+  --create-icon-color: var(--primary-color);
+  
+  /* Цвет кнопки Create (фон) */
+  --create-btn-bg: #f3f4f6;
+  --create-btn-bg-hover: #e5e7eb;
+  --create-btn-border: #e5e7eb;
+  
+  /* Цвет логотипа */
+  --logo-color: var(--primary-color);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  width: 100%;
+}
+
