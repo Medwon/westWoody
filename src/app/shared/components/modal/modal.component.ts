@@ -113,6 +113,7 @@ export class ModalComponent {
   @Input() closeOnOverlayClick = true;
 
   @Output() closed = new EventEmitter<void>();
+  @Output() visibleChange = new EventEmitter<boolean>();
 
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKey(event: KeyboardEvent): void {
@@ -123,6 +124,7 @@ export class ModalComponent {
 
   onClose(): void {
     this.visible = false;
+    this.visibleChange.emit(false);
     this.closed.emit();
   }
 

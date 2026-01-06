@@ -1,0 +1,50 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { User, UpdateUserRequest, InviteUserRequest, InviteUserResponse } from '../models/user.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UsersService {
+  private readonly apiUrl = `${environment.apiUrl}/users`;
+
+  constructor(private http: HttpClient) {}
+
+  // Get all users
+  getUsers(): Observable<User[]> {
+    return this.http.get<User[]>(this.apiUrl);
+  }
+
+  // Get user by ID
+  getUserById(id: string): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/${id}`);
+  }
+
+  // Get user by username
+  getUserByUsername(username: string): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/username/${username}`);
+  }
+
+  // Create user
+  createUser(user: Partial<User>): Observable<User> {
+    return this.http.post<User>(this.apiUrl, user);
+  }
+
+  // Update user
+  updateUser(id: string, data: UpdateUserRequest): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${id}`, data);
+  }
+
+  // Delete user
+  deleteUser(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  // Invite user
+  inviteUser(data: InviteUserRequest): Observable<InviteUserResponse> {
+    return this.http.post<InviteUserResponse>(`${this.apiUrl}/invite`, data);
+  }
+}
+

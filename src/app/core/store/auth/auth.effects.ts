@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
-import { map, catchError, switchMap, tap } from 'rxjs';
+import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import * as AuthActions from './auth.actions';
 
@@ -12,17 +12,17 @@ export class AuthEffects {
   private authService = inject(AuthService);
   private router = inject(Router);
 
+  // Login
   login$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.login),
       switchMap(({ credentials }) =>
         this.authService.login(credentials).pipe(
-          map((response) => {
-            this.authService.saveToken(response.token);
-            return AuthActions.loginSuccess({ response });
-          }),
+          map((response) => AuthActions.loginSuccess({ response })),
           catchError((error) =>
-            of(AuthActions.loginFailure({ error: error.message }))
+            of(AuthActions.loginFailure({
+              error: error.error?.message || error.message || 'Ошибка входа'
+            }))
           )
         )
       )
@@ -40,15 +40,75 @@ export class AuthEffects {
     { dispatch: false }
   );
 
+  // Register
+  register$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.register),
+      switchMap(({ data }) =>
+        this.authService.register(data).pipe(
+          map((response) => AuthActions.registerSuccess({ response })),
+          catchError((error) =>
+            of(AuthActions.registerFailure({
+              error: error.error?.message || error.message || 'Ошибка регистрации'
+            }))
+          )
+        )
+      )
+    )
+  );
+
+  registerSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.registerSuccess),
+        tap(() => {
+          // Redirect to login page with success message
+          this.router.navigate(['/auth/login'], {
+            queryParams: { registered: true }
+          });
+        })
+      ),
+    { dispatch: false }
+  );
+
+  // Activate Account
+  activateAccount$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.activateAccount),
+      switchMap(({ data }) =>
+        this.authService.activateAccount(data).pipe(
+          map((response) => AuthActions.activateAccountSuccess({ response })),
+          catchError((error) =>
+            of(AuthActions.activateAccountFailure({
+              error: error.error?.message || error.message || 'Ошибка активации'
+            }))
+          )
+        )
+      )
+    )
+  );
+
+  activateAccountSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.activateAccountSuccess),
+        tap(() => {
+          this.router.navigate(['/auth/login'], {
+            queryParams: { activated: true }
+          });
+        })
+      ),
+    { dispatch: false }
+  );
+
+  // Logout
   logout$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.logout),
-      switchMap(() =>
-        this.authService.logout().pipe(
-          map(() => AuthActions.logoutSuccess()),
-          catchError(() => of(AuthActions.logoutSuccess()))
-        )
-      )
+      tap(() => {
+        this.authService.logout();
+      }),
+      map(() => AuthActions.logoutSuccess())
     )
   );
 
@@ -57,29 +117,32 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(AuthActions.logoutSuccess),
         tap(() => {
-          this.authService.removeToken();
           this.router.navigate(['/auth/login']);
         })
       ),
     { dispatch: false }
   );
 
+  // Check Auth (on app initialization)
   checkAuth$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.checkAuth),
       switchMap(() => {
         const token = this.authService.getToken();
-        if (!token) {
+        const user = this.authService.getStoredUser();
+
+        if (!token || !user) {
           return of(AuthActions.checkAuthFailure());
         }
-        return this.authService.getCurrentUser().pipe(
-          map((user) =>
-            AuthActions.checkAuthSuccess({ user, token })
-          ),
-          catchError(() => of(AuthActions.checkAuthFailure()))
-        );
+
+        // Check if token is expired
+        if (this.authService.isTokenExpired(token)) {
+          this.authService.logout();
+          return of(AuthActions.checkAuthFailure());
+        }
+
+        return of(AuthActions.checkAuthSuccess({ user, token }));
       })
     )
   );
 }
-

@@ -43,4 +43,6 @@ export * from './tabs/tab.component';
 export * from './toggle-button/toggle-button.component';
 export * from './tooltip/tooltip.component';
 export * from './typography/typography.component';
+export * from './whatsapp-preview/whatsapp-preview.component';
+export * from './email-preview/email-preview.component';
 

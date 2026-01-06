@@ -1,24 +1,32 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HeaderComponent } from '../header/header.component';
-import { FooterComponent } from '../footer/footer.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
+import { PageHeaderComponent } from '../page-header/page-header.component';
+import { TransactionModalComponent } from '../../shared/components/transaction-modal/transaction-modal.component';
+import { TransactionModalService } from '../../core/services/transaction-modal.service';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, HeaderComponent, FooterComponent, SidebarComponent],
+  imports: [CommonModule, SidebarComponent, PageHeaderComponent, TransactionModalComponent],
   template: `
-    <div class="main-layout">]
+    <div class="main-layout">
       <app-sidebar #sidebar (collapsedChange)="onSidebarCollapsed($event)" (closedChange)="onSidebarClosed($event)">
         <div class="main-content-wrapper">
+          <app-page-header></app-page-header>
           <main class="main-content">
             <ng-content></ng-content>
           </main>
-          <app-footer></app-footer>
         </div>
       </app-sidebar>
     </div>
+
+    <!-- Global Transaction Modal -->
+    <app-transaction-modal
+      [visible]="(transactionModalService.visible$ | async) ?? false"
+      (visibleChange)="transactionModalService.close()"
+      (transactionComplete)="onTransactionComplete($event)">
+    </app-transaction-modal>
   `,
   styles: [`
     .main-layout {
@@ -33,19 +41,22 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      padding-top: 64px;
+      padding: 0 2rem;
+    }
+
+    app-page-header {
+      display: block;
+      background-color: #f9fafb;
     }
 
     .main-content {
       flex: 1;
-      padding: 2rem;
-      min-height: calc(100vh - 128px);
       background-color: #f9fafb;
     }
 
     @media (max-width: 768px) {
-      .main-content {
-        padding: 1rem;
+      .main-content-wrapper {
+        padding: 0 1rem;
       }
     }
   `]
@@ -54,6 +65,8 @@ export class MainLayoutComponent {
   @ViewChild('sidebar') sidebar!: SidebarComponent;
   isSidebarCollapsed = false;
   isSidebarClosed = false;
+  
+  transactionModalService = inject(TransactionModalService);
 
   onSidebarCollapsed(collapsed: boolean): void {
     this.isSidebarCollapsed = collapsed;
@@ -61,6 +74,11 @@ export class MainLayoutComponent {
 
   onSidebarClosed(closed: boolean): void {
     this.isSidebarClosed = closed;
+  }
+
+  onTransactionComplete(result: any): void {
+    console.log('Transaction completed:', result);
+    // Здесь можно добавить логику обработки транзакции
   }
 
   getHeaderMarginLeft(): number {

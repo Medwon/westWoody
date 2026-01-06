@@ -20,8 +20,8 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
     <app-app-bar [fixed]="true">
       <div appBarStart></div>
       <div appBarEnd *ngIf="user$ | async as user">
-        <app-avatar [name]="user.name" size="small"></app-avatar>
-        <app-typography variant="body2" class="user-name">{{ user.name }}</app-typography>
+        <app-avatar [name]="getFullName(user)" size="small"></app-avatar>
+        <app-typography variant="body2" class="user-name">{{ getFullName(user) }}</app-typography>
         <app-button buttonType="outline" size="small" (onClick)="onLogout()">
           Выйти
         </app-button>
@@ -43,8 +43,11 @@ export class HeaderComponent implements OnInit {
 
   ngOnInit(): void {}
 
+  getFullName(user: User): string {
+    return `${user.firstName} ${user.lastName}`;
+  }
+
   onLogout(): void {
     this.store.dispatch(logout());
   }
 }
-
