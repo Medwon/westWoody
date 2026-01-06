@@ -160,9 +160,16 @@ type ModalStep = 'search' | 'found' | 'new';
             <span class="summary-label">К оплате:</span>
             <span class="summary-value">{{ getFinalAmount() }} ₸</span>
           </div>
-          <div class="summary-row earned">
+          <div class="summary-row earned" *ngIf="!useBonuses">
             <span class="summary-label">Будет начислено:</span>
             <span class="summary-value bonus">+{{ calculatedBonus }} бонусов</span>
+          </div>
+          <div class="bonus-warning" *ngIf="useBonuses">
+            <svg viewBox="0 0 24 24" fill="none" class="warning-icon">
+              <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>При использовании бонусов новые бонусы не начисляются</span>
           </div>
         </div>
 
@@ -189,12 +196,20 @@ type ModalStep = 'search' | 'found' | 'new';
         </div>
 
         <div class="form-group">
-          <label class="input-label">ФИО Клиента</label>
+          <label class="input-label">{{ newClientType === 'business' ? 'Название клиента' : 'ФИО Клиента' }}</label>
           <input
             type="text"
             class="form-input"
             [(ngModel)]="newClientName"
-            placeholder="Иван Иванов">
+            [placeholder]="newClientType === 'business' ? 'ТОО «Клиент»' : 'Иван Иванов'">
+        </div>
+
+        <div class="form-group" *ngIf="newClientType === 'individual'">
+          <label class="input-label">Дата рождения (необязательно)</label>
+          <input
+            type="date"
+            class="form-input"
+            [(ngModel)]="newClientBirthday">
         </div>
 
         <div class="form-group">
@@ -554,6 +569,20 @@ type ModalStep = 'search' | 'found' | 'new';
       color: #64748b;
     }
 
+    .form-input[type="date"] {
+      font-family: inherit;
+      color: #1f2937;
+    }
+
+    .form-input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .form-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+
     .input-hint {
       font-size: 0.75rem;
       color: #94a3b8;
@@ -832,6 +861,26 @@ type ModalStep = 'search' | 'found' | 'new';
       color: #15803d;
     }
 
+    .bonus-warning {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #92400e;
+    }
+
+    .bonus-warning .warning-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      stroke: #f59e0b;
+    }
+
     /* Buttons */
     .submit-btn {
       width: 100%;
@@ -932,6 +981,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     }
   }
   newClientEmail = '';
+  newClientBirthday = '';
 
   private readonly BONUS_RATE = 0.1;
 
@@ -1083,6 +1133,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.bonusesToUse = 0;
     this.newClientName = '';
     this.newClientEmail = '';
+    this.newClientBirthday = '';
     this.newClientType = 'individual';
     this.newClientTags = '';
     this.newClientComment = '';
@@ -1142,6 +1193,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.bonusesToUse = 0;
     this.newClientName = '';
     this.newClientEmail = '';
+    this.newClientBirthday = '';
     this.newClientType = 'individual';
     this.newClientTags = '';
     this.newClientComment = '';

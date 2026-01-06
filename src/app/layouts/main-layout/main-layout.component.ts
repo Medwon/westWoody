@@ -42,6 +42,7 @@ import { TransactionModalService } from '../../core/services/transaction-modal.s
       flex-direction: column;
       min-height: 100vh;
       padding: 0 2rem;
+      background-color: #f9fafb;
     }
 
     app-page-header {
