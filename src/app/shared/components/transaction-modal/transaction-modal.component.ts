@@ -2,10 +2,6 @@ import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDes
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalComponent } from '../modal/modal.component';
-import { InputComponent } from '../input/input.component';
-import { ButtonComponent } from '../button/button.component';
-import { AlertComponent } from '../alert/alert.component';
-import { BadgeComponent } from '../badge/badge.component';
 
 interface Client {
   id: string;
@@ -34,11 +30,7 @@ type ModalStep = 'search' | 'found' | 'new';
   imports: [
     CommonModule,
     FormsModule,
-    ModalComponent,
-    InputComponent,
-    ButtonComponent,
-    AlertComponent,
-    BadgeComponent
+    ModalComponent
   ],
   template: `
     <app-modal

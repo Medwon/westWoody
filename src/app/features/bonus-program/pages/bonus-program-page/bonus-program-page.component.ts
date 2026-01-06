@@ -3,10 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { InputComponent } from '../../../../shared/components/input/input.component';
 
 interface BonusRule {
   id: string;
@@ -26,10 +23,7 @@ interface BonusRule {
   imports: [
     CommonModule,
     FormsModule,
-    CardComponent,
-    ModalComponent,
-    ButtonComponent,
-    InputComponent
+    ModalComponent
   ],
   template: `
     <div class="page-wrapper">

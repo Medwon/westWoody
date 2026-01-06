@@ -90,7 +90,7 @@ export interface SidebarMenuItem {
               <!-- В свёрнутом состоянии - ссылка на первый child -->
               <a 
                 *ngIf="isCollapsed()"
-                [routerLink]="item.children[0].route"
+                [routerLink]="item.children![0].route"
                 routerLinkActive="active"
                 [routerLinkActiveOptions]="{exact: false}"
                 (click)="onMenuItemClick()"

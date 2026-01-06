@@ -8,8 +8,6 @@ import { selectUser } from '../../../../core/store/auth/auth.selectors';
 import { User } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 interface KpiCard {
@@ -33,7 +31,7 @@ interface RecentClient {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, ButtonComponent, CardComponent, BadgeComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent],
   template: `
     <div class="page-wrapper">
       <div class="dashboard">
