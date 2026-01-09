@@ -41,6 +41,11 @@ export const routes: Routes = [
         path: 'bonus-program',
         loadComponent: () => import('./features/bonus-program/pages/bonus-program-page/bonus-program-page.component').then(m => m.BonusProgramPageComponent)
         // canActivate: [authGuard]
+      },
+      {
+        path: 'clients',
+        loadComponent: () => import('./features/clients/pages/clients-page/clients-page.component').then(m => m.ClientsPageComponent)
+        // canActivate: [authGuard]
       }
     ]
   },

@@ -9,15 +9,9 @@ import { User } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 
 // Shared Components
-import { CardComponent } from '../../../../shared/components/card/card.component';
-import { InputComponent } from '../../../../shared/components/input/input.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { TypographyComponent } from '../../../../shared/components/typography/typography.component';
-import { AlertComponent } from '../../../../shared/components/alert/alert.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
-import { DividerComponent } from '../../../../shared/components/divider/divider.component';
-import { EmailPreviewComponent } from '../../../../shared/components/email-preview/email-preview.component';
+import { InvitationFormComponent, MessageTemplate } from '../../../../shared/components/invitation-form/invitation-form.component';
 
 interface EmailInvitationHistory {
   id: string;
@@ -26,6 +20,8 @@ interface EmailInvitationHistory {
   message: string;
   sentAt: Date;
   status: 'sent' | 'pending' | 'failed';
+  templateId?: string;
+  templateName?: string;
 }
 
 @Component({
@@ -34,202 +30,92 @@ interface EmailInvitationHistory {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    CardComponent,
-    InputComponent,
-    ButtonComponent,
-    TypographyComponent,
-    AlertComponent,
     BadgeComponent,
     IconButtonComponent,
-    DividerComponent,
-    EmailPreviewComponent
+    InvitationFormComponent
   ],
   template: `
     <div class="invitation-page">
-      <!-- Left Panel - Form -->
-      <app-card [shadow]="true" class="left-panel">
-        <div class="panel-header">
-          <div class="icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="header-text">
-            <h2 class="panel-title">Пригласи друга</h2>
-            <p class="panel-subtitle">Отправь приглашение по Email</p>
-          </div>
+      <app-invitation-form
+        [invitationType]="'email'"
+        [form]="invitationForm"
+        [title]="'Пригласи друга'"
+        [subtitle]="'Отправь приглашение по Email'"
+        [iconSvg]="emailIconSvg"
+        [iconColor]="'#3b82f6'"
+        [previewDescription]="'Так будет выглядеть ваше письмо'"
+        [messageTemplates]="messageTemplates"
+        [isSending]="isSending"
+        [successMessage]="successMessage"
+        [errorMessage]="errorMessage"
+        (formSubmit)="onSubmit()"
+        (templateSelected)="onTemplateSelected($event)"
+        (templateCreated)="onTemplateCreated($event)"
+        (templateUpdated)="onTemplateUpdated($event)"
+        (templateDeleted)="onTemplateDeleted($event)">
+      </app-invitation-form>
+
+      <!-- History Section -->
+      <div class="section-block history-block">
+        <div class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" class="title-icon">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h3 class="section-heading">История</h3>
+          <app-badge 
+            *ngIf="invitationHistory.length" 
+            badgeType="secondary" 
+            size="small"
+            class="history-badge">
+            {{ invitationHistory.length }}
+          </app-badge>
+        </div>
+        <p class="section-description">Нажмите на контакт, чтобы отправить повторно</p>
+
+        <div class="history-empty" *ngIf="invitationHistory.length === 0">
+          <svg viewBox="0 0 24 24" fill="none" class="empty-icon">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="empty-text">Вы ещё никому не отправляли письма</p>
         </div>
 
-        <!-- Alerts -->
-        <app-alert
-          *ngIf="successMessage"
-          type="success"
-          [title]="'Успешно'"
-          [dismissible]="true"
-          (dismissed)="successMessage = ''"
-          class="alert-spacing">
-          {{ successMessage }}
-        </app-alert>
-
-        <app-alert
-          *ngIf="errorMessage"
-          type="error"
-          [title]="'Ошибка'"
-          [dismissible]="true"
-          (dismissed)="errorMessage = ''"
-          class="alert-spacing">
-          {{ errorMessage }}
-        </app-alert>
-
-        <form [formGroup]="invitationForm" (ngSubmit)="onSubmit()" class="form-content">
-          <!-- Email Input -->
-          <app-input
-            id="email"
-            label="Email адрес"
-            type="email"
-            placeholder="friend@example.com"
-            formControlName="email"
-            [errorMessage]="getErrorMessage('email')"
-            [required]="true"
-            prefix="✉️">
-          </app-input>
-
-          <!-- Name Input -->
-          <app-input
-            id="recipientName"
-            label="Имя получателя"
-            type="text"
-            placeholder="Как зовут получателя?"
-            formControlName="recipientName"
-            hint="Необязательно"
-            prefix="👤">
-          </app-input>
-
-          <!-- Subject Input -->
-          <app-input
-            id="subject"
-            label="Тема письма"
-            type="text"
-            placeholder="Приглашение в Westwood"
-            formControlName="subject"
-            prefix="📋">
-          </app-input>
-
-          <!-- Message Textarea -->
-          <div class="textarea-group">
-            <div class="label-row">
-              <app-typography variant="body2" [medium]="true">Текст письма</app-typography>
-              <app-typography variant="caption" [muted]="true">
-                {{ invitationForm.get('message')?.value?.length || 0 }}/1000
-              </app-typography>
-            </div>
-            <textarea
-              formControlName="message"
-              class="message-textarea"
-              rows="6"
-              placeholder="Напишите персональное приглашение..."
-              maxlength="1000">
-            </textarea>
-          </div>
-
-          <app-divider [spaced]="true"></app-divider>
-
-          <!-- Submit Button -->
-          <app-button
-            buttonType="primary"
-            type="submit"
-            [disabled]="invitationForm.invalid || isSending"
-            [loading]="isSending"
-            size="large"
-            class="submit-btn">
-            <span class="btn-content">
-              <svg viewBox="0 0 24 24" fill="none" class="email-icon">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="history-list" *ngIf="invitationHistory.length > 0">
+          <div 
+            class="history-item" 
+            *ngFor="let item of invitationHistory.slice(0, 6)"
+            (click)="resendInvitation(item)">
+            <div class="history-avatar">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              {{ isSending ? 'Отправка...' : 'Отправить Email' }}
-            </span>
-          </app-button>
-        </form>
-      </app-card>
-
-      <!-- Right Panel - Preview & History -->
-      <div class="right-panel">
-        <!-- Preview Section -->
-        <div class="section-block">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" class="title-icon">
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-            <h3 class="section-heading">Предпросмотр</h3>
-          </div>
-          <p class="section-description">Так будет выглядеть ваше письмо</p>
-
-          <app-email-preview
-            [recipientEmail]="invitationForm.get('email')?.value || 'email@example.com'"
-            [message]="getPreviewMessage()"
-            [activationLink]="'https://westwood.app/activate?token=xxx'"
-            [buttonText]="'Activate Account'"
-            [expirationDays]="7"
-            [senderEmail]="'noreply@westwood.app'"
-            class="preview-component">
-          </app-email-preview>
-        </div>
-
-        <!-- History Section -->
-        <div class="section-block history-block">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" class="title-icon">
-              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <h3 class="section-heading">История</h3>
-            <app-badge 
-              *ngIf="invitationHistory.length" 
-              badgeType="secondary" 
-              size="small"
-              class="history-badge">
-              {{ invitationHistory.length }}
-            </app-badge>
-          </div>
-          <p class="section-description">Нажмите на контакт, чтобы отправить повторно</p>
-
-          <div class="history-empty" *ngIf="invitationHistory.length === 0">
-            <svg viewBox="0 0 24 24" fill="none" class="empty-icon">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="empty-text">Вы ещё никому не отправляли письма</p>
-          </div>
-
-          <div class="history-list" *ngIf="invitationHistory.length > 0">
-            <div 
-              class="history-item" 
-              *ngFor="let item of invitationHistory.slice(0, 6)"
-              (click)="resendInvitation(item)">
-              <div class="history-avatar">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-              </div>
-              <div class="history-info">
-                <span class="history-email">{{ item.email }}</span>
+            </div>
+            <div class="history-info">
+              <span class="history-email">{{ item.email }}</span>
+              <div class="history-meta">
                 <span class="history-time">{{ formatDate(item.sentAt) }}</span>
+                <span class="history-template" *ngIf="item.templateName">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                  {{ item.templateName }}
+                </span>
               </div>
-              <div class="history-actions">
-                <app-badge 
-                  [badgeType]="getStatusBadgeType(item.status)" 
-                  size="small">
-                  {{ getStatusLabel(item.status) }}
-                </app-badge>
-                <app-icon-button
-                  icon="↻"
-                  iconButtonType="ghost"
-                  size="small"
-                  tooltip="Отправить повторно">
-                </app-icon-button>
-              </div>
+            </div>
+            <div class="history-actions">
+              <app-badge 
+                [badgeType]="getStatusBadgeType(item.status)" 
+                size="small">
+                {{ getStatusLabel(item.status) }}
+              </app-badge>
+              <app-icon-button
+                icon="↻"
+                iconButtonType="ghost"
+                size="small"
+                tooltip="Отправить повторно">
+              </app-icon-button>
             </div>
           </div>
         </div>
@@ -244,170 +130,20 @@ interface EmailInvitationHistory {
     }
 
     .invitation-page {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
       min-height: calc(100vh - 64px - 4rem);
       padding: 2rem;
       background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 50%, #f8fafc 100%);
     }
 
-    /* Left Panel */
-    .left-panel {
-      display: flex;
-      flex-direction: column;
-      border-radius: 24px !important;
-    }
-
-    :host ::ng-deep .left-panel .card-body {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      padding: 2rem !important;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: flex-start;
-      gap: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .icon-wrapper {
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .icon-wrapper svg {
-      width: 28px;
-      height: 28px;
-      color: white;
-    }
-
-    .header-text {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .panel-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #0f172a;
-      margin: 0;
-    }
-
-    .panel-subtitle {
-      font-size: 0.9375rem;
-      color: #64748b;
-      margin: 0;
-    }
-
-    .alert-spacing {
-      margin-bottom: 1.5rem;
-    }
-
-    /* Form */
-    .form-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    .textarea-group {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .label-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-
-    .message-textarea {
-      flex: 1;
-      width: 100%;
-      min-height: 120px;
-      padding: 0.875rem;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 0.9375rem;
-      font-family: inherit;
-      resize: none;
-      transition: all 0.2s ease;
-      background-color: #ffffff;
-      color: #1a202c;
-      line-height: 1.6;
-    }
-
-    .message-textarea:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-    }
-
-    .message-textarea::placeholder {
-      color: #94a3b8;
-    }
-
-    /* Submit Button */
-    .submit-btn {
-      width: 100%;
-    }
-
-    :host ::ng-deep .submit-btn button {
-      width: 100%;
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-      border-radius: 12px !important;
-      padding: 1rem 1.5rem !important;
-      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
-    }
-
-    :host ::ng-deep .submit-btn button:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
-    }
-
-    .btn-content {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-    }
-
-    .email-icon {
-      width: 20px;
-      height: 20px;
-    }
-
-    /* Right Panel */
-    .right-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-
+    /* History Section */
     .section-block {
       background: white;
       border-radius: 24px;
       padding: 1.5rem;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .section-block:first-child {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
     }
 
     .section-title {
@@ -438,16 +174,6 @@ interface EmailInvitationHistory {
 
     .history-badge {
       margin-left: auto;
-    }
-
-    .preview-component {
-      flex: 1;
-      display: block;
-    }
-
-    /* History */
-    .history-block {
-      flex-shrink: 0;
     }
 
     .history-empty {
@@ -524,9 +250,34 @@ interface EmailInvitationHistory {
       white-space: nowrap;
     }
 
+    .history-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
     .history-time {
       font-size: 0.8125rem;
       color: #9ca3af;
+    }
+
+    .history-template {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.75rem;
+      color: #3b82f6;
+      background: #eff6ff;
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .history-template svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
     }
 
     .history-actions {
@@ -536,19 +287,6 @@ interface EmailInvitationHistory {
     }
 
     /* Responsive */
-    @media (max-width: 1024px) {
-      .invitation-page {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-      }
-
-      .right-panel {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-      }
-    }
-
     @media (max-width: 768px) {
       :host {
         margin: -1rem;
@@ -556,14 +294,6 @@ interface EmailInvitationHistory {
 
       .invitation-page {
         padding: 1rem;
-      }
-
-      .right-panel {
-        grid-template-columns: 1fr;
-      }
-
-      :host ::ng-deep .left-panel .card-body {
-        padding: 1.5rem !important;
       }
     }
   `]
@@ -577,6 +307,10 @@ export class EmailInvitationPageComponent implements OnInit {
   errorMessage = '';
   
   invitationHistory: EmailInvitationHistory[] = [];
+  messageTemplates: MessageTemplate[] = [];
+  selectedTemplateId: string | null = null;
+
+  emailIconSvg: string;
 
   private pageHeaderService = inject(PageHeaderService);
 
@@ -603,13 +337,19 @@ export class EmailInvitationPageComponent implements OnInit {
     this.user$ = this.store.select(selectUser);
     
     this.invitationForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      recipientName: [''],
       subject: [this.defaultSubject],
-      message: [this.defaultMessage]
+      message: [this.defaultMessage, [Validators.required]]
     });
 
+    this.emailIconSvg = `
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+
     this.loadHistory();
+    this.loadTemplates();
   }
 
   ngOnInit(): void {
@@ -620,75 +360,71 @@ export class EmailInvitationPageComponent implements OnInit {
     ]);
   }
 
-  getErrorMessage(controlName: string): string {
-    const control = this.invitationForm.get(controlName);
-    if (control?.errors && control.touched) {
-      if (control.errors['required']) {
-        return 'Введите email адрес';
-      }
-      if (control.errors['email']) {
-        return 'Некорректный формат email';
-      }
-    }
-    return '';
-  }
-
-  getPreviewMessage(): string {
-    const message = this.invitationForm.get('message')?.value || '';
-    const recipientName = this.invitationForm.get('recipientName')?.value;
-    
-    if (recipientName && message.includes('Здравствуйте!')) {
-      return message.replace('Здравствуйте!', `Здравствуйте, ${recipientName}!`);
-    }
-    return message || 'Текст письма...';
-  }
-
-  getAvatarLetter(): string {
-    const name = this.invitationForm.get('recipientName')?.value;
-    if (name) return name[0].toUpperCase();
-    const email = this.invitationForm.get('email')?.value;
-    if (email) return email[0].toUpperCase();
-    return 'W';
-  }
-
   onSubmit(): void {
     if (this.invitationForm.valid) {
       this.isSending = true;
       this.errorMessage = '';
       this.successMessage = '';
 
-      const email = this.invitationForm.get('email')?.value;
       const subject = this.invitationForm.get('subject')?.value;
-      const message = this.getPreviewMessage();
+      const message = this.invitationForm.get('message')?.value || '';
 
-      // Создаём mailto ссылку
-      const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-
+      // Для Email нужно будет получать email адрес из другого источника
+      // Пока просто показываем сообщение об успехе
       setTimeout(() => {
         try {
-          window.location.href = mailtoUrl;
+          const selectedTemplate = this.selectedTemplateId 
+            ? this.messageTemplates.find(t => t.id === this.selectedTemplateId)
+            : null;
           
           const invitation: EmailInvitationHistory = {
             id: Date.now().toString(),
-            email: email,
+            email: '', // Будет заполнено из другого источника
             subject: subject,
             message: message,
             sentAt: new Date(),
-            status: 'sent'
+            status: 'sent',
+            templateId: selectedTemplate?.id,
+            templateName: selectedTemplate?.name
           };
           
           this.invitationHistory.unshift(invitation);
           this.saveHistory();
           
-          this.successMessage = 'Почтовый клиент открыт';
-          this.invitationForm.patchValue({ email: '', recipientName: '' });
-          this.invitationForm.get('email')?.markAsUntouched();
+          this.successMessage = 'Письмо готово к отправке';
+          this.invitationForm.patchValue({ 
+            subject: this.defaultSubject,
+            message: this.defaultMessage 
+          });
+          this.selectedTemplateId = null;
         } catch (error) {
-          this.errorMessage = 'Не удалось открыть почтовый клиент';
+          this.errorMessage = 'Произошла ошибка';
         }
         this.isSending = false;
       }, 600);
     }
+  }
+
+  onTemplateSelected(template: MessageTemplate): void {
+    this.selectedTemplateId = template.id;
+  }
+
+  onTemplateCreated(template: MessageTemplate): void {
+    this.messageTemplates.push(template);
+    this.saveTemplates();
+  }
+
+  onTemplateUpdated(template: MessageTemplate): void {
+    const index = this.messageTemplates.findIndex(t => t.id === template.id);
+    if (index !== -1) {
+      this.messageTemplates[index] = template;
+      this.saveTemplates();
+    }
+  }
+
+  onTemplateDeleted(templateId: string): void {
+    this.messageTemplates = this.messageTemplates.filter(t => t.id !== templateId);
+    this.saveTemplates();
   }
 
   formatDate(date: Date): string {
@@ -725,7 +461,6 @@ export class EmailInvitationPageComponent implements OnInit {
 
   resendInvitation(item: EmailInvitationHistory): void {
     this.invitationForm.patchValue({
-      email: item.email,
       subject: item.subject,
       message: item.message
     });
@@ -751,5 +486,34 @@ export class EmailInvitationPageComponent implements OnInit {
       console.error('Failed to save history', e);
     }
   }
-}
 
+  private loadTemplates(): void {
+    try {
+      const saved = localStorage.getItem('email_message_templates');
+      if (saved) {
+        this.messageTemplates = JSON.parse(saved);
+      } else {
+        // Default template
+        this.messageTemplates = [{
+          id: '1',
+          name: 'Приветственное сообщение',
+          type: 'bonus_accrued',
+          subject: this.defaultSubject,
+          content: this.defaultMessage,
+          createdAt: new Date()
+        }];
+        this.saveTemplates();
+      }
+    } catch (e) {
+      this.messageTemplates = [];
+    }
+  }
+
+  private saveTemplates(): void {
+    try {
+      localStorage.setItem('email_message_templates', JSON.stringify(this.messageTemplates));
+    } catch (e) {
+      console.error('Failed to save templates', e);
+    }
+  }
+}
