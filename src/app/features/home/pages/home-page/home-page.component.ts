@@ -11,7 +11,7 @@ import { TransactionModalService } from '../../../../core/services/transaction-m
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 interface KpiCard {
-  icon: string;
+  iconId: 'revenue' | 'bonus' | 'clients' | 'transactions' | 'refunds' | 'average' | 'today' | 'month';
   iconBg: string;
   value: string;
   label: string;
@@ -19,13 +19,18 @@ interface KpiCard {
   changeType?: 'positive' | 'negative';
 }
 
-interface RecentClient {
+interface RecentPayment {
   id: string;
-  name: string;
-  phone: string;
-  lastOperation: string;
-  amount: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  amount: number;
+  bonusEarned: number;
+  bonusUsed: number;
+  paymentMethod: 'cash' | 'card' | 'online';
+  isRefund: boolean;
   date: string;
+  time: string;
 }
 
 @Component({
@@ -50,7 +55,48 @@ interface RecentClient {
         <div class="kpi-card" *ngFor="let kpi of kpiCards">
           <div class="kpi-header">
             <div class="kpi-icon" [style.background]="kpi.iconBg">
-              <span [innerHTML]="kpi.icon"></span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" [ngSwitch]="kpi.iconId">
+                <!-- Revenue icon -->
+                <g *ngSwitchCase="'revenue'">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
+                </g>
+                <!-- Bonus icon -->
+                <g *ngSwitchCase="'bonus'">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5"/>
+                </g>
+                <!-- Clients icon -->
+                <g *ngSwitchCase="'clients'">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.5"/>
+                </g>
+                <!-- Transactions icon -->
+                <g *ngSwitchCase="'transactions'">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+                  <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </g>
+                <!-- Refunds icon -->
+                <g *ngSwitchCase="'refunds'">
+                  <path d="M3 12h18M9 6l-6 6 6 6M15 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+                <!-- Average icon -->
+                <g *ngSwitchCase="'average'">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                </g>
+                <!-- Today icon -->
+                <g *ngSwitchCase="'today'">
+                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5"/>
+                </g>
+                <!-- Month icon -->
+                <g *ngSwitchCase="'month'">
+                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </g>
+              </svg>
             </div>
             <span class="kpi-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">
               {{ kpi.change }}
@@ -124,46 +170,102 @@ interface RecentClient {
         </div>
       </div>
 
-      <!-- Recent Clients Table -->
+      <!-- Recent Payments Table -->
       <div class="table-section">
         <div class="table-header">
           <h3 class="table-title">Последние операции</h3>
-          <a routerLink="/clients" class="view-all-link">Смотреть всех →</a>
+          <a routerLink="/payments" class="view-all-link">Смотреть все →</a>
         </div>
-        <div class="table-card">
-          <table class="clients-table">
+        <div class="table-container">
+          <table class="payments-table">
             <thead>
               <tr>
-                <th>Клиент</th>
-                <th>Телефон</th>
-                <th>Последняя операция</th>
-                <th>Сумма</th>
-                <th>Дата</th>
-                <th></th>
+                <th class="th-id">ID платежа</th>
+                <th class="th-client">Клиент</th>
+                <th class="th-amount">Сумма</th>
+                <th class="th-bonuses">Бонусы</th>
+                <th class="th-method">Способ оплаты</th>
+                <th class="th-status">Статус</th>
+                <th class="th-date">Дата и время</th>
+                <th class="th-actions">Действия</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let client of recentClients" class="table-row" (click)="goToClient(client.id)">
-                <td>
-                  <div class="client-info">
-                    <div class="client-avatar">{{ getInitials(client.name) }}</div>
-                    <span class="client-name">{{ client.name }}</span>
+              <tr *ngFor="let payment of recentPayments" class="payment-row">
+                <td class="td-id">
+                  <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                </td>
+                <td class="td-client">
+                  <div class="client-cell">
+                    <div class="client-avatar">
+                      {{ getInitials(payment.clientName) }}
+                    </div>
+                    <div class="client-info">
+                      <a [routerLink]="['/clients', payment.clientId]" class="client-name-link">
+                        <span class="client-name">{{ payment.clientName }}</span>
+                      </a>
+                      <span class="client-phone">{{ payment.clientPhone }}</span>
+                    </div>
                   </div>
                 </td>
-                <td class="client-phone">{{ client.phone }}</td>
-                <td>
-                  <app-badge [badgeType]="getOperationBadgeType(client.lastOperation)" size="medium">
-                    {{ client.lastOperation }}
+                <td class="td-amount">
+                  <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
+                </td>
+                <td class="td-bonuses">
+                  <div class="bonus-info">
+                    <app-badge 
+                      *ngIf="payment.bonusEarned > 0"
+                      badgeType="bonusGranted" 
+                      size="medium"
+                      icon="star"
+                      class="bonus-badge">
+                      +{{ formatAmount(payment.bonusEarned) }}
+                    </app-badge>
+                    <app-badge 
+                      *ngIf="payment.bonusUsed > 0"
+                      badgeType="bonusUsed" 
+                      size="medium"
+                      icon="check"
+                      class="bonus-badge">
+                      -{{ formatAmount(payment.bonusUsed) }}
+                    </app-badge>
+                    <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                  </div>
+                </td>
+                <td class="td-method">
+                  <span class="method-badge" [class]="'method-' + payment.paymentMethod">
+                    {{ getPaymentMethodLabel(payment.paymentMethod) }}
+                  </span>
+                </td>
+                <td class="td-status">
+                  <app-badge 
+                    [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
+                    size="medium"
+                    [icon]="payment.isRefund ? 'refund' : 'payment'">
+                    {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
                   </app-badge>
                 </td>
-                <td class="client-amount">{{ client.amount }}</td>
-                <td class="client-date">{{ client.date }}</td>
-                <td class="client-action">
-                  <button class="action-btn" (click)="goToClient(client.id); $event.stopPropagation()">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
+                <td class="td-date">
+                  <div class="date-info">
+                    <span class="date-text">{{ payment.date }}</span>
+                    <span class="time-text">{{ payment.time }}</span>
+                  </div>
+                </td>
+                <td class="td-actions">
+                  <div class="actions-cell">
+                    <button class="action-btn view" [routerLink]="['/clients', payment.clientId]" title="Просмотр клиента">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                      </svg>
+                    </button>
+                    <button class="action-btn edit" title="Редактировать">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -245,7 +347,13 @@ interface RecentClient {
       margin-bottom: 2rem;
     }
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1400px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 1000px) {
       .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -280,6 +388,13 @@ interface RecentClient {
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
+    }
+
+    .kpi-icon svg {
+      width: 24px;
+      height: 24px;
+      color: #15803d;
+      display: block;
     }
 
     .kpi-change {
@@ -458,103 +573,208 @@ interface RecentClient {
       color: #166534;
     }
 
-    .table-card {
+    .table-container {
       background: white;
       border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e5e7eb;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    .clients-table {
+    .payments-table {
       width: 100%;
       border-collapse: collapse;
     }
 
-    .clients-table th {
+    .payments-table th {
+      padding: 1rem;
       text-align: left;
-      padding: 1rem 1.5rem;
       font-size: 0.75rem;
       font-weight: 600;
       color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.5px;
       background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e5e7eb;
     }
 
-    .clients-table td {
-      padding: 1rem 1.5rem;
-      font-size: 0.9375rem;
-      color: #334155;
+    .payments-table td {
+      padding: 1rem;
       border-bottom: 1px solid #f1f5f9;
     }
 
-    .table-row {
-      cursor: pointer;
+    .payment-row {
+      transition: background 0.15s;
     }
 
-    .table-row:last-child td {
+    .payment-row:hover {
+      background: #f8fafc;
+    }
+
+    .payment-row:last-child td {
       border-bottom: none;
     }
 
-    .client-info {
+    /* Payment ID */
+    .td-id {
+      min-width: 100px;
+    }
+
+    .payment-id {
+      font-family: monospace;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    .client-cell {
       display: flex;
       align-items: center;
       gap: 0.75rem;
     }
 
     .client-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #15803d, #22c55e);
-      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      color: #15803d;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8125rem;
+      font-size: 0.875rem;
       font-weight: 600;
+      flex-shrink: 0;
+      flex-shrink: 0;
+    }
+
+    .client-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .client-name-link {
+      text-decoration: none;
+      color: inherit;
+      transition: color 0.15s;
+    }
+
+    .client-name-link:hover {
+      color: #15803d;
     }
 
     .client-name {
-      font-weight: 500;
-      color: #0f172a;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1f2937;
+      cursor: pointer;
+    }
+
+    .client-name-link:hover .client-name {
+      color: #15803d;
     }
 
     .client-phone {
+      font-size: 0.8rem;
       color: #64748b;
     }
 
-    .client-amount {
+    .amount-value {
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #0f172a;
+      color: #15803d;
     }
 
-    .client-date {
+    .bonus-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .bonus-badge {
+      display: inline-block;
+    }
+
+    .bonus-none {
+      font-size: 0.8rem;
       color: #94a3b8;
-      font-size: 0.875rem;
     }
 
-    .client-action {
-      text-align: right;
+    .method-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .method-badge.method-cash {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .method-badge.method-card {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .method-badge.method-online {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .date-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .date-text {
+      font-size: 0.85rem;
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    .time-text {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 0.5rem;
     }
 
     .action-btn {
       width: 32px;
       height: 32px;
-      border: none;
-      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
+      background: white;
+      color: #64748b;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.15s;
     }
 
     .action-btn svg {
       width: 16px;
       height: 16px;
-      color: #64748b;
+    }
+
+    .action-btn.view:hover {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #15803d;
+    }
+
+    .action-btn.edit:hover {
+      background: #dbeafe;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
     }
 
     @media (max-width: 768px) {
@@ -588,7 +808,7 @@ export class HomePageComponent implements OnInit {
   // KPI Cards Data
   kpiCards: KpiCard[] = [
     {
-      icon: '₸',
+      iconId: 'revenue',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
       value: '35 634 ₸',
       label: 'Выручка за сегодня',
@@ -596,13 +816,15 @@ export class HomePageComponent implements OnInit {
       changeType: 'positive'
     },
     {
-      icon: '🎁',
+      iconId: 'bonus',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
       value: '3 563',
-      label: 'Бонусов начислено'
+      label: 'Бонусов начислено',
+      change: '+12%',
+      changeType: 'positive'
     },
     {
-      icon: '👥',
+      iconId: 'clients',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
       value: '2',
       label: 'Новых клиентов',
@@ -610,54 +832,113 @@ export class HomePageComponent implements OnInit {
       changeType: 'positive'
     },
     {
-      icon: '📋',
+      iconId: 'transactions',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '17 817',
-      label: 'Средний чек'
+      value: '18',
+      label: 'Транзакций сегодня',
+      change: '+3',
+      changeType: 'positive'
+    },
+    {
+      iconId: 'average',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '17 817 ₸',
+      label: 'Средний чек',
+      change: '+8%',
+      changeType: 'positive'
+    },
+    {
+      iconId: 'refunds',
+      iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
+      value: '2',
+      label: 'Возвратов',
+      change: '-1',
+      changeType: 'positive'
+    },
+    {
+      iconId: 'month',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '1 245 890 ₸',
+      label: 'Выручка за месяц',
+      change: '+18%',
+      changeType: 'positive'
+    },
+    {
+      iconId: 'today',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '156',
+      label: 'Активных клиентов',
+      change: '+12',
+      changeType: 'positive'
     }
   ];
 
-  // Recent Clients Data
-  recentClients: RecentClient[] = [
+  // Recent Payments Data
+  recentPayments: RecentPayment[] = [
     {
       id: '1',
-      name: 'Иванов Иван',
-      phone: '+7 (999) 123-45-67',
-      lastOperation: 'Оплата',
-      amount: '12 500 ₸',
-      date: '5 янв, 21:30'
+      clientId: '1',
+      clientName: 'Алексей Петров',
+      clientPhone: '+7 (777) 123-45-67',
+      amount: 12500,
+      bonusEarned: 125,
+      bonusUsed: 0,
+      paymentMethod: 'card',
+      isRefund: false,
+      date: '15.01.2025',
+      time: '14:30'
     },
     {
       id: '2',
-      name: 'Петрова Анна',
-      phone: '+7 (999) 234-56-78',
-      lastOperation: 'Бонусы',
-      amount: '3 200 ₸',
-      date: '5 янв, 20:15'
+      clientId: '2',
+      clientName: 'ТОО «ТехноПлюс»',
+      clientPhone: '+7 (701) 555-12-34',
+      amount: 45000,
+      bonusEarned: 450,
+      bonusUsed: 200,
+      paymentMethod: 'online',
+      isRefund: false,
+      date: '15.01.2025',
+      time: '12:15'
     },
     {
       id: '3',
-      name: 'Сидоров Петр',
-      phone: '+7 (999) 345-67-89',
-      lastOperation: 'Оплата',
-      amount: '8 750 ₸',
-      date: '5 янв, 19:45'
+      clientId: '3',
+      clientName: 'Мария Иванова',
+      clientPhone: '+7 (707) 987-65-43',
+      amount: 5600,
+      bonusEarned: 56,
+      bonusUsed: 0,
+      paymentMethod: 'cash',
+      isRefund: false,
+      date: '14.01.2025',
+      time: '18:45'
     },
     {
       id: '4',
-      name: 'Козлова Мария',
-      phone: '+7 (999) 456-78-90',
-      lastOperation: 'Возврат',
-      amount: '1 500 ₸',
-      date: '5 янв, 18:20'
+      clientId: '4',
+      clientName: 'Дмитрий Сидоров',
+      clientPhone: '+7 (702) 111-22-33',
+      amount: 8900,
+      bonusEarned: 0,
+      bonusUsed: 89,
+      paymentMethod: 'card',
+      isRefund: false,
+      date: '14.01.2025',
+      time: '16:20'
     },
     {
       id: '5',
-      name: 'Новиков Алексей',
-      phone: '+7 (999) 567-89-01',
-      lastOperation: 'Оплата',
-      amount: '25 000 ₸',
-      date: '5 янв, 17:00'
+      clientId: '5',
+      clientName: 'ИП «Строй-Мастер»',
+      clientPhone: '+7 (700) 333-44-55',
+      amount: 125000,
+      bonusEarned: 1250,
+      bonusUsed: 500,
+      paymentMethod: 'online',
+      isRefund: true,
+      date: '14.01.2025',
+      time: '10:00'
     }
   ];
 
@@ -666,7 +947,7 @@ export class HomePageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageHeaderService.setPageHeader('Панель управления', [
+    this.pageHeaderService.setPageHeader('Быстрый Обзор', [
       { label: 'Главная' }
     ]);
   }
@@ -675,18 +956,22 @@ export class HomePageComponent implements OnInit {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
-  getOperationBadgeType(operation: string): 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' {
-    const types: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info'> = {
-      'Оплата': 'success',
-      'Бонусы': 'primary',
-      'Возврат': 'warning'
-    };
-    return types[operation] || 'secondary';
+  formatAmount(amount: number): string {
+    return amount.toLocaleString('ru-RU');
   }
 
-  goToClient(clientId: string): void {
-    console.log('Navigate to client:', clientId);
-    // router.navigate(['/clients', clientId]);
+  formatPaymentId(id: string): string {
+    const numId = parseInt(id, 10);
+    return `PAY-${String(numId).padStart(3, '0')}`;
+  }
+
+  getPaymentMethodLabel(method: 'cash' | 'card' | 'online'): string {
+    const labels: Record<string, string> = {
+      cash: 'Наличные',
+      card: 'Карта',
+      online: 'Онлайн'
+    };
+    return labels[method] || method;
   }
 
   openTransactionModal(): void {

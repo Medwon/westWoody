@@ -260,7 +260,9 @@ type SortDirection = 'asc' | 'desc';
                       {{ getInitials(client) }}
                     </div>
                     <div class="client-info">
-                      <span class="client-name">{{ client.firstName }}{{ client.lastName ? ' ' + client.lastName : '' }}</span>
+                      <a [routerLink]="['/clients', client.id]" class="client-name-link">
+                        <span class="client-name">{{ client.firstName }}{{ client.lastName ? ' ' + client.lastName : '' }}</span>
+                      </a>
                       <span class="client-type">
                         <svg viewBox="0 0 24 24" fill="none" *ngIf="client.type === 'business'">
                           <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
@@ -864,10 +866,25 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.15rem;
     }
 
+    .client-name-link {
+      text-decoration: none;
+      color: inherit;
+      transition: color 0.15s;
+    }
+
+    .client-name-link:hover {
+      color: #15803d;
+    }
+
     .client-name {
       font-size: 0.9rem;
       font-weight: 600;
       color: #1f2937;
+      cursor: pointer;
+    }
+
+    .client-name-link:hover .client-name {
+      color: #15803d;
     }
 
     .client-type {

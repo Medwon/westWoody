@@ -1,7 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 
@@ -37,7 +36,53 @@ interface BonusRule {
             [class.active-config]="rule.active">
             
             <div class="config-header">
-              <div class="config-icon" [innerHTML]="getIcon(rule.icon)"></div>
+              <div class="config-icon">
+                <ng-container [ngSwitch]="rule.icon">
+                  <svg *ngSwitchCase="'wallet'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M16 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M2 10h20" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                  <svg *ngSwitchCase="'party'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6L12 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                  </svg>
+                  <svg *ngSwitchCase="'cake'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 21H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1z" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M3 16h18" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 12V9m-4 3V10m8 2V10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <circle cx="8" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                    <circle cx="12" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                    <circle cx="16" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                  <svg *ngSwitchCase="'share'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                    <circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                    <circle cx="18" cy="19" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M8.5 13.5l7 4M15.5 6.5l-7 4" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                  <svg *ngSwitchCase="'gift'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 12v9H4v-9" stroke="currentColor" stroke-width="1.2"/>
+                    <rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 22V7" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                  <svg *ngSwitchCase="'percent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="1.2"/>
+                    <circle cx="15" cy="15" r="2" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M5 19L19 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                  <svg *ngSwitchCase="'heart'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                  <svg *ngSwitchCase="'trophy'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 15a6 6 0 0 0 6-6V3H6v6a6 6 0 0 0 6 6z" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M12 15v3m-4 3h8m-6 0v-3m4 3v-3" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                </ng-container>
+              </div>
               <label class="switch">
                 <input 
                   type="checkbox" 
@@ -56,14 +101,14 @@ interface BonusRule {
                   {{ rule.value }}<span>{{ rule.unit }}</span>
                 </div>
                 <div class="config-expiration" *ngIf="rule.expirationDays > 0">
-                  <svg viewBox="0 0 24 24" fill="none" class="expiration-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="expiration-icon">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
                     <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                   </svg>
                   {{ rule.expirationDays }} дн.
                 </div>
                 <div class="config-expiration forever" *ngIf="rule.expirationDays === 0">
-                  <svg viewBox="0 0 24 24" fill="none" class="expiration-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="expiration-icon">
                     <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                   бессрочно
@@ -77,7 +122,7 @@ interface BonusRule {
 
           <!-- Add New Card -->
           <div class="config-card-add" (click)="openAddModal()">
-            <svg viewBox="0 0 24 24" fill="none" class="add-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="add-icon">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <span class="add-text">Добавить бонус</span>
@@ -125,7 +170,7 @@ interface BonusRule {
             Сохранить изменения
           </button>
           <button class="delete-btn" (click)="deleteBonus()">
-            <svg viewBox="0 0 24 24" fill="none" class="delete-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="delete-icon">
               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
@@ -189,7 +234,7 @@ interface BonusRule {
                 class="unit-option"
                 [class.selected]="newBonus.unit === 'баллов'"
                 (click)="newBonus.unit = 'баллов'">
-                <svg viewBox="0 0 24 24" fill="none" class="unit-icon-svg">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="unit-icon-svg">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
                 </svg>
                 <span class="unit-text">Баллы</span>
@@ -219,8 +264,52 @@ interface BonusRule {
               *ngFor="let icon of availableIcons"
               class="icon-option"
               [class.selected]="newBonus.icon === icon.id"
-              (click)="newBonus.icon = icon.id"
-              [innerHTML]="getSafeHtml(icon.svg)">
+              (click)="newBonus.icon = icon.id">
+              <ng-container [ngSwitch]="icon.id">
+                <svg *ngSwitchCase="'wallet'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M16 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <path d="M2 10h20" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+                <svg *ngSwitchCase="'party'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6L12 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                </svg>
+                <svg *ngSwitchCase="'cake'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 21H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1z" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M3 16h18" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 12V9m-4 3V10m8 2V10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <circle cx="8" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                  <circle cx="12" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                  <circle cx="16" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+                <svg *ngSwitchCase="'share'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                  <circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                  <circle cx="18" cy="19" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M8.5 13.5l7 4M15.5 6.5l-7 4" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+                <svg *ngSwitchCase="'gift'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 12v9H4v-9" stroke="currentColor" stroke-width="1.2"/>
+                  <rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 22V7" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+                <svg *ngSwitchCase="'percent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="1.2"/>
+                  <circle cx="15" cy="15" r="2" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M5 19L19 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                <svg *ngSwitchCase="'heart'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+                <svg *ngSwitchCase="'trophy'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 15a6 6 0 0 0 6-6V3H6v6a6 6 0 0 0 6 6z" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M12 15v3m-4 3h8m-6 0v-3m4 3v-3" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+              </ng-container>
             </button>
           </div>
         </div>
@@ -302,8 +391,8 @@ interface BonusRule {
     }
 
     .config-icon {
-      width: 42px;
-      height: 42px;
+      width: 48px;
+      height: 48px;
       background: #f1f5f9;
       border-radius: 10px;
       display: flex;
@@ -313,9 +402,10 @@ interface BonusRule {
     }
 
     .config-icon svg {
-      width: 20px;
-      height: 20px;
-      color: #64748b;
+      width: 24px;
+      height: 24px;
+      color: #475569;
+      display: block;
     }
 
     .config-card.active-config .config-icon {
@@ -434,6 +524,7 @@ interface BonusRule {
     .expiration-icon {
       width: 12px;
       height: 12px;
+      display: block;
     }
 
     .btn-config-card {
@@ -487,6 +578,7 @@ interface BonusRule {
       width: 48px;
       height: 48px;
       margin-bottom: 12px;
+      display: block;
     }
 
     .add-text {
@@ -611,6 +703,7 @@ interface BonusRule {
       height: 16px;
       color: #64748b;
       transition: color 0.2s;
+      display: block;
     }
 
     .unit-option.selected .unit-icon-svg {
@@ -677,9 +770,10 @@ interface BonusRule {
     }
 
     .icon-option svg {
-      width: 18px;
-      height: 18px;
-      color: #64748b;
+      width: 20px;
+      height: 20px;
+      color: #475569;
+      display: block;
     }
 
     .icon-option.selected svg {
@@ -735,6 +829,7 @@ interface BonusRule {
     .delete-icon {
       width: 18px;
       height: 18px;
+      display: block;
     }
 
     .submit-btn:disabled {
@@ -760,7 +855,6 @@ interface BonusRule {
 })
 export class BonusProgramPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
-  private sanitizer = inject(DomSanitizer);
 
   bonusRules: BonusRule[] = [
     {
@@ -812,35 +906,35 @@ export class BonusProgramPageComponent implements OnInit {
   availableIcons = [
     { 
       id: 'wallet', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M16 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M16 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.2"/></svg>' 
     },
     { 
       id: 'party', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6L12 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6L12 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>' 
     },
     { 
       id: 'cake', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><path d="M20 21H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1z" stroke="currentColor" stroke-width="1.2"/><path d="M3 16h18" stroke="currentColor" stroke-width="1.2"/><path d="M12 12V9m-4 3V10m8 2V10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/><circle cx="16" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M20 21H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1z" stroke="currentColor" stroke-width="1.2"/><path d="M3 16h18" stroke="currentColor" stroke-width="1.2"/><path d="M12 12V9m-4 3V10m8 2V10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/><circle cx="16" cy="6" r="1" stroke="currentColor" stroke-width="1.2"/></svg>' 
     },
     { 
       id: 'share', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="18" cy="19" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M8.5 13.5l7 4M15.5 6.5l-7 4" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="18" cy="19" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M8.5 13.5l7 4M15.5 6.5l-7 4" stroke="currentColor" stroke-width="1.2"/></svg>' 
     },
     { 
       id: 'gift', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><path d="M20 12v9H4v-9" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.2"/><path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5" stroke="currentColor" stroke-width="1.2"/><path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M20 12v9H4v-9" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.2"/><path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5" stroke="currentColor" stroke-width="1.2"/><path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5" stroke="currentColor" stroke-width="1.2"/></svg>' 
     },
     { 
       id: 'percent', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="15" cy="15" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 19L19 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="15" cy="15" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 19L19 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' 
     },
     { 
       id: 'heart', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.2"/></svg>' 
     },
     { 
       id: 'trophy', 
-      svg: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke="currentColor" stroke-width="1.2"/><path d="M12 15a6 6 0 0 0 6-6V3H6v6a6 6 0 0 0 6 6z" stroke="currentColor" stroke-width="1.2"/><path d="M12 15v3m-4 3h8m-6 0v-3m4 3v-3" stroke="currentColor" stroke-width="1.2"/></svg>' 
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke="currentColor" stroke-width="1.2"/><path d="M12 15a6 6 0 0 0 6-6V3H6v6a6 6 0 0 0 6 6z" stroke="currentColor" stroke-width="1.2"/><path d="M12 15v3m-4 3h8m-6 0v-3m4 3v-3" stroke="currentColor" stroke-width="1.2"/></svg>' 
     }
   ];
 
@@ -866,15 +960,6 @@ export class BonusProgramPageComponent implements OnInit {
     ]);
   }
 
-  getIcon(iconId: string): SafeHtml {
-    const icon = this.availableIcons.find(i => i.id === iconId);
-    const svg = icon ? icon.svg : '';
-    return this.sanitizer.bypassSecurityTrustHtml(svg);
-  }
-
-  getSafeHtml(html: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(html);
-  }
 
   toggleBonus(rule: BonusRule): void {
     rule.active = !rule.active;

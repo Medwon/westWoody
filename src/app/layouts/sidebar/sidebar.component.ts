@@ -678,6 +678,8 @@ export interface SidebarMenuItem {
       transition: margin-left 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
       will-change: margin-left;
       overflow-x: hidden;
+      overflow-y: auto;
+      height: 100vh;
       width: calc(100vw - 240px);
       max-width: calc(100vw - 240px);
     }
@@ -754,10 +756,9 @@ export class SidebarComponent {
       route: '/clients' 
     },
     { 
-      label: 'Бонусная программа', 
-      iconPath: '<path d="M20 12v10H4V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c-2.5-2.5-5-3-5-5a2.5 2.5 0 0 1 5 0c0 2-2.5 2.5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c2.5-2.5 5-3 5-5a2.5 2.5 0 0 0-5 0c0 2 2.5 2.5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
-      route: '/bonus-program',
-      exact: false
+      label: 'Платежи', 
+      iconPath: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
+      route: '/payments' 
     },
     { 
       label: 'Коммуникации', 
@@ -776,14 +777,15 @@ export class SidebarComponent {
       ]
     },
     { 
-      label: 'Финансы', 
-      iconPath: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
-      route: '/finance' 
+      label: 'Бонусная программа', 
+      iconPath: '<path d="M20 12v10H4V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c-2.5-2.5-5-3-5-5a2.5 2.5 0 0 1 5 0c0 2-2.5 2.5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c2.5-2.5 5-3 5-5a2.5 2.5 0 0 0-5 0c0 2 2.5 2.5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
+      route: '/bonus-program',
+      exact: false
     },
     { 
-      label: 'Отчёты', 
-      iconPath: '<line x1="18" y1="20" x2="18" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="20" x2="12" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="20" x2="6" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
-      route: '/reports' 
+      label: 'Пользователи', 
+      iconPath: '<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
+      route: '/users' 
     },
   ];
 

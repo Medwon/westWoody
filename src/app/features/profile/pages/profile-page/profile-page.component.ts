@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
@@ -246,16 +246,6 @@ interface ActivityItem {
                   <option value="business">Бизнес</option>
                 </select>
               </div>
-              <div class="info-row">
-                <span class="info-label">Статус</span>
-                <app-badge *ngIf="!isEditingPersonal" [badgeType]="mockClient.active ? 'success' : 'danger'" size="small">
-                  {{ mockClient.active ? 'Активен' : 'Неактивен' }}
-                </app-badge>
-                <select class="info-select" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.active">
-                  <option [ngValue]="true">Активен</option>
-                  <option [ngValue]="false">Неактивен</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -305,7 +295,7 @@ interface ActivityItem {
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </div>
-              <h3 class="card-title">История операций</h3>
+              <h3 class="card-title">История платежей</h3>
             </div>
           </div>
           <div class="activity-list">
@@ -1009,7 +999,7 @@ interface ActivityItem {
       font-size: 0.9rem;
       font-family: inherit;
       text-align: right;
-      min-width: 160px;
+      width: 200px;
       background: linear-gradient(to bottom, #ffffff, #f8fafc);
       color: #1f2937;
       font-weight: 500;
@@ -1040,7 +1030,7 @@ interface ActivityItem {
       border-radius: 10px;
       font-size: 0.9rem;
       font-family: inherit;
-      min-width: 170px;
+      width: 200px;
       background: linear-gradient(to bottom, #ffffff, #f8fafc);
       color: #1f2937;
       font-weight: 500;
@@ -1303,7 +1293,7 @@ interface ActivityItem {
     }
   `]
 })
-export class ProfilePageComponent implements OnInit {
+export class ProfilePageComponent implements OnInit, AfterViewInit {
   private pageHeaderService = inject(PageHeaderService);
 
   isEditingComment = false;
@@ -1335,8 +1325,7 @@ export class ProfilePageComponent implements OnInit {
   editedPersonal = {
     firstName: '',
     lastName: '',
-    type: 'individual' as 'individual' | 'business',
-    active: true
+    type: 'individual' as 'individual' | 'business'
   };
   
   isEditingContacts = false;
@@ -1373,6 +1362,15 @@ export class ProfilePageComponent implements OnInit {
       { label: 'Клиенты', route: '/clients' },
       { label: 'Профиль клиента' }
     ]);
+  }
+
+  ngAfterViewInit(): void {
+    // Прокручиваем страницу в начало после полной загрузки DOM
+    const sidebarContent = document.querySelector('.sidebar-content');
+    if (sidebarContent) {
+      sidebarContent.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
   }
 
   getFullName(): string {
@@ -1450,8 +1448,7 @@ export class ProfilePageComponent implements OnInit {
     this.editedPersonal = {
       firstName: this.mockClient.firstName,
       lastName: this.mockClient.lastName,
-      type: this.mockClient.type,
-      active: this.mockClient.active
+      type: this.mockClient.type
     };
     this.isEditingPersonal = true;
   }
@@ -1460,7 +1457,6 @@ export class ProfilePageComponent implements OnInit {
     this.mockClient.firstName = this.editedPersonal.firstName;
     this.mockClient.lastName = this.editedPersonal.lastName;
     this.mockClient.type = this.editedPersonal.type;
-    this.mockClient.active = this.editedPersonal.active;
     this.isEditingPersonal = false;
   }
 

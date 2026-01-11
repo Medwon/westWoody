@@ -46,6 +46,26 @@ export const routes: Routes = [
         path: 'clients',
         loadComponent: () => import('./features/clients/pages/clients-page/clients-page.component').then(m => m.ClientsPageComponent)
         // canActivate: [authGuard]
+      },
+      {
+        path: 'clients/:id',
+        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent)
+        // canActivate: [authGuard]
+      },
+      {
+        path: 'payments',
+        loadComponent: () => import('./features/payments/pages/payments-page/payments-page.component').then(m => m.PaymentsPageComponent)
+        // canActivate: [authGuard]
+      },
+      {
+        path: 'users',
+        loadComponent: () => import('./features/users/pages/users-page/users-page.component').then(m => m.UsersPageComponent)
+        // canActivate: [authGuard]
+      },
+      {
+        path: 'users/:id',
+        loadComponent: () => import('./features/users/pages/user-profile-page/user-profile-page.component').then(m => m.UserProfilePageComponent)
+        // canActivate: [authGuard]
       }
     ]
   },

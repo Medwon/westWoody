@@ -1,5 +1,5 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
@@ -14,7 +14,13 @@ import { authInterceptor } from './app/core/services/http-interceptor.service';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideRouter(routes),
+    provideRouter(
+      routes,
+      withInMemoryScrolling({
+        scrollPositionRestoration: 'top',
+        anchorScrolling: 'enabled'
+      })
+    ),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideStore(appReducers),
     provideEffects([AuthEffects]),
