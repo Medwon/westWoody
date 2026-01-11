@@ -9,6 +9,8 @@ import { User } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 
 interface KpiCard {
   iconId: 'revenue' | 'bonus' | 'clients' | 'transactions' | 'refunds' | 'average' | 'today' | 'month';
@@ -36,18 +38,21 @@ interface RecentPayment {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent],
   template: `
     <div class="page-wrapper">
       <div class="dashboard">
       <!-- Header -->
       <div class="dashboard-header">
-        <button class="new-transaction-btn" (click)="openTransactionModal()">
+        <app-button
+          buttonType="primary"
+          size="medium"
+          (onClick)="openTransactionModal()">
           <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Новая транзакция
-        </button>
+        </app-button>
       </div>
 
       <!-- KPI Cards -->
@@ -253,18 +258,23 @@ interface RecentPayment {
                 </td>
                 <td class="td-actions">
                   <div class="actions-cell">
-                    <button class="action-btn view" [routerLink]="['/clients', payment.clientId]" title="Просмотр клиента">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </button>
-                    <button class="action-btn edit" title="Редактировать">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                    <a [routerLink]="['/clients', payment.clientId]" title="Просмотр клиента" class="action-link">
+                      <app-button buttonType="ghost" size="small">
+                        <svg viewBox="0 0 24 24" fill="none">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                      </app-button>
+                    </a>
+                    <app-button
+                      buttonType="ghost"
+                      size="small"
+                      title="Редактировать">
+                      <svg viewBox="0 0 24 24" fill="none">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
                       </svg>
-                    </button>
+                    </app-button>
                   </div>
                 </td>
               </tr>
@@ -744,6 +754,35 @@ interface RecentPayment {
     .actions-cell {
       display: flex;
       gap: 0.5rem;
+      align-items: center;
+    }
+
+    .action-link {
+      display: inline-flex;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Стили для SVG внутри app-button */
+    :host ::ng-deep app-button svg,
+    app-button svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    :host ::ng-deep app-button.size-small svg,
+    app-button.size-small svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .btn-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
     }
 
     .action-btn {

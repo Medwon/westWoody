@@ -23,7 +23,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         <span *ngIf="prefix" class="input-prefix">{{ prefix }}</span>
         <input
           [id]="id"
-          [type]="type"
+          [type]="getInputType()"
           [placeholder]="placeholder"
           [value]="value"
           [disabled]="disabled"
@@ -34,9 +34,24 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
           (focus)="onFocus()"
           [class.error]="hasError || !!errorMessage"
           [class.has-prefix]="prefix"
-          [class.has-suffix]="suffix"
+          [class.has-suffix]="suffix || (showPasswordToggle && type === 'password')"
         />
         <span *ngIf="suffix" class="input-suffix">{{ suffix }}</span>
+        <button
+          *ngIf="showPasswordToggle && type === 'password'"
+          type="button"
+          class="password-toggle-btn"
+          (click)="togglePasswordVisibility()"
+          [attr.aria-label]="showPassword ? 'Скрыть пароль' : 'Показать пароль'">
+          <svg *ngIf="!showPassword" viewBox="0 0 24 24" fill="none" class="eye-icon">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg *ngIf="showPassword" viewBox="0 0 24 24" fill="none" class="eye-icon">
+            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
       <div class="input-footer">
         <span *ngIf="errorMessage" class="error-message">{{ errorMessage }}</span>
@@ -132,6 +147,36 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       right: 0.875rem;
     }
 
+    .password-toggle-btn {
+      position: absolute;
+      right: 0.75rem;
+      background: none;
+      border: none;
+      padding: 0.25rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      transition: color 0.2s ease;
+      z-index: 1;
+    }
+
+    .password-toggle-btn:hover {
+      color: #1a202c;
+    }
+
+    .password-toggle-btn:focus {
+      outline: none;
+      color: #15803d;
+    }
+
+    .eye-icon {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
     .input-footer {
       display: flex;
       justify-content: space-between;
@@ -170,9 +215,11 @@ export class InputComponent implements ControlValueAccessor {
   @Input() suffix = '';
   @Input() maxLength?: number;
   @Input() showCharCount = false;
+  @Input() showPasswordToggle = false;
 
   value = '';
   hasError = false;
+  showPassword = false;
 
   private onChange = (value: string) => {};
   private onTouched = () => {};
@@ -210,6 +257,17 @@ export class InputComponent implements ControlValueAccessor {
 
   setDisabledState(isDisabled: boolean): void {
     this.disabled = isDisabled;
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  getInputType(): string {
+    if (this.type === 'password' && this.showPassword) {
+      return 'text';
+    }
+    return this.type;
   }
 }
 

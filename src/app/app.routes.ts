@@ -19,23 +19,33 @@ export const routes: Routes = [
     children: [
       {
         path: 'home',
-        loadComponent: () => import('./features/home/pages/home-page/home-page.component').then(m => m.HomePageComponent)
-        // canActivate: [authGuard] // Временно отключено для тестирования sidebar
+        loadComponent: () => import('./features/home/pages/home-page/home-page.component').then(m => m.HomePageComponent),
+        //canActivate: [authGuard] // Временно отключено для тестирования sidebar
       },
       {
         path: 'profile',
-        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent)
-        // canActivate: [authGuard] // Временно отключено для тестирования sidebar
+        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent),
+        //canActivate: [authGuard] // Временно отключено для тестирования sidebar
       },
       {
-        path: 'invitation',
-        loadComponent: () => import('./features/invitation/pages/invitation-page/invitation-page.component').then(m => m.InvitationPageComponent)
-        // canActivate: [authGuard]
-      },
-      {
-        path: 'invitation-email',
-        loadComponent: () => import('./features/invitation/pages/email-invitation-page/email-invitation-page.component').then(m => m.EmailInvitationPageComponent)
-        // canActivate: [authGuard]
+        path: 'communications',
+        children: [
+          {
+            path: '',
+            redirectTo: 'whatsapp',
+            pathMatch: 'full'
+          },
+          {
+            path: 'whatsapp',
+            loadComponent: () => import('./features/invitation/pages/invitation-page/invitation-page.component').then(m => m.InvitationPageComponent)
+            // canActivate: [authGuard]
+          },
+          {
+            path: 'email',
+            loadComponent: () => import('./features/invitation/pages/email-invitation-page/email-invitation-page.component').then(m => m.EmailInvitationPageComponent)
+            // canActivate: [authGuard]
+          }
+        ]
       },
       {
         path: 'bonus-program',

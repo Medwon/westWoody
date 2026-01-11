@@ -35,12 +35,15 @@ interface User {
       <div class="users-container">
         <!-- Header with Add Button -->
         <div class="page-header-section">
-          <button class="add-user-btn" (click)="openAddUserModal()">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <app-button
+            buttonType="primary"
+            size="medium"
+            (onClick)="openAddUserModal()">
+            <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             Добавить нового пользователя
-          </button>
+          </app-button>
         </div>
 
         <!-- Users Table -->
@@ -79,32 +82,46 @@ interface User {
                 </td>
                 <td>
                   <div class="actions-cell">
-                    <button class="action-btn view" [routerLink]="['/users', user.id]" title="Просмотреть">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </button>
+                    <a [routerLink]="['/users', user.id]" title="Просмотреть" class="action-link">
+                      <app-button buttonType="ghost" size="small">
+                        <svg viewBox="0 0 24 24" fill="none">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                      </app-button>
+                    </a>
                     <ng-container *ngIf="user.status !== 'closed'">
-                      <button class="action-btn lock" (click)="closeUser(user)" title="Закрыть профиль">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                      <app-button
+                        buttonType="ghost"
+                        size="small"
+                        (onClick)="closeUser(user)"
+                        title="Закрыть профиль">
+                        <svg viewBox="0 0 24 24" fill="none">
                           <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
                           <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.5"/>
                         </svg>
-                      </button>
+                      </app-button>
                     </ng-container>
                     <ng-container *ngIf="user.status === 'closed'">
-                      <button class="action-btn delete" (click)="deleteUser(user)" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                      <app-button
+                        buttonType="ghost"
+                        size="small"
+                        (onClick)="deleteUser(user)"
+                        title="Удалить">
+                        <svg viewBox="0 0 24 24" fill="none">
                           <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"/>
                           <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5"/>
                         </svg>
-                      </button>
-                      <button class="action-btn activate" (click)="activateUser(user)" title="Активировать обратно">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                      </app-button>
+                      <app-button
+                        buttonType="ghost"
+                        size="small"
+                        (onClick)="activateUser(user)"
+                        title="Активировать обратно">
+                        <svg viewBox="0 0 24 24" fill="none">
                           <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                      </button>
+                      </app-button>
                     </ng-container>
                   </div>
                 </td>
@@ -343,6 +360,34 @@ interface User {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .action-link {
+      display: inline-flex;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Стили для SVG внутри app-button */
+    :host ::ng-deep app-button svg,
+    app-button svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    :host ::ng-deep app-button.size-small svg,
+    app-button.size-small svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .btn-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
     }
 
     .action-btn {

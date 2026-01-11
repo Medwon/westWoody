@@ -52,12 +52,10 @@ export interface MessageTemplate {
             buttonType="primary"
             size="medium"
             (onClick)="openCreateTemplateModal()">
-            <span class="btn-content">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              Создать новый вид сообщения
-            </span>
+            <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Создать новый вид сообщения
           </app-button>
         </div>
 
@@ -71,6 +69,16 @@ export interface MessageTemplate {
             </div>
             <p class="template-preview">{{ getTemplatePreview(template.content) }}</p>
             <div class="template-actions">
+              <button 
+                *ngIf="invitationType === 'whatsapp'"
+                class="template-action-btn preview-btn" 
+                (click)="openPreview(template, $event)" 
+                title="Предпросмотр">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
               <button class="template-action-btn" (click)="editTemplate(template, $event)" title="Редактировать">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
@@ -97,7 +105,7 @@ export interface MessageTemplate {
       </div>
 
       <!-- Collapsible Form Section -->
-      <div class="collapsible-section">
+      <div class="collapsible-section" *ngIf="!hideForm">
         <div class="collapsed-view" *ngIf="isFormCollapsed" (click)="toggleFormCollapse()">
           <div class="collapsed-content">
             <div class="collapsed-icon" [innerHTML]="getSafeIconSvg()" [style.background]="getIconGradient()"></div>
@@ -394,6 +402,25 @@ export interface MessageTemplate {
           </app-button>
         </div>
       </ng-container>
+    </app-modal>
+
+    <!-- Preview Template Modal -->
+    <app-modal
+      [visible]="showPreviewModal"
+      title="Предпросмотр сообщения"
+      [showCloseButton]="true"
+      (closed)="closePreview()">
+      <div class="preview-content">
+        <p class="preview-description">Так будет выглядеть ваше сообщение в WhatsApp</p>
+        <app-whatsapp-preview
+          *ngIf="previewTemplate"
+          [contactName]="'Получатель'"
+          [avatarLetter]="'П'"
+          [message]="previewTemplate.content"
+          [showInputBar]="true"
+          [noShadow]="true">
+        </app-whatsapp-preview>
+      </div>
     </app-modal>
   `,
   styles: [`
@@ -698,10 +725,11 @@ export interface MessageTemplate {
       transform: translateY(-2px);
     }
 
-    .btn-content {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+    .btn-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
     }
 
     .wa-icon, .email-icon {
@@ -1229,6 +1257,17 @@ export interface MessageTemplate {
       margin-top: 0.5rem;
     }
 
+    /* Preview Modal */
+    .preview-content {
+      padding: 0.5rem 0;
+    }
+
+    .preview-description {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0 0 1.5rem 0;
+    }
+
     :host ::ng-deep .modal-footer app-button button {
       padding: 0.75rem 1.5rem !important;
       font-weight: 600 !important;
@@ -1261,9 +1300,20 @@ export interface MessageTemplate {
         grid-template-columns: 1fr;
       }
 
-      :host ::ng-deep .left-panel .card-body {
-        padding: 1.5rem !important;
-      }
+    :host ::ng-deep .left-panel .card-body {
+      padding: 1.5rem !important;
+    }
+  }
+
+    /* Preview Modal */
+    .preview-content {
+      padding: 0.5rem 0;
+    }
+
+    .preview-description {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0 0 1.5rem 0;
     }
   `]
 })
@@ -1281,6 +1331,7 @@ export class InvitationFormComponent implements AfterViewInit {
   @Input() isSending = false;
   @Input() successMessage = '';
   @Input() errorMessage = '';
+  @Input() hideForm = false;
   @Output() formSubmit = new EventEmitter<void>();
   @Output() templateSelected = new EventEmitter<MessageTemplate>();
   @Output() templateCreated = new EventEmitter<MessageTemplate>();
@@ -1289,6 +1340,8 @@ export class InvitationFormComponent implements AfterViewInit {
 
   isFormCollapsed = false;
   showCreateTemplateModal = false;
+  showPreviewModal = false;
+  previewTemplate: MessageTemplate | null = null;
   editingTemplateId: string | null = null;
 
   newTemplate: MessageTemplate = {
@@ -1453,6 +1506,17 @@ export class InvitationFormComponent implements AfterViewInit {
   deleteTemplate(templateId: string, event: Event): void {
     event.stopPropagation();
     this.templateDeleted.emit(templateId);
+  }
+
+  openPreview(template: MessageTemplate, event: Event): void {
+    event.stopPropagation();
+    this.previewTemplate = template;
+    this.showPreviewModal = true;
+  }
+
+  closePreview(): void {
+    this.showPreviewModal = false;
+    this.previewTemplate = null;
   }
 
   getPreviewMessage(): string {

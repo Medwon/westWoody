@@ -36,6 +36,18 @@ export type ButtonSize = 'small' | 'medium' | 'large';
       white-space: nowrap;
     }
 
+    button svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    button.small svg {
+      width: 16px;
+      height: 16px;
+    }
+
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -46,20 +58,9 @@ export type ButtonSize = 'small' | 'medium' | 'large';
       color: #ffffff;
     }
 
-    button.primary:hover:not(:disabled) {
-      background-color: var(--primary-color-hover, #0056b3);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-    }
-
     button.secondary {
       background-color: #6c757d;
       color: #ffffff;
-    }
-
-    button.secondary:hover:not(:disabled) {
-      background-color: #545b62;
-      transform: translateY(-1px);
     }
 
     button.danger {
@@ -67,21 +68,9 @@ export type ButtonSize = 'small' | 'medium' | 'large';
       color: #ffffff;
     }
 
-    button.danger:hover:not(:disabled) {
-      background-color: #c82333;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-    }
-
     button.success {
       background-color: #28a745;
       color: #ffffff;
-    }
-
-    button.success:hover:not(:disabled) {
-      background-color: #218838;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
     }
 
     button.outline {
@@ -90,19 +79,9 @@ export type ButtonSize = 'small' | 'medium' | 'large';
       color: var(--primary-color, #007bff);
     }
 
-    button.outline:hover:not(:disabled) {
-      background-color: var(--primary-color, #007bff);
-      color: #ffffff;
-    }
-
     button.ghost {
       background-color: transparent;
       color: #64748b;
-    }
-
-    button.ghost:hover:not(:disabled) {
-      background-color: #f1f5f9;
-      color: #1a202c;
     }
 
     button.small {

@@ -1,6 +1,7 @@
 export * from './accordion/accordion.component';
 export * from './alert/alert.component';
 export * from './app-bar/app-bar.component';
+export * from './auth-promo-panel/auth-promo-panel.component';
 export * from './autocomplete/autocomplete.component';
 export * from './avatar/avatar.component';
 export * from './badge/badge.component';

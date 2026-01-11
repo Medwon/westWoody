@@ -9,12 +9,11 @@ import { AppState } from '../../../../core/store/app.state';
 import { register, clearError } from '../../../../core/store/auth/auth.actions';
 import { selectIsLoading, selectAuthError } from '../../../../core/store/auth/auth.selectors';
 import { RegisterRequest } from '../../../../core/models/user.model';
-import { CardComponent } from '../../../../shared/components/card/card.component';
 import { AlertComponent } from '../../../../shared/components/alert/alert.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LinkComponent } from '../../../../shared/components/link/link.component';
-import { TypographyComponent } from '../../../../shared/components/typography/typography.component';
+import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
 
 @Component({
   selector: 'app-register-page',
@@ -23,30 +22,30 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
     CommonModule, 
     ReactiveFormsModule, 
     RouterModule, 
-    CardComponent, 
     AlertComponent,
     InputComponent, 
     ButtonComponent, 
-    LinkComponent, 
-    TypographyComponent
+    LinkComponent,
+    AuthPromoPanelComponent
   ],
   template: `
     <div class="register-page">
-      <app-card [shadow]="true" class="register-card">
-        <div class="register-header">
-          <div class="logo">
-            <svg viewBox="0 0 24 24" fill="none" class="logo-icon">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.8"/>
-              <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="logo-text">WestWood</span>
+      <!-- Left Promotional Panel -->
+      <app-auth-promo-panel></app-auth-promo-panel>
+
+      <!-- Right Register Form Panel -->
+      <div class="form-panel">
+        <div class="form-content">
+          <div class="form-header">
+            <h2 class="brand-name">WestWood</h2>
+            <h3 class="welcome-title">Создайте аккаунт</h3>
+            <p class="login-prompt">
+              Уже есть аккаунт?
+              <app-link routerLink="/auth/login">
+                <strong>Войти</strong>
+              </app-link>
+            </p>
           </div>
-          <app-typography variant="h2">Регистрация</app-typography>
-          <app-typography variant="body2" [muted]="true">
-            Создайте новый аккаунт для доступа к системе
-          </app-typography>
-        </div>
 
         <app-alert
           *ngIf="error$ | async as error"
@@ -82,16 +81,6 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
           </div>
 
           <app-input
-            id="username"
-            label="Имя пользователя"
-            type="text"
-            placeholder="Введите имя пользователя"
-            formControlName="username"
-            [errorMessage]="getErrorMessage('username')"
-            [required]="true">
-          </app-input>
-
-          <app-input
             id="email"
             label="Email"
             type="email"
@@ -108,7 +97,8 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
             placeholder="Введите пароль"
             formControlName="password"
             [errorMessage]="getErrorMessage('password')"
-            [required]="true">
+            [required]="true"
+            [showPasswordToggle]="true">
           </app-input>
 
           <app-input
@@ -118,7 +108,8 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
             placeholder="Подтвердите пароль"
             formControlName="confirmPassword"
             [errorMessage]="getErrorMessage('confirmPassword')"
-            [required]="true">
+            [required]="true"
+            [showPasswordToggle]="true">
           </app-input>
 
           <app-button
@@ -129,70 +120,98 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
             class="submit-button">
             Зарегистрироваться
           </app-button>
-
-          <div class="login-link">
-            <app-typography variant="body2" [muted]="true">
-              Уже есть аккаунт?
-              <app-link routerLink="/auth/login"> Войти</app-link>
-            </app-typography>
-          </div>
         </form>
-      </app-card>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
     .register-page {
       display: flex;
-      justify-content: center;
-      align-items: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #15803d 0%, #166534 100%);
-      padding: 2rem;
+      height: 100vh;
+      background: #ffffff;
     }
 
-    .register-card {
-      width: 100%;
-      max-width: 500px;
-    }
-
-    .register-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .logo {
+    /* Right Form Panel */
+    .form-panel {
+      flex: 0 0 45%;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      margin-bottom: 1.5rem;
+      padding: 3rem;
+      background: #ffffff;
+      overflow-y: auto;
     }
 
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      color: #15803d;
+    .form-content {
+      width: 100%;
+      max-width: 416px;
+      animation: slideUp 0.5s ease-out;
     }
 
-    .logo-text {
-      font-size: 1.5rem;
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-header {
+      margin-bottom: 2.5rem;
+    }
+
+    .brand-name {
+      font-size: 1.75rem;
       font-weight: 700;
       color: #1a202c;
+      margin: 0 0 0.75rem 0;
       letter-spacing: -0.02em;
     }
 
-    .register-header app-typography:first-of-type {
-      margin-bottom: 0.5rem;
+    .welcome-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0 0 1rem 0;
+    }
+
+    .login-prompt {
+      font-size: 0.9375rem;
+      color: #64748b;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    :host ::ng-deep .login-prompt app-link a {
+      color: #15803d;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
+    :host ::ng-deep .login-prompt app-link a strong {
+      color: #0F0F10 !important;
     }
 
     .error-alert {
       margin-bottom: 1.5rem;
+      animation: shake 0.5s ease-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
     }
 
     .register-form {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 0.5rem;
     }
 
     .form-row {
@@ -201,7 +220,7 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
       gap: 1rem;
     }
 
-    @media (max-width: 500px) {
+    @media (max-width: 640px) {
       .form-row {
         grid-template-columns: 1fr;
       }
@@ -212,18 +231,37 @@ import { TypographyComponent } from '../../../../shared/components/typography/ty
       margin-top: 0.5rem;
     }
 
-    .login-link {
-      text-align: center;
-      margin-top: 1rem;
-    }
-
     :host ::ng-deep .submit-button button {
       width: 100%;
+      padding: 0.875rem 1.5rem !important;
+      font-size: 1rem !important;
+      font-weight: 600 !important;
+      border-radius: 4px !important;
+      background-color: #0F0F10 !important;
+      color: white !important;
+      transition: all 0.2s ease !important;
     }
 
-    :host ::ng-deep .login-link a {
-      color: #15803d;
-      font-weight: 600;
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .register-page {
+        flex-direction: column;
+      }
+
+      .form-panel {
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .form-panel {
+        padding: 1.5rem;
+      }
+
+      .form-content {
+        max-width: 100%;
+      }
     }
   `]
 })
@@ -241,7 +279,6 @@ export class RegisterPageComponent implements OnDestroy {
     this.registerForm = this.fb.group({
       firstName: ['', [Validators.required]],
       lastName: ['', [Validators.required]],
-      username: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]]
@@ -272,7 +309,7 @@ export class RegisterPageComponent implements OnDestroy {
     if (this.registerForm.valid) {
       const formValue = this.registerForm.value;
       const registerData: RegisterRequest = {
-        username: formValue.username,
+        username: formValue.email, // Используем email как username
         email: formValue.email,
         password: formValue.password,
         firstName: formValue.firstName,

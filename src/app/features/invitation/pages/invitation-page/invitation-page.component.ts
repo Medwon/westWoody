@@ -47,6 +47,7 @@ interface InvitationHistory {
         [isSending]="isSending"
         [successMessage]="successMessage"
         [errorMessage]="errorMessage"
+        [hideForm]="true"
         (formSubmit)="onSubmit()"
         (templateSelected)="onTemplateSelected($event)"
         (templateCreated)="onTemplateCreated($event)"
@@ -337,9 +338,9 @@ https://westwood.app/register`;
   }
 
   ngOnInit(): void {
-    this.pageHeaderService.setPageHeader('WhatsApp приглашения', [
+    this.pageHeaderService.setPageHeader('WhatsApp коммуникация', [
       { label: 'Главная', route: '/home' },
-      { label: 'Приглашения' },
+      { label: 'Коммуникация' },
       { label: 'WhatsApp' }
     ]);
   }

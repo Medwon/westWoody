@@ -353,9 +353,9 @@ export class EmailInvitationPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageHeaderService.setPageHeader('Email приглашения', [
+    this.pageHeaderService.setPageHeader('Email коммуникация', [
       { label: 'Главная', route: '/home' },
-      { label: 'Приглашения' },
+      { label: 'Коммуникация' },
       { label: 'Email' }
     ]);
   }
