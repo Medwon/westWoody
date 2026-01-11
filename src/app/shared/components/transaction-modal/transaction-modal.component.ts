@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDes
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalComponent } from '../modal/modal.component';
+import { ButtonComponent } from '../button/button.component';
 
 interface Client {
   id: string;
@@ -30,7 +31,8 @@ type ModalStep = 'search' | 'found' | 'new';
   imports: [
     CommonModule,
     FormsModule,
-    ModalComponent
+    ModalComponent,
+    ButtonComponent
   ],
   template: `
     <app-modal
@@ -322,6 +324,85 @@ type ModalStep = 'search' | 'found' | 'new';
 
         <button class="back-btn" (click)="goBack()">← Назад к поиску</button>
       </div>
+    </app-modal>
+
+    <!-- Send Welcome Message Modal -->
+    <app-modal
+      [visible]="showSendMessageModal"
+      title="Уведомить"
+      [showCloseButton]="true"
+      [showFooter]="true"
+      (closed)="closeSendMessageModal()"
+      size="large">
+      
+      <div class="send-message-content">
+        <!-- Selected Template -->
+        <div class="template-section" *ngIf="selectedWelcomeTemplate">
+          <label class="template-section-label">Выбранный шаблон</label>
+          <div class="template-card-display">
+            <div class="template-card-header">
+              <div class="template-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="template-info">
+                <h4 class="template-name-display">{{ selectedWelcomeTemplate.name }}</h4>
+                <span class="template-type-badge">{{ selectedWelcomeTemplate.type === 'bonus_accrued' ? 'Начисленные бонусы' : 'Срок истечения бонусов' }}</span>
+              </div>
+            </div>
+            <div class="template-content-display">
+              <p class="template-content-text">{{ selectedWelcomeTemplate.content }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone Number -->
+        <div class="phone-section">
+          <label class="phone-label">Номер телефона получателя</label>
+          <div class="phone-display">
+            <svg viewBox="0 0 24 24" fill="none" class="phone-icon">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span class="phone-number">{{ getPhoneForMessage() }}</span>
+          </div>
+        </div>
+
+        <!-- Message Content -->
+        <div class="message-content-section">
+          <label class="message-content-label">Содержимое сообщения</label>
+          <div class="message-content-box">
+            <p class="message-text">{{ getFormattedMessage() }}</p>
+          </div>
+        </div>
+      </div>
+
+      <ng-container modalFooter>
+        <div class="modal-footer">
+          <app-button
+            buttonType="secondary"
+            size="medium"
+            (onClick)="closeSendMessageModal()">
+            Отмена
+          </app-button>
+          <app-button
+            buttonType="success"
+            size="medium"
+            [loading]="isSendingMessage"
+            [disabled]="isSendingMessage"
+            (onClick)="sendWelcomeMessage()">
+            <span class="btn-content">
+              <svg viewBox="0 0 24 24" fill="none" class="send-icon">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/>
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/>
+      
+              </svg>
+              {{ isSendingMessage ? 'Отправка...' : 'Отправить' }}
+            </span>
+          </app-button>
+        </div>
+      </ng-container>
     </app-modal>
   `,
   styles: [`
@@ -930,12 +1011,207 @@ type ModalStep = 'search' | 'found' | 'new';
         transform: translateY(0);
       }
     }
+
+    /* Send Message Modal Styles */
+    .send-message-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      padding: 0.5rem 0;
+    }
+
+    .template-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .template-section-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .template-card-display {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: all 0.2s;
+    }
+
+    .template-card-display:hover {
+      border-color: #25D366;
+      box-shadow: 0 2px 8px rgba(37, 211, 102, 0.1);
+    }
+
+    .template-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .template-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .template-icon svg {
+      width: 20px;
+      height: 20px;
+      color: #16a34a;
+    }
+
+    .template-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .template-name-display {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    .template-type-badge {
+      font-size: 0.75rem;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .template-content-display {
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .template-content-text {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #1f2937;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .phone-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .phone-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .phone-display {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+
+    .phone-icon {
+      width: 20px;
+      height: 20px;
+      color: #15803d;
+      flex-shrink: 0;
+    }
+
+    .phone-number {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+      font-family: 'Courier New', monospace;
+    }
+
+    .message-content-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .message-content-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .message-content-box {
+      padding: 1.25rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .message-text {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #1f2937;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message-text :deep(.variable-tag) {
+      color: rgb(22, 158, 163) !important;
+      font-style: italic !important;
+      font-weight: 500 !important;
+      font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+      background: rgba(22, 158, 163, 0.2) !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+      border: 1px solid rgba(22, 158, 163, 0.3) !important;
+      display: inline !important;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.875rem;
+      padding: 1.25rem 0 0 0;
+      border-top: 2px solid #f1f5f9;
+      margin-top: 0.5rem;
+    }
+
+    .btn-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .send-icon {
+      width: 18px;
+      height: 18px;
+    }
   `]
 })
 export class TransactionModalComponent implements OnChanges, OnDestroy {
   @Input() visible = false;
+  @Input() welcomeMessageTemplates: any[] = []; // Шаблоны приветственных сообщений
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() transactionComplete = new EventEmitter<TransactionResult>();
+  @Output() messageSent = new EventEmitter<{ phone: string; message: string }>();
 
   currentStep: ModalStep = 'search';
   searchPhone = '';
@@ -950,6 +1226,12 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   newClientComment = '';
   isCommentExpanded = false;
   showTagsDropdown = false;
+
+  // Send message modal
+  showSendMessageModal = false;
+  isSendingMessage = false;
+  pendingTransactionResult: TransactionResult | null = null;
+  selectedWelcomeTemplate: any = null;
   
   // Список доступных тэгов
   availableTags: string[] = [
@@ -1105,8 +1387,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       isNewClient: false
     };
 
-    this.transactionComplete.emit(result);
-    this.onClose();
+    // Save transaction result and open send message modal
+    this.pendingTransactionResult = result;
+    this.openSendMessageModal();
   }
 
   createAndComplete(): void {
@@ -1120,8 +1403,131 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       isNewClient: true
     };
 
-    this.transactionComplete.emit(result);
-    this.onClose();
+    // Save transaction result and open send message modal
+    this.pendingTransactionResult = result;
+    this.openSendMessageModal();
+  }
+
+  openSendMessageModal(): void {
+    // Load templates from localStorage every time to get the latest version
+    const templates = this.loadWelcomeMessageTemplates();
+    
+    // Find welcome message template
+    this.selectedWelcomeTemplate = templates.find(
+      t => t.type === 'bonus_accrued' || t.name.toLowerCase().includes('привет')
+    ) || templates[0] || null;
+
+    this.showSendMessageModal = true;
+  }
+
+  private loadWelcomeMessageTemplates(): any[] {
+    try {
+      const templatesJson = localStorage.getItem('whatsapp_message_templates');
+      if (templatesJson) {
+        const templates = JSON.parse(templatesJson);
+        // Convert date strings back to Date objects
+        return templates.map((t: any) => ({
+          ...t,
+          createdAt: new Date(t.createdAt)
+        }));
+      } else {
+        // Default welcome template if none exist
+        return [{
+          id: 'default',
+          name: 'Приветственное сообщение',
+          type: 'bonus_accrued',
+          content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.',
+          createdAt: new Date()
+        }];
+      }
+    } catch (e) {
+      console.error('Failed to load templates', e);
+      return [];
+    }
+  }
+
+  closeSendMessageModal(): void {
+    this.showSendMessageModal = false;
+    this.isSendingMessage = false;
+    // Complete transaction after closing message modal
+    if (this.pendingTransactionResult) {
+      const result = this.pendingTransactionResult;
+      this.pendingTransactionResult = null;
+      // Close send message modal first, then complete transaction
+      setTimeout(() => {
+        this.transactionComplete.emit(result);
+        this.onClose();
+      }, 100);
+    }
+  }
+
+  getClientNameForMessage(): string {
+    if (this.pendingTransactionResult) {
+      return this.pendingTransactionResult.clientName;
+    }
+    return this.foundClient?.name || this.newClientName || 'Клиент';
+  }
+
+  getAvatarLetterForMessage(): string {
+    const name = this.getClientNameForMessage();
+    return name ? name[0].toUpperCase() : 'К';
+  }
+
+  getPhoneForMessage(): string {
+    if (this.pendingTransactionResult) {
+      return this.pendingTransactionResult.phone;
+    }
+    return this.foundClient?.phone || this.searchPhone || '';
+  }
+
+  getFormattedMessage(): string {
+    if (!this.selectedWelcomeTemplate) {
+      return 'Добро пожаловать! Спасибо за покупку.';
+    }
+
+    let message = this.selectedWelcomeTemplate.content || '';
+    const clientName = this.getClientNameForMessage();
+    const phone = this.getPhoneForMessage();
+    
+    // Replace variables in message
+    // Format: {variableName} (single braces, as used in templates)
+    message = message.replace(/\{clientName\}/g, clientName);
+    message = message.replace(/\{clientPhone\}/g, phone);
+    message = message.replace(/\{clientBonus\}/g, String(this.pendingTransactionResult?.bonuses || 0));
+    message = message.replace(/\{clientBonusExp\}/g, '30 дней');
+    message = message.replace(/\{clientEmail\}/g, '');
+    message = message.replace(/\{clientTotalAmount\}/g, String(this.pendingTransactionResult?.amount || 0));
+    message = message.replace(/\{clientTotalTransactions\}/g, '1');
+    message = message.replace(/\{clientLastVisit\}/g, 'Сегодня');
+
+    // Remove any HTML tags from the message (from variable tags)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = message;
+    message = tempDiv.textContent || tempDiv.innerText || message;
+
+    return message;
+  }
+
+  sendWelcomeMessage(): void {
+    if (this.isSendingMessage) return;
+
+    const phone = this.getPhoneForMessage();
+    const message = this.getFormattedMessage();
+
+    if (!phone || !message) {
+      return;
+    }
+
+    this.isSendingMessage = true;
+
+    // Emit event to parent component to handle WhatsApp sending
+    this.messageSent.emit({ phone, message });
+
+    // Simulate sending (in real app, this would be an API call)
+    setTimeout(() => {
+      this.isSendingMessage = false;
+      this.closeSendMessageModal();
+    }, 1500);
   }
 
   goBack(): void {

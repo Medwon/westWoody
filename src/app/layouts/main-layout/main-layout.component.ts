@@ -1,9 +1,10 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { PageHeaderComponent } from '../page-header/page-header.component';
 import { TransactionModalComponent } from '../../shared/components/transaction-modal/transaction-modal.component';
 import { TransactionModalService } from '../../core/services/transaction-modal.service';
+import { MessageTemplate } from '../../shared/components/invitation-form/invitation-form.component';
 
 @Component({
   selector: 'app-main-layout',
@@ -24,8 +25,10 @@ import { TransactionModalService } from '../../core/services/transaction-modal.s
     <!-- Global Transaction Modal -->
     <app-transaction-modal
       [visible]="(transactionModalService.visible$ | async) ?? false"
+      [welcomeMessageTemplates]="welcomeMessageTemplates"
       (visibleChange)="transactionModalService.close()"
-      (transactionComplete)="onTransactionComplete($event)">
+      (transactionComplete)="onTransactionComplete($event)"
+      (messageSent)="onMessageSent($event)">
     </app-transaction-modal>
   `,
   styles: [`
@@ -62,12 +65,17 @@ import { TransactionModalService } from '../../core/services/transaction-modal.s
     }
   `]
 })
-export class MainLayoutComponent {
+export class MainLayoutComponent implements OnInit {
   @ViewChild('sidebar') sidebar!: SidebarComponent;
   isSidebarCollapsed = false;
   isSidebarClosed = false;
   
   transactionModalService = inject(TransactionModalService);
+  welcomeMessageTemplates: MessageTemplate[] = [];
+
+  ngOnInit(): void {
+    this.loadWelcomeMessageTemplates();
+  }
 
   onSidebarCollapsed(collapsed: boolean): void {
     this.isSidebarCollapsed = collapsed;
@@ -80,6 +88,41 @@ export class MainLayoutComponent {
   onTransactionComplete(result: any): void {
     console.log('Transaction completed:', result);
     // Здесь можно добавить логику обработки транзакции
+  }
+
+  onMessageSent(event: { phone: string; message: string }): void {
+    console.log('Message sent:', event);
+    // Здесь можно добавить логику отправки сообщения через WhatsApp API
+    // Например, открыть WhatsApp Web с предзаполненным сообщением
+    const encodedMessage = encodeURIComponent(event.message);
+    const whatsappUrl = `https://wa.me/${event.phone.replace(/\D/g, '')}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  }
+
+  private loadWelcomeMessageTemplates(): void {
+    try {
+      const templatesJson = localStorage.getItem('whatsapp_message_templates');
+      if (templatesJson) {
+        const templates = JSON.parse(templatesJson);
+        // Convert date strings back to Date objects
+        this.welcomeMessageTemplates = templates.map((t: any) => ({
+          ...t,
+          createdAt: new Date(t.createdAt)
+        }));
+      } else {
+        // Default welcome template if none exist
+        this.welcomeMessageTemplates = [{
+          id: 'default',
+          name: 'Приветственное сообщение',
+          type: 'bonus_accrued',
+          content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.',
+          createdAt: new Date()
+        }];
+      }
+    } catch (e) {
+      console.error('Failed to load templates', e);
+      this.welcomeMessageTemplates = [];
+    }
   }
 
   getHeaderMarginLeft(): number {

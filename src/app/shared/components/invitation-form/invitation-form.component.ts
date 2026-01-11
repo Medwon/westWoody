@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CardComponent } from '../card/card.component';
@@ -171,17 +171,39 @@ export interface MessageTemplate {
                       {{ invitationType === 'email' ? 'Текст письма' : 'Текст приглашения' }}
                     </app-typography>
                     <app-typography variant="caption" [muted]="true">
-                      {{ form.get('message')?.value?.length || 0 }}/{{ invitationType === 'email' ? '1000' : '500' }}
+                      {{ getMessageLength() }}/{{ invitationType === 'email' ? '1000' : '500' }}
                     </app-typography>
                   </div>
-                  <textarea
-                    formControlName="message"
-                    class="message-textarea"
-                    rows="6"
-                    [placeholder]="invitationType === 'email' ? 'Напишите персональное приглашение...' : 'Напишите персональное приглашение...'"
-                    [maxlength]="invitationType === 'email' ? 1000 : 500"
-                    [attr.data-type]="invitationType">
-                  </textarea>
+                  <div class="textarea-wrapper" [attr.data-type]="invitationType">
+                    <div 
+                      #messageContentEditable
+                      class="message-textarea-editable"
+                      contenteditable="true"
+                      (input)="onMessageInput($event)"
+                      (keydown)="onMessageKeydown($event)"
+                      (click)="onMessageClick()"
+                      (blur)="onMessageBlur($event)"
+                      [attr.data-type]="invitationType"
+                      [attr.placeholder]="invitationType === 'email' ? 'Напишите персональное приглашение...' : 'Напишите персональное приглашение...'">
+                    </div>
+                    <div class="variables-dropdown" *ngIf="showMessageVariablesDropdown" [style.top.px]="messageDropdownPosition.top" [style.left.px]="messageDropdownPosition.left">
+                      <div class="variables-dropdown-header">
+                        <span>Переменные</span>
+                        <button type="button" class="variables-dropdown-close" (click)="closeMessageVariablesDropdown()">×</button>
+                      </div>
+                      <div class="variables-dropdown-list">
+                        <button 
+                          type="button"
+                          class="variable-option" 
+                          *ngFor="let variable of filteredMessageVariables"
+                          (click)="selectMessageVariable(variable)"
+                          [class.highlighted]="highlightedMessageVariableIndex === filteredMessageVariables.indexOf(variable)">
+                          <span class="variable-name">{{ getVariableDisplayName(variable.name) }}</span>
+                          <span class="variable-desc">{{ variable.description }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <app-divider [spaced]="true"></app-divider>
@@ -296,13 +318,37 @@ export interface MessageTemplate {
 
         <div class="form-group">
           <label class="form-label" [attr.data-type]="invitationType">Контент сообщения</label>
-            <textarea 
-            [(ngModel)]="newTemplate.content"
-            class="form-textarea"
-            rows="8"
-            placeholder="Введите текст сообщения..."
-            [attr.data-type]="invitationType"></textarea>
-          <div class="char-count">{{ newTemplate.content.length }}/{{ invitationType === 'email' ? '1000' : '500' }}</div>
+          <div class="textarea-wrapper" [attr.data-type]="invitationType">
+            <div 
+              #contentEditable
+              class="form-textarea-editable"
+              contenteditable="true"
+              (input)="onContentInput($event)"
+              (keydown)="onContentKeydown($event)"
+              (click)="onContentClick()"
+              (blur)="onContentBlur($event)"
+              [attr.data-type]="invitationType"
+              [attr.placeholder]="'Введите текст сообщения...'">
+            </div>
+            <div class="variables-dropdown" *ngIf="showVariablesDropdown" [style.top.px]="dropdownPosition.top" [style.left.px]="dropdownPosition.left">
+              <div class="variables-dropdown-header">
+                <span>Переменные</span>
+                <button type="button" class="variables-dropdown-close" (click)="closeVariablesDropdown()">×</button>
+              </div>
+              <div class="variables-dropdown-list">
+                <button 
+                  type="button"
+                  class="variable-option" 
+                  *ngFor="let variable of filteredVariables"
+                  (click)="selectVariable(variable)"
+                  [class.highlighted]="highlightedVariableIndex === filteredVariables.indexOf(variable)">
+                  <span class="variable-name">{{ getVariableDisplayName(variable.name) }}</span>
+                  <span class="variable-desc">{{ variable.description }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="char-count">{{ getPlainTextContent().length }}/{{ invitationType === 'email' ? '1000' : '500' }}</div>
         </div>
 
         <div class="form-group">
@@ -598,6 +644,43 @@ export interface MessageTemplate {
 
     .message-textarea::placeholder {
       color: #94a3b8;
+    }
+
+    .message-textarea-editable {
+      flex: 1;
+      width: 100%;
+      min-height: 120px;
+      padding: 0.875rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      font-family: inherit;
+      background-color: #ffffff;
+      color: #1a202c;
+      line-height: 1.6;
+      outline: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message-textarea-editable:empty:before {
+      content: attr(placeholder);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .message-textarea-editable:focus {
+      outline: none;
+    }
+
+    .message-textarea-editable[data-type="whatsapp"]:focus {
+      border-color: #25D366;
+      box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
+    }
+
+    .message-textarea-editable[data-type="email"]:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
     /* Submit Button */
@@ -933,6 +1016,11 @@ export interface MessageTemplate {
       color: #3b82f6;
     }
 
+    .textarea-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
     .form-textarea {
       width: 100%;
       padding: 1rem 1.125rem;
@@ -963,6 +1051,147 @@ export interface MessageTemplate {
       border-color: #3b82f6;
       background: #eff6ff;
       box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-textarea-editable {
+      width: 100%;
+      padding: 1rem 1.125rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 0.9375rem;
+      font-family: inherit;
+      background: #ffffff;
+      color: #1f2937;
+      line-height: 1.6;
+      transition: all 0.2s;
+      min-height: 150px;
+      outline: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .form-textarea-editable:empty:before {
+      content: attr(placeholder);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .form-textarea-editable:focus {
+      box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.1);
+    }
+
+    .form-textarea-editable[data-type="whatsapp"]:focus {
+      border-color: #25D366;
+      background: #f0fdf4;
+      box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.1);
+    }
+
+    .form-textarea-editable[data-type="email"]:focus {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .variable-tag {
+      color: #16a34a !important;
+      font-style: italic !important;
+      font-weight: 500 !important;
+      font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+      background: rgba(34, 197, 94, 0.08) !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+      border: 1px solid rgba(34, 197, 94, 0.2) !important;
+      display: inline !important;
+    }
+
+    :host ::ng-deep .variable-tag {
+      color:rgb(22, 158, 163) !important;
+      font-style: italic !important;
+      font-weight: 500 !important;
+      font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+      background: rgba(22, 158, 163, 0.2) !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+      border: 1px solid rgba(34, 197, 94, 0.2) !important;
+      display: inline !important;
+    }
+
+    .variables-dropdown {
+      position: absolute;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      min-width: 280px;
+      max-width: 400px;
+      max-height: 300px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .variables-dropdown-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .variables-dropdown-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    .variables-dropdown-close:hover {
+      color: #64748b;
+    }
+
+    .variables-dropdown-list {
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .variable-option {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s;
+      border-radius: 8px;
+    }
+
+    .variable-option:hover,
+    .variable-option.highlighted {
+      background: #f0fdf4;
+    }
+
+    .variable-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #16a34a;
+      font-family: 'Courier New', monospace;
+    }
+
+    .variable-desc {
+      font-size: 0.75rem;
+      color: #64748b;
     }
 
     .char-count {
@@ -1038,7 +1267,9 @@ export interface MessageTemplate {
     }
   `]
 })
-export class InvitationFormComponent {
+export class InvitationFormComponent implements AfterViewInit {
+  @ViewChild('contentEditable', { static: false }) contentEditableRef!: ElementRef<HTMLElement>;
+  @ViewChild('messageContentEditable', { static: false }) messageContentEditableRef!: ElementRef<HTMLElement>;
   @Input() invitationType: 'whatsapp' | 'email' = 'whatsapp';
   @Input() form!: FormGroup;
   @Input() title = 'Пригласи друга';
@@ -1068,7 +1299,40 @@ export class InvitationFormComponent {
     createdAt: new Date()
   };
 
+  // Variables dropdown for template modal
+  showVariablesDropdown = false;
+  highlightedVariableIndex = 0;
+  dropdownPosition = { top: 0, left: 0 };
+  currentBracePosition = -1;
+
+  // Variables dropdown for message textarea
+  showMessageVariablesDropdown = false;
+  highlightedMessageVariableIndex = 0;
+  messageDropdownPosition = { top: 0, left: 0 };
+  currentMessageBracePosition = -1;
+
+  availableVariables = [
+    { name: 'clientName', description: 'Имя клиента' },
+    { name: 'clientBonus', description: 'Бонусы клиента' },
+    { name: 'clientPhone', description: 'Телефон клиента' },
+    { name: 'clientBonusExp', description: 'Срок истечения бонусов' },
+    { name: 'clientEmail', description: 'Email клиента' },
+    { name: 'clientTotalAmount', description: 'Общая сумма покупок' },
+    { name: 'clientTotalTransactions', description: 'Количество транзакций' },
+    { name: 'clientLastVisit', description: 'Последний визит' }
+  ];
+
+  filteredVariables: typeof this.availableVariables = [];
+  filteredMessageVariables: typeof this.availableVariables = [];
+
   constructor(private sanitizer: DomSanitizer) {}
+
+  ngAfterViewInit(): void {
+    // Initialize contenteditable when view is ready
+    if (this.contentEditableRef) {
+      this.updateContentEditable();
+    }
+  }
 
   getSafeIconSvg(): SafeHtml {
     if (typeof this.iconSvg === 'string') {
@@ -1092,6 +1356,11 @@ export class InvitationFormComponent {
     this.formSubmit.emit();
   }
 
+  getVariableDisplayName(variableName: string): string {
+    // Remove curly braces if present
+    return variableName.replace(/[{}]/g, '');
+  }
+
   getTemplatePreview(content: string): string {
     const words = content.split(/\s+/).slice(0, 10).join(' ');
     return words + (content.split(/\s+/).length > 10 ? '...' : '');
@@ -1108,6 +1377,11 @@ export class InvitationFormComponent {
     }
     this.templateSelected.emit(template);
     this.isFormCollapsed = false;
+    
+    // Update message contenteditable
+    setTimeout(() => {
+      this.updateMessageContentEditable();
+    }, 100);
   }
 
   openCreateTemplateModal(): void {
@@ -1121,14 +1395,27 @@ export class InvitationFormComponent {
     };
     this.editingTemplateId = null;
     this.showCreateTemplateModal = true;
+    this.closeVariablesDropdown();
+    
+    // Update contenteditable after modal opens
+    setTimeout(() => {
+      this.updateContentEditable();
+    }, 100);
   }
 
   closeCreateTemplateModal(): void {
     this.showCreateTemplateModal = false;
     this.editingTemplateId = null;
+    this.closeVariablesDropdown();
   }
 
   saveTemplate(): void {
+    // Sync content from contenteditable before saving
+    if (this.contentEditableRef) {
+      const element = this.contentEditableRef.nativeElement;
+      this.newTemplate.content = this.getPlainTextFromElement(element);
+    }
+    
     if (!this.newTemplate.name || !this.newTemplate.content) return;
     if (this.invitationType === 'email' && !this.newTemplate.subject) return;
 
@@ -1155,6 +1442,12 @@ export class InvitationFormComponent {
     this.newTemplate = { ...template };
     this.editingTemplateId = template.id;
     this.showCreateTemplateModal = true;
+    this.closeVariablesDropdown();
+    
+    // Update contenteditable after modal opens
+    setTimeout(() => {
+      this.updateContentEditable();
+    }, 100);
   }
 
   deleteTemplate(templateId: string, event: Event): void {
@@ -1183,6 +1476,763 @@ export class InvitationFormComponent {
       return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
     }
     return 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)';
+  }
+
+  // Variables dropdown methods
+  private formatTimeout: any = null;
+  private isFormatting = false;
+  private lastFormattedContent = '';
+  private messageFormatTimeout: any = null;
+  private isMessageFormatting = false;
+  private lastFormattedMessageContent = '';
+
+  onContentInput(event: Event): void {
+    const target = event.target as HTMLElement;
+    const text = this.getPlainTextFromElement(target);
+    this.newTemplate.content = text;
+    
+    // Don't format if we're currently formatting to avoid cursor issues
+    if (this.isFormatting) {
+      return;
+    }
+    
+    // Clear any pending format operation
+    if (this.formatTimeout) {
+      clearTimeout(this.formatTimeout);
+    }
+    
+    // Check if '{{' was just typed or user is typing after '{{'
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const textBeforeCursor = this.getTextBeforeCursor(target, range);
+      
+      // Find the last '{{' that doesn't have a matching '}}'
+      const lastDoubleBraceIndex = textBeforeCursor.lastIndexOf('{{');
+      if (lastDoubleBraceIndex !== -1) {
+        const textAfterBrace = textBeforeCursor.substring(lastDoubleBraceIndex + 2);
+        if (!textAfterBrace.includes('}}')) {
+          // Show dropdown
+          this.currentBracePosition = lastDoubleBraceIndex;
+          this.showVariablesDropdown = true;
+          
+          // Filter variables based on typed text after '{{'
+          const searchText = textAfterBrace.toLowerCase();
+          this.filteredVariables = this.availableVariables.filter(v => 
+            v.name.toLowerCase().includes(searchText) || 
+            v.description.toLowerCase().includes(searchText)
+          );
+          
+          // If no matches, show all
+          if (this.filteredVariables.length === 0) {
+            this.filteredVariables = [...this.availableVariables];
+          }
+          
+          this.highlightedVariableIndex = 0;
+          this.updateDropdownPosition(target, range);
+          // Format content to show variables styled (with delay to avoid cursor issues)
+          this.formatTimeout = setTimeout(() => this.formatContentWithVariables(target), 150);
+          return;
+        }
+      }
+    }
+    
+    // Hide dropdown if '}}' is typed or no '{{' found
+    const hasOpenDoubleBrace = text.includes('{{') && !text.match(/\{\{[^}]*$/);
+    if (!hasOpenDoubleBrace) {
+      this.closeVariablesDropdown();
+    }
+    
+    // Format content to show variables styled (with delay to avoid cursor issues during fast typing)
+    // Only format if content actually changed
+    if (text !== this.lastFormattedContent) {
+      this.formatTimeout = setTimeout(() => this.formatContentWithVariables(target), 200);
+    }
+  }
+
+  onContentKeydown(event: KeyboardEvent): void {
+    if (this.showVariablesDropdown) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.highlightedVariableIndex = Math.min(
+          this.highlightedVariableIndex + 1,
+          this.filteredVariables.length - 1
+        );
+        // Scroll to highlighted item
+        this.scrollToHighlightedVariable();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.highlightedVariableIndex = Math.max(this.highlightedVariableIndex - 1, 0);
+        // Scroll to highlighted item
+        this.scrollToHighlightedVariable();
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (this.filteredVariables[this.highlightedVariableIndex]) {
+          this.selectVariable(this.filteredVariables[this.highlightedVariableIndex]);
+        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeVariablesDropdown();
+      } else if (event.key === '}') {
+        // Close dropdown when '}' is typed (second closing brace)
+        const target = event.target as HTMLElement;
+        const text = this.getPlainTextFromElement(target);
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const textBeforeCursor = this.getTextBeforeCursor(target, range);
+          // Check if we already have one '}' before cursor
+          if (textBeforeCursor.endsWith('}')) {
+            // This is the second '}', close dropdown
+            event.preventDefault();
+            this.closeVariablesDropdown();
+          }
+        }
+      }
+    }
+  }
+
+  scrollToHighlightedVariable(): void {
+    // Scroll dropdown to show highlighted item
+    setTimeout(() => {
+      const dropdown = document.querySelector('.variables-dropdown-list');
+      const highlighted = document.querySelector('.variable-option.highlighted');
+      if (dropdown && highlighted) {
+        highlighted.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 0);
+  }
+
+  updateMessageContentEditable(): void {
+    if (this.messageContentEditableRef) {
+      const element = this.messageContentEditableRef.nativeElement;
+      const messageValue = this.form.get('message')?.value || '';
+      if (messageValue) {
+        // Reset formatting state
+        this.isMessageFormatting = false;
+        this.lastFormattedMessageContent = '';
+        // Use formatMessageWithVariables which handles HTML properly
+        this.formatMessageWithVariables(element);
+      } else {
+        element.innerHTML = '';
+        this.lastFormattedMessageContent = '';
+      }
+    }
+  }
+
+  onContentClick(): void {
+    // Keep dropdown open if clicking in contenteditable
+    // It will be closed by other handlers if needed
+  }
+
+  onContentBlur(event: FocusEvent): void {
+    // Close dropdown when losing focus, but only if not clicking on dropdown
+    const relatedTarget = event.relatedTarget as HTMLElement;
+    if (relatedTarget && !relatedTarget.closest('.variables-dropdown')) {
+      setTimeout(() => {
+        if (document.activeElement !== this.contentEditableRef?.nativeElement) {
+          this.closeVariablesDropdown();
+        }
+      }, 200);
+    }
+  }
+
+  updateDropdownPosition(element: HTMLElement, range: Range): void {
+    const rect = range.getBoundingClientRect();
+    const parentRect = element.getBoundingClientRect();
+    const scrollTop = element.scrollTop || 0;
+    const scrollLeft = element.scrollLeft || 0;
+    
+    this.dropdownPosition = {
+      top: rect.bottom - parentRect.top + scrollTop + 5,
+      left: rect.left - parentRect.left + scrollLeft
+    };
+  }
+
+  selectVariable(variable: typeof this.availableVariables[0]): void {
+    const target = this.contentEditableRef?.nativeElement || document.querySelector('.form-textarea-editable') as HTMLElement;
+    if (!target) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    const text = this.getPlainTextFromElement(target);
+    
+    // Find the position of the last '{{'
+    const textBeforeCursor = this.getTextBeforeCursor(target, range);
+    const lastDoubleBraceIndex = textBeforeCursor.lastIndexOf('{{');
+    
+    if (lastDoubleBraceIndex === -1) {
+      this.closeVariablesDropdown();
+      return;
+    }
+    
+    // Get cursor position in plain text
+    const cursorPos = this.getCursorPosition(target, range);
+    
+    // Find what's between '{{' and cursor - this is what user typed
+    const textAfterBrace = textBeforeCursor.substring(lastDoubleBraceIndex + 2);
+    
+    // Build new content: everything before '{{' + '{{' + variable name + '}}' + everything after cursor
+    const beforeBrace = text.substring(0, lastDoubleBraceIndex + 2);
+    const afterCursor = text.substring(cursorPos);
+    const newContent = beforeBrace + variable.name + '}}' + afterCursor;
+    
+    // Update content model
+    this.newTemplate.content = newContent;
+    
+    // Format and update element - this will apply styling to variables
+    this.formatContentWithVariables(target);
+    
+    // Move cursor after the inserted variable (after the closing '}}')
+    setTimeout(() => {
+      const newCursorPos = lastDoubleBraceIndex + 2 + variable.name.length + 2; // position after '}}'
+      this.setCursorPosition(target, newCursorPos);
+    }, 20);
+    
+    this.closeVariablesDropdown();
+  }
+
+  closeVariablesDropdown(): void {
+    this.showVariablesDropdown = false;
+    this.highlightedVariableIndex = 0;
+    this.currentBracePosition = -1;
+  }
+
+  getFormattedContent(): string {
+    if (!this.newTemplate.content) return '';
+    
+    // Replace {variable} with styled spans
+    return this.newTemplate.content.replace(
+      /\{(\w+)\}/g,
+      '<span class="variable-tag">{$1}</span>'
+    );
+  }
+
+  formatContentWithVariables(element: HTMLElement): void {
+    // Prevent recursive formatting
+    if (this.isFormatting) {
+      return;
+    }
+    
+    this.isFormatting = true;
+    
+    const text = this.newTemplate.content || this.getPlainTextFromElement(element);
+    if (!text) {
+      element.innerHTML = '';
+      this.lastFormattedContent = '';
+      this.isFormatting = false;
+      return;
+    }
+    
+    // Don't format if content hasn't changed
+    if (text === this.lastFormattedContent) {
+      this.isFormatting = false;
+      return;
+    }
+    
+    // Save cursor position and selection state before formatting
+    const selection = window.getSelection();
+    let cursorPosition = 0;
+    let isFocused = document.activeElement === element;
+    
+    if (selection && selection.rangeCount > 0 && isFocused) {
+      try {
+        const range = selection.getRangeAt(0);
+        cursorPosition = this.getCursorPosition(element, range);
+      } catch (e) {
+        // If we can't get cursor position, use text length as fallback
+        cursorPosition = text.length;
+      }
+    }
+    
+    // Replace complete {{variable}} patterns with styled spans
+    // Use a more robust regex that handles edge cases
+    // Split text by variables, escape non-variable parts, then reassemble
+    const parts: string[] = [];
+    let lastIndex = 0;
+    const variableRegex = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+    let match;
+    
+    while ((match = variableRegex.exec(text)) !== null) {
+      // Add text before variable (escaped)
+      if (match.index > lastIndex) {
+        const beforeText = text.substring(lastIndex, match.index);
+        parts.push(this.escapeHtml(beforeText));
+      }
+      
+      // Add variable as styled span (with both opening and closing double braces)
+      parts.push(`<span class="variable-tag">{{${match[1]}}}</span>`);
+      lastIndex = variableRegex.lastIndex;
+    }
+    
+    // Add remaining text (escaped)
+    if (lastIndex < text.length) {
+      parts.push(this.escapeHtml(text.substring(lastIndex)));
+    }
+    
+    const html = parts.length > 0 ? parts.join('') : this.escapeHtml(text);
+    
+    // Only update if HTML actually changed to avoid unnecessary DOM manipulation
+    if (element.innerHTML !== html) {
+      // Update HTML
+      element.innerHTML = html;
+      this.lastFormattedContent = text;
+      
+      // Restore cursor position after formatting (only if element was focused)
+      if (selection && isFocused && cursorPosition >= 0) {
+        // Use requestAnimationFrame for better performance and to ensure DOM is updated
+        requestAnimationFrame(() => {
+          // Double-check element is still focused and cursor position is valid
+          if (document.activeElement === element && cursorPosition <= text.length) {
+            this.setCursorPosition(element, cursorPosition);
+          }
+          this.isFormatting = false;
+        });
+      } else {
+        this.isFormatting = false;
+      }
+    } else {
+      this.lastFormattedContent = text;
+      this.isFormatting = false;
+    }
+  }
+
+  getPlainTextFromElement(element: HTMLElement): string {
+    // Get plain text, ignoring HTML tags
+    return element.innerText || element.textContent || '';
+  }
+
+  getTextBeforeCursor(element: HTMLElement, range: Range): string {
+    const text = this.getPlainTextFromElement(element);
+    const cursorPos = this.getCursorPosition(element, range);
+    return text.substring(0, cursorPos);
+  }
+
+  getTextAfterCursor(element: HTMLElement, range: Range): string {
+    const text = this.getPlainTextFromElement(element);
+    const cursorPos = this.getCursorPosition(element, range);
+    return text.substring(cursorPos);
+  }
+
+  getCursorPosition(element: HTMLElement, range: Range): number {
+    // Create a range from start of element to cursor
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(element);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+    
+    // Get the text content up to cursor (this handles HTML correctly)
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(preCaretRange.cloneContents());
+    return tempDiv.textContent?.length || 0;
+  }
+
+  setCursorPosition(element: HTMLElement, position: number): void {
+    const selection = window.getSelection();
+    if (!selection) return;
+    
+    // Make sure element is focused
+    if (document.activeElement !== element) {
+      element.focus();
+    }
+    
+    // Get all text nodes in the element
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let currentPos = 0;
+    let targetNode: Text | null = null;
+    let targetOffset = 0;
+    
+    let node: Node | null;
+    while (node = walker.nextNode()) {
+      const textLength = node.textContent?.length || 0;
+      if (currentPos + textLength >= position) {
+        targetNode = node as Text;
+        targetOffset = position - currentPos;
+        break;
+      }
+      currentPos += textLength;
+    }
+    
+    // If we didn't find a node, place at the end
+    if (!targetNode) {
+      const lastNode = this.getLastTextNode(element);
+      if (lastNode) {
+        targetNode = lastNode;
+        targetOffset = lastNode.textContent?.length || 0;
+      } else {
+        // No text nodes, create one
+        const textNode = document.createTextNode('');
+        element.appendChild(textNode);
+        targetNode = textNode;
+        targetOffset = 0;
+      }
+    }
+    
+    if (targetNode) {
+      try {
+        const newRange = document.createRange();
+        const maxOffset = targetNode.textContent?.length || 0;
+        const offset = Math.max(0, Math.min(targetOffset, maxOffset));
+        newRange.setStart(targetNode, offset);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        
+        // Scroll into view if needed
+        const rect = newRange.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+          targetNode.parentElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      } catch (e) {
+        // If setting cursor fails, just focus the element
+        console.warn('Failed to set cursor position:', e);
+        element.focus();
+      }
+    }
+  }
+
+  getLastTextNode(element: HTMLElement): Text | null {
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let lastNode: Text | null = null;
+    let node: Node | null;
+    while (node = walker.nextNode()) {
+      lastNode = node as Text;
+    }
+    
+    return lastNode;
+  }
+
+  escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  findTextNodeAtPosition(element: HTMLElement, position: number): Text | null {
+    let currentPos = 0;
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      const textLength = node.textContent?.length || 0;
+      if (currentPos + textLength >= position) {
+        return node as Text;
+      }
+      currentPos += textLength;
+    }
+    
+    return null;
+  }
+
+  getPlainTextContent(): string {
+    return this.newTemplate.content || '';
+  }
+
+  getPlainTextFromHtml(html: string): string {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.innerText || div.textContent || '';
+  }
+
+  updateContentEditable(): void {
+    if (this.contentEditableRef) {
+      const element = this.contentEditableRef.nativeElement;
+      if (this.newTemplate.content) {
+        // Reset formatting state
+        this.isFormatting = false;
+        this.lastFormattedContent = '';
+        // Use formatContentWithVariables which handles HTML properly
+        this.formatContentWithVariables(element);
+      } else {
+        element.innerHTML = '';
+        this.lastFormattedContent = '';
+      }
+    }
+  }
+
+  // Message textarea methods
+  getMessageLength(): number {
+    if (this.messageContentEditableRef) {
+      return this.getPlainTextFromElement(this.messageContentEditableRef.nativeElement).length;
+    }
+    return this.form.get('message')?.value?.length || 0;
+  }
+
+  onMessageInput(event: Event): void {
+    const target = event.target as HTMLElement;
+    const text = this.getPlainTextFromElement(target);
+    this.form.patchValue({ message: text });
+    
+    // Don't format if we're currently formatting to avoid cursor issues
+    if (this.isMessageFormatting) {
+      return;
+    }
+    
+    // Clear any pending format operation
+    if (this.messageFormatTimeout) {
+      clearTimeout(this.messageFormatTimeout);
+    }
+    
+    // Check if '{{' was just typed or user is typing after '{{'
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const textBeforeCursor = this.getTextBeforeCursor(target, range);
+      
+      // Find the last '{{' that doesn't have a matching '}}'
+      const lastDoubleBraceIndex = textBeforeCursor.lastIndexOf('{{');
+      if (lastDoubleBraceIndex !== -1) {
+        const textAfterBrace = textBeforeCursor.substring(lastDoubleBraceIndex + 2);
+        if (!textAfterBrace.includes('}}')) {
+          // Show dropdown
+          this.currentMessageBracePosition = lastDoubleBraceIndex;
+          this.showMessageVariablesDropdown = true;
+          
+          // Filter variables based on typed text after '{{'
+          const searchText = textAfterBrace.toLowerCase();
+          this.filteredMessageVariables = this.availableVariables.filter(v => 
+            v.name.toLowerCase().includes(searchText) || 
+            v.description.toLowerCase().includes(searchText)
+          );
+          
+          // If no matches, show all
+          if (this.filteredMessageVariables.length === 0) {
+            this.filteredMessageVariables = [...this.availableVariables];
+          }
+          
+          this.highlightedMessageVariableIndex = 0;
+          this.updateMessageDropdownPosition(target, range);
+          // Format content to show variables styled (with delay to avoid cursor issues)
+          this.messageFormatTimeout = setTimeout(() => this.formatMessageWithVariables(target), 150);
+          return;
+        }
+      }
+    }
+    
+    // Hide dropdown if '}}' is typed or no '{{' found
+    const hasOpenDoubleBrace = text.includes('{{') && !text.match(/\{\{[^}]*$/);
+    if (!hasOpenDoubleBrace) {
+      this.closeMessageVariablesDropdown();
+    }
+    
+    // Format content to show variables styled (with delay to avoid cursor issues during fast typing)
+    // Only format if content actually changed
+    if (text !== this.lastFormattedMessageContent) {
+      this.messageFormatTimeout = setTimeout(() => this.formatMessageWithVariables(target), 200);
+    }
+  }
+
+  onMessageKeydown(event: KeyboardEvent): void {
+    if (this.showMessageVariablesDropdown) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.highlightedMessageVariableIndex = Math.min(
+          this.highlightedMessageVariableIndex + 1,
+          this.filteredMessageVariables.length - 1
+        );
+        this.scrollToHighlightedMessageVariable();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.highlightedMessageVariableIndex = Math.max(this.highlightedMessageVariableIndex - 1, 0);
+        this.scrollToHighlightedMessageVariable();
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (this.filteredMessageVariables[this.highlightedMessageVariableIndex]) {
+          this.selectMessageVariable(this.filteredMessageVariables[this.highlightedMessageVariableIndex]);
+        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeMessageVariablesDropdown();
+      } else if (event.key === '}') {
+        // Close dropdown when '}' is typed (second closing brace)
+        const target = event.target as HTMLElement;
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const textBeforeCursor = this.getTextBeforeCursor(target, range);
+          // Check if we already have one '}' before cursor
+          if (textBeforeCursor.endsWith('}')) {
+            // This is the second '}', close dropdown
+            event.preventDefault();
+            this.closeMessageVariablesDropdown();
+          }
+        }
+      }
+    }
+  }
+
+  onMessageClick(): void {
+    // Keep dropdown open if clicking in contenteditable
+  }
+
+  onMessageBlur(event: FocusEvent): void {
+    const relatedTarget = event.relatedTarget as HTMLElement;
+    if (relatedTarget && !relatedTarget.closest('.variables-dropdown')) {
+      setTimeout(() => {
+        if (document.activeElement !== this.messageContentEditableRef?.nativeElement) {
+          this.closeMessageVariablesDropdown();
+        }
+      }, 200);
+    }
+  }
+
+  updateMessageDropdownPosition(element: HTMLElement, range: Range): void {
+    const rect = range.getBoundingClientRect();
+    const parentRect = element.getBoundingClientRect();
+    const scrollTop = element.scrollTop || 0;
+    const scrollLeft = element.scrollLeft || 0;
+    
+    this.messageDropdownPosition = {
+      top: rect.bottom - parentRect.top + scrollTop + 5,
+      left: rect.left - parentRect.left + scrollLeft
+    };
+  }
+
+  selectMessageVariable(variable: typeof this.availableVariables[0]): void {
+    const target = this.messageContentEditableRef?.nativeElement;
+    if (!target) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    const text = this.getPlainTextFromElement(target);
+    
+    // Find the position of the last '{{'
+    const textBeforeCursor = this.getTextBeforeCursor(target, range);
+    const lastDoubleBraceIndex = textBeforeCursor.lastIndexOf('{{');
+    
+    if (lastDoubleBraceIndex === -1) {
+      this.closeMessageVariablesDropdown();
+      return;
+    }
+    
+    // Get cursor position in plain text
+    const cursorPos = this.getCursorPosition(target, range);
+    
+    // Build new content: everything before '{{' + '{{' + variable name + '}}' + everything after cursor
+    const beforeBrace = text.substring(0, lastDoubleBraceIndex + 2);
+    const afterCursor = text.substring(cursorPos);
+    const newContent = beforeBrace + variable.name + '}}' + afterCursor;
+    
+    // Update form
+    this.form.patchValue({ message: newContent });
+    
+    // Format and update element
+    this.formatMessageWithVariables(target);
+    
+    // Move cursor after the inserted variable (after the closing '}}')
+    setTimeout(() => {
+      const newCursorPos = lastDoubleBraceIndex + 2 + variable.name.length + 2;
+      this.setCursorPosition(target, newCursorPos);
+    }, 20);
+    
+    this.closeMessageVariablesDropdown();
+  }
+
+  closeMessageVariablesDropdown(): void {
+    this.showMessageVariablesDropdown = false;
+    this.highlightedMessageVariableIndex = 0;
+    this.currentMessageBracePosition = -1;
+  }
+
+  formatMessageWithVariables(element: HTMLElement): void {
+    if (this.isMessageFormatting) {
+      return;
+    }
+    
+    this.isMessageFormatting = true;
+    
+    const text = this.form.get('message')?.value || this.getPlainTextFromElement(element);
+    if (!text) {
+      element.innerHTML = '';
+      this.lastFormattedMessageContent = '';
+      this.isMessageFormatting = false;
+      return;
+    }
+    
+    if (text === this.lastFormattedMessageContent) {
+      this.isMessageFormatting = false;
+      return;
+    }
+    
+    const selection = window.getSelection();
+    let cursorPosition = 0;
+    let isFocused = document.activeElement === element;
+    
+    if (selection && selection.rangeCount > 0 && isFocused) {
+      try {
+        const range = selection.getRangeAt(0);
+        cursorPosition = this.getCursorPosition(element, range);
+      } catch (e) {
+        cursorPosition = text.length;
+      }
+    }
+    
+    // Replace complete {{variable}} patterns with styled spans
+    const parts: string[] = [];
+    let lastIndex = 0;
+    const variableRegex = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+    let match;
+    
+    while ((match = variableRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        const beforeText = text.substring(lastIndex, match.index);
+        parts.push(this.escapeHtml(beforeText));
+      }
+      parts.push(`<span class="variable-tag">{{${match[1]}}}</span>`);
+      lastIndex = variableRegex.lastIndex;
+    }
+    
+    if (lastIndex < text.length) {
+      parts.push(this.escapeHtml(text.substring(lastIndex)));
+    }
+    
+    const html = parts.length > 0 ? parts.join('') : this.escapeHtml(text);
+    
+    if (element.innerHTML !== html) {
+      element.innerHTML = html;
+      this.lastFormattedMessageContent = text;
+      
+      if (selection && isFocused && cursorPosition >= 0) {
+        requestAnimationFrame(() => {
+          if (document.activeElement === element && cursorPosition <= text.length) {
+            this.setCursorPosition(element, cursorPosition);
+          }
+          this.isMessageFormatting = false;
+        });
+      } else {
+        this.isMessageFormatting = false;
+      }
+    } else {
+      this.lastFormattedMessageContent = text;
+      this.isMessageFormatting = false;
+    }
+  }
+
+  scrollToHighlightedMessageVariable(): void {
+    setTimeout(() => {
+      const dropdown = document.querySelector('.variables-dropdown');
+      const highlighted = document.querySelector('.variable-option.highlighted');
+      if (dropdown && highlighted) {
+        highlighted.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 0);
   }
 }
 
