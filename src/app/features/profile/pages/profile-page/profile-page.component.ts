@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
+import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 
 interface MockClient {
   firstName: string;
@@ -15,19 +17,21 @@ interface MockClient {
   type: 'individual' | 'business';
 }
 
-interface ActivityItem {
-  type: 'purchase' | 'bonus' | 'info';
-  text: string;
-  amount: string;
-  bonusEarned?: string;
-  bonusUsed?: string;
+interface PaymentItem {
+  id: string;
+  amount: number;
+  bonusEarned: number;
+  bonusUsed: number;
+  paymentMethod: 'cash' | 'card' | 'online';
+  isRefund: boolean;
+  date: string;
   time: string;
 }
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent],
   template: `
     <div class="page-wrapper">
       <div class="profile-container">
@@ -286,8 +290,8 @@ interface ActivityItem {
           </div>
         </div>
 
-        <!-- Activity Card (Full Width) -->
-        <div class="activity-card">
+        <!-- Payments Table Card (Full Width) -->
+        <div class="payments-card">
           <div class="card-header">
             <div class="card-header-left">
               <div class="card-icon">
@@ -297,40 +301,108 @@ interface ActivityItem {
               </div>
               <h3 class="card-title">История платежей</h3>
             </div>
+            <span class="payments-count">{{ payments.length }} платежей</span>
           </div>
-          <div class="activity-list">
-            <div class="activity-item" *ngFor="let activity of activities">
-              <div class="activity-dot" [class]="activity.type === 'purchase' ? 'success' : (activity.type === 'bonus' ? 'warning' : 'info')"></div>
-              <div class="activity-content">
-                <div class="activity-main">
-                  <span class="activity-text">{{ activity.text }}</span>
-                  <div class="activity-amounts">
-                    <span class="activity-amount success">{{ activity.amount }}</span>
-                    <span class="activity-bonus earned tooltip-wrapper" *ngIf="activity.bonusEarned">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                      {{ activity.bonusEarned }}
-                      <span class="tooltip">Бонусы начислены</span>
+          
+          <div class="table-container">
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th class="th-id">ID платежа</th>
+                  <th class="th-amount">Сумма</th>
+                  <th class="th-bonuses">Бонусы</th>
+                  <th class="th-method">Способ оплаты</th>
+                  <th class="th-status">Статус</th>
+                  <th class="th-date">Дата и время</th>
+                  <th class="th-actions">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let payment of payments" class="payment-row">
+                  <td class="td-id">
+                    <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                  </td>
+                  <td class="td-amount">
+                    <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
+                  </td>
+                  <td class="td-bonuses">
+                    <div class="bonus-info">
+                      <app-badge 
+                        *ngIf="payment.bonusEarned > 0"
+                        badgeType="bonusGranted" 
+                        size="medium"
+                        icon="star"
+                        class="bonus-badge">
+                        +{{ formatAmount(payment.bonusEarned) }}
+                      </app-badge>
+                      <app-badge 
+                        *ngIf="payment.bonusUsed > 0"
+                        badgeType="bonusUsed" 
+                        size="medium"
+                        icon="check"
+                        class="bonus-badge">
+                        -{{ formatAmount(payment.bonusUsed) }}
+                      </app-badge>
+                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                    </div>
+                  </td>
+                  <td class="td-method">
+                    <span class="method-badge" [class]="'method-' + payment.paymentMethod">
+                      {{ getPaymentMethodLabel(payment.paymentMethod) }}
                     </span>
-                    <span class="activity-bonus used tooltip-wrapper" *ngIf="activity.bonusUsed">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                      {{ activity.bonusUsed }}
-                      <span class="tooltip">Бонусы использованы</span>
-                    </span>
-                  </div>
-                </div>
-                <span class="activity-time">{{ activity.time }}</span>
-              </div>
+                  </td>
+                  <td class="td-status">
+                    <app-badge 
+                      [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
+                      size="medium"
+                      [icon]="payment.isRefund ? 'refund' : 'payment'">
+                      {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
+                    </app-badge>
+                  </td>
+                  <td class="td-date">
+                    <div class="date-info">
+                      <span class="date-text">{{ payment.date }}</span>
+                      <span class="time-text">{{ payment.time }}</span>
+                    </div>
+                  </td>
+                  <td class="td-actions">
+                    <div class="actions-cell">
+                      <app-icon-button
+                        iconButtonType="refund"
+                        size="small"
+                        tooltip="Возврат"
+                        [disabled]="payment.isRefund"
+                        (onClick)="openRefundModal(payment)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                          <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </app-icon-button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="empty-state" *ngIf="payments.length === 0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <span>Платежи не найдены</span>
             </div>
           </div>
         </div>
 
       </div>
     </div>
+
+    <!-- Refund Confirmation Modal -->
+    <app-refund-confirmation-modal
+      [visible]="showRefundModal"
+      [payment]="selectedPaymentForRefund"
+      (visibleChange)="closeRefundModal()"
+      (confirm)="confirmRefund($event)">
+    </app-refund-confirmation-modal>
   `,
   styles: [`
     .page-wrapper {
@@ -1072,8 +1144,8 @@ interface ActivityItem {
       color: #16A34A;
     }
 
-    /* Activity Card */
-    .activity-card {
+    /* Payments Card */
+    .payments-card {
       background: white;
       border-radius: 16px;
       padding: 1.5rem;
@@ -1081,163 +1153,163 @@ interface ActivityItem {
       border: 1px solid #e5e7eb;
     }
 
-    .activity-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
+    .payments-card .card-header {
+      margin-bottom: 1rem;
     }
 
-    .activity-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1rem;
-      background: #f9fafb;
-      border-radius: 10px;
-    }
-
-    .activity-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-top: 5px;
-      flex-shrink: 0;
-    }
-
-    .activity-dot.success {
-      background: #22c55e;
-    }
-
-    .activity-dot.info {
-      background: #3b82f6;
-    }
-
-    .activity-dot.warning {
-      background: #f59e0b;
-    }
-
-    .activity-dot.danger {
-      background: #ef4444;
-    }
-
-    .activity-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .activity-main {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .activity-text {
-      font-size: 0.9rem;
-      color: #374151;
+    .payments-count {
+      font-size: 0.85rem;
+      color: #64748b;
       font-weight: 500;
     }
 
-    .activity-amounts {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+    /* Table */
+    .table-container {
+      overflow-x: auto;
     }
 
-    .activity-amount {
+    .payments-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .payments-table th {
+      padding: 0.875rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .payments-table td {
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .payment-row {
+      transition: background 0.15s;
+    }
+
+    .payment-row:hover {
+      background: #f8fafc;
+    }
+
+    .payment-row:last-child td {
+      border-bottom: none;
+    }
+
+    /* Payment ID */
+    .td-id {
+      min-width: 100px;
+    }
+
+    .payment-id {
+      font-family: monospace;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    /* Amount */
+    .amount-value {
       font-size: 0.95rem;
       font-weight: 600;
-    }
-
-    .activity-amount.success {
       color: #16A34A;
     }
 
-    .activity-bonus {
-      display: inline-flex;
+    /* Bonuses */
+    .bonus-info {
+      display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .bonus-badge {
+      display: inline-block;
+    }
+
+    .bonus-none {
       font-size: 0.8rem;
-      font-weight: 500;
-      padding: 0.2rem 0.5rem;
-      border-radius: 20px;
+      color: #94a3b8;
     }
 
-    .activity-bonus svg {
-      width: 14px;
-      height: 14px;
+    /* Payment Method */
+    .method-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
     }
 
-    .activity-bonus.earned {
+    .method-badge.method-cash {
+      background: #dcfce7;
+      color: #16A34A;
+    }
+
+    .method-badge.method-card {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .method-badge.method-online {
       background: #fef3c7;
       color: #d97706;
     }
 
-    .activity-bonus.used {
-      background: #fce7f3;
-      color: #db2777;
+    /* Date Info */
+    .date-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
     }
 
-    /* Tooltip */
-    .tooltip-wrapper {
-      position: relative;
-      cursor: pointer;
-    }
-
-    .tooltip {
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%) translateY(-4px);
-      background: #1f2937;
-      color: white;
-      padding: 0.4rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.75rem;
+    .date-text {
+      font-size: 0.85rem;
+      color: #1f2937;
       font-weight: 500;
-      white-space: nowrap;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s ease;
-      z-index: 10;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    .tooltip::after {
-      content: '';
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border: 6px solid transparent;
-      border-top-color: #1f2937;
+    .time-text {
+      font-size: 0.75rem;
+      color: #64748b;
     }
 
-    .tooltip-wrapper:hover .tooltip {
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(-50%) translateY(-8px);
+    /* Actions */
+    .th-actions,
+    .td-actions {
+      width: 60px;
+      text-align: center;
     }
 
-    .activity-bonus.earned:hover {
-      background: #fde68a;
-      transform: scale(1.05);
+    .actions-cell {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
-    .activity-bonus.used:hover {
-      background: #fbcfe8;
-      transform: scale(1.05);
-    }
-
-    .activity-bonus {
-      transition: all 0.2s ease;
-      cursor: pointer;
-    }
-
-    .activity-time {
-      font-size: 0.8rem;
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
       color: #94a3b8;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state span {
+      font-size: 0.9rem;
     }
 
     /* Responsive */
@@ -1285,10 +1357,20 @@ interface ActivityItem {
         font-size: 1.25rem;
       }
 
-      .activity-amounts {
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.25rem;
+      .payments-table {
+        font-size: 0.85rem;
+      }
+
+      .payments-table th,
+      .payments-table td {
+        padding: 0.75rem 0.5rem;
+      }
+
+      .th-bonuses,
+      .td-bonuses,
+      .th-method,
+      .td-method {
+        display: none;
       }
     }
   `]
@@ -1346,15 +1428,19 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     type: 'individual'
   };
 
-  // Мок данные активности - оплаты с бонусами в одной строке
-  activities: ActivityItem[] = [
-    { type: 'purchase', text: 'Оплата покупки', amount: '+12,500 ₸', bonusEarned: '+1,250', time: '2 часа назад' },
-    { type: 'purchase', text: 'Оплата покупки', amount: '+8,750 ₸', bonusUsed: '-500', time: '3 дня назад' },
-    { type: 'purchase', text: 'Оплата покупки', amount: '+25,000 ₸', bonusEarned: '+2,500', time: '1 неделю назад' },
-    { type: 'purchase', text: 'Оплата покупки', amount: '+15,300 ₸', bonusUsed: '-2800', time: '2 недели назад' },
-    { type: 'info', text: 'Профиль обновлён', amount: '', time: '3 недели назад' },
-    { type: 'purchase', text: 'Оплата покупки', amount: '+42,000 ₸', bonusEarned: '+4,200', time: '1 месяц назад' },
+  // Мок данные платежей
+  payments: PaymentItem[] = [
+    { id: 'PAY-156', amount: 12500, bonusEarned: 1250, bonusUsed: 0, paymentMethod: 'card', isRefund: false, date: '13.01.2026', time: '14:32' },
+    { id: 'PAY-155', amount: 8750, bonusEarned: 0, bonusUsed: 500, paymentMethod: 'cash', isRefund: false, date: '10.01.2026', time: '11:15' },
+    { id: 'PAY-154', amount: 25000, bonusEarned: 2500, bonusUsed: 0, paymentMethod: 'online', isRefund: false, date: '06.01.2026', time: '16:48' },
+    { id: 'PAY-153', amount: 15300, bonusEarned: 0, bonusUsed: 2800, paymentMethod: 'card', isRefund: false, date: '30.12.2025', time: '09:22' },
+    { id: 'PAY-152', amount: 5000, bonusEarned: 0, bonusUsed: 0, paymentMethod: 'cash', isRefund: true, date: '28.12.2025', time: '15:10' },
+    { id: 'PAY-151', amount: 42000, bonusEarned: 4200, bonusUsed: 0, paymentMethod: 'online', isRefund: false, date: '15.12.2025', time: '12:05' },
   ];
+
+  // Refund modal
+  showRefundModal = false;
+  selectedPaymentForRefund: any = null;
 
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Профиль клиента', [
@@ -1481,5 +1567,53 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   cancelEditContacts(): void {
     this.isEditingContacts = false;
+  }
+
+  // Payment helpers
+  formatPaymentId(id: string): string {
+    return id;
+  }
+
+  formatAmount(amount: number): string {
+    return amount.toLocaleString('ru-RU');
+  }
+
+  getPaymentMethodLabel(method: string): string {
+    const labels: Record<string, string> = {
+      cash: 'Наличные',
+      card: 'Карта',
+      online: 'Онлайн'
+    };
+    return labels[method] || method;
+  }
+
+  // Refund methods
+  openRefundModal(payment: PaymentItem): void {
+    this.selectedPaymentForRefund = {
+      id: payment.id,
+      clientName: this.getFullName(),
+      clientPhone: this.mockClient.phone,
+      amount: payment.amount,
+      bonusEarned: payment.bonusEarned,
+      bonusUsed: payment.bonusUsed,
+      paymentMethod: payment.paymentMethod,
+      isRefund: payment.isRefund,
+      date: payment.date,
+      time: payment.time
+    };
+    this.showRefundModal = true;
+  }
+
+  closeRefundModal(): void {
+    this.showRefundModal = false;
+    this.selectedPaymentForRefund = null;
+  }
+
+  confirmRefund(refundData: { paymentId: string; reason: string }): void {
+    const paymentIndex = this.payments.findIndex(p => p.id === refundData.paymentId);
+    if (paymentIndex !== -1) {
+      this.payments[paymentIndex].isRefund = true;
+    }
+    this.closeRefundModal();
   }
 }
