@@ -23,7 +23,7 @@ interface TransactionResult {
   isNewClient: boolean;
 }
 
-type ModalStep = 'search' | 'found' | 'new';
+type ModalStep = 'search' | 'found' | 'new' | 'notify';
 
 @Component({
   selector: 'app-transaction-modal',
@@ -37,7 +37,7 @@ type ModalStep = 'search' | 'found' | 'new';
   template: `
     <app-modal
       [visible]="visible"
-      title="Новая продажа"
+      [title]="getModalTitle()"
       [showCloseButton]="true"
       (closed)="onClose()">
       
@@ -324,85 +324,66 @@ type ModalStep = 'search' | 'found' | 'new';
 
         <button class="back-btn" (click)="goBack()">← Назад к поиску</button>
       </div>
-    </app-modal>
 
-    <!-- Send Welcome Message Modal -->
-    <app-modal
-      [visible]="showSendMessageModal"
-      title="Уведомить"
-      [showCloseButton]="true"
-      [showFooter]="true"
-      (closed)="closeSendMessageModal()"
-      size="large">
-      
-      <div class="send-message-content">
-        <!-- Selected Template -->
-        <div class="template-section" *ngIf="selectedWelcomeTemplate">
-          <label class="template-section-label">Выбранный шаблон</label>
-          <div class="template-card-display">
-            <div class="template-card-header">
-              <div class="template-icon">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
+      <!-- Step 4: Notify -->
+      <div class="step-notify" *ngIf="currentStep === 'notify'">
+        <div class="send-message-content">
+          <!-- Selected Template -->
+          <div class="template-section" *ngIf="selectedWelcomeTemplate">
+            <label class="template-section-label">Выбранный шаблон</label>
+            <div class="template-card-display">
+              <div class="template-card-header">
+                <div class="template-icon">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                </div>
+                <div class="template-info">
+                  <h4 class="template-name-display">{{ selectedWelcomeTemplate.name }}</h4>
+                  <span class="template-type-badge">{{ selectedWelcomeTemplate.type === 'bonus_accrued' ? 'Начисленные бонусы' : 'Срок истечения бонусов' }}</span>
+                </div>
               </div>
-              <div class="template-info">
-                <h4 class="template-name-display">{{ selectedWelcomeTemplate.name }}</h4>
-                <span class="template-type-badge">{{ selectedWelcomeTemplate.type === 'bonus_accrued' ? 'Начисленные бонусы' : 'Срок истечения бонусов' }}</span>
+              <div class="template-content-display">
+                <p class="template-content-text">{{ selectedWelcomeTemplate.content }}</p>
               </div>
             </div>
-            <div class="template-content-display">
-              <p class="template-content-text">{{ selectedWelcomeTemplate.content }}</p>
+          </div>
+
+          <!-- Phone Number -->
+          <div class="phone-section">
+            <label class="phone-label">Номер телефона получателя</label>
+            <div class="phone-display">
+              <svg viewBox="0 0 24 24" fill="none" class="phone-icon">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <span class="phone-number">{{ getPhoneForMessage() }}</span>
+            </div>
+          </div>
+
+          <!-- Message Content -->
+          <div class="message-content-section">
+            <label class="message-content-label">Содержимое сообщения</label>
+            <div class="message-content-box">
+              <p class="message-text">{{ getFormattedMessage() }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Phone Number -->
-        <div class="phone-section">
-          <label class="phone-label">Номер телефона получателя</label>
-          <div class="phone-display">
-            <svg viewBox="0 0 24 24" fill="none" class="phone-icon">
-              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
+        <div class="notify-actions">
+          <button 
+            class="submit-btn send-btn" 
+            (click)="sendWelcomeMessage()" 
+            [disabled]="isSendingMessage">
+            <svg viewBox="0 0 24 24" fill="none" class="whatsapp-icon">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/>
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/>
             </svg>
-            <span class="phone-number">{{ getPhoneForMessage() }}</span>
-          </div>
-        </div>
-
-        <!-- Message Content -->
-        <div class="message-content-section">
-          <label class="message-content-label">Содержимое сообщения</label>
-          <div class="message-content-box">
-            <p class="message-text">{{ getFormattedMessage() }}</p>
-          </div>
+            {{ isSendingMessage ? 'Отправка...' : 'Отправить в WhatsApp' }}
+          </button>
+          <button class="back-btn" (click)="goBackFromNotify()">← Назад</button>
         </div>
       </div>
-
-      <ng-container modalFooter>
-        <div class="modal-footer">
-          <app-button
-            buttonType="secondary"
-            size="medium"
-            (onClick)="closeSendMessageModal()">
-            Отмена
-          </app-button>
-          <app-button
-            buttonType="success"
-            size="medium"
-            [loading]="isSendingMessage"
-            [disabled]="isSendingMessage"
-            (onClick)="sendWelcomeMessage()">
-            <span class="btn-content">
-              <svg viewBox="0 0 24 24" fill="none" class="send-icon">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/>
-        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/>
-      
-              </svg>
-              {{ isSendingMessage ? 'Отправка...' : 'Отправить' }}
-            </span>
-          </app-button>
-        </div>
-      </ng-container>
     </app-modal>
   `,
   styles: [`
@@ -1204,6 +1185,32 @@ type ModalStep = 'search' | 'found' | 'new';
       width: 18px;
       height: 18px;
     }
+
+    /* Notify Step */
+    .step-notify {
+      animation: slideDown 0.3s ease;
+    }
+
+    .notify-actions {
+      margin-top: 1.5rem;
+    }
+
+    .send-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: #25D366;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background: #128C7E;
+    }
+
+    .whatsapp-icon {
+      width: 20px;
+      height: 20px;
+    }
   `]
 })
 export class TransactionModalComponent implements OnChanges, OnDestroy {
@@ -1227,8 +1234,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   isCommentExpanded = false;
   showTagsDropdown = false;
 
-  // Send message modal
-  showSendMessageModal = false;
+  // Send message
   isSendingMessage = false;
   pendingTransactionResult: TransactionResult | null = null;
   selectedWelcomeTemplate: any = null;
@@ -1297,6 +1303,21 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       comment: 'Тестовый комментарий для проверки функционала модального окна.'
     }
   };
+
+  getModalTitle(): string {
+    switch (this.currentStep) {
+      case 'search':
+        return 'Новая продажа';
+      case 'found':
+        return 'Оформление покупки';
+      case 'new':
+        return 'Новый клиент';
+      case 'notify':
+        return 'Уведомить клиента';
+      default:
+        return 'Новая продажа';
+    }
+  }
 
   onClose(): void {
     this.visible = false;
@@ -1417,7 +1438,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       t => t.type === 'bonus_accrued' || t.name.toLowerCase().includes('привет')
     ) || templates[0] || null;
 
-    this.showSendMessageModal = true;
+    this.currentStep = 'notify';
   }
 
   private loadWelcomeMessageTemplates(): any[] {
@@ -1446,18 +1467,22 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     }
   }
 
-  closeSendMessageModal(): void {
-    this.showSendMessageModal = false;
+  goBackFromNotify(): void {
+    // Go back to previous step (found or new) based on whether it was an existing or new client
+    if (this.pendingTransactionResult?.isNewClient) {
+      this.currentStep = 'new';
+    } else {
+      this.currentStep = 'found';
+    }
+  }
+
+  private finishTransaction(): void {
     this.isSendingMessage = false;
-    // Complete transaction after closing message modal
     if (this.pendingTransactionResult) {
       const result = this.pendingTransactionResult;
       this.pendingTransactionResult = null;
-      // Close send message modal first, then complete transaction
-      setTimeout(() => {
-        this.transactionComplete.emit(result);
-        this.onClose();
-      }, 100);
+      this.transactionComplete.emit(result);
+      this.onClose();
     }
   }
 
@@ -1525,8 +1550,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
 
     // Simulate sending (in real app, this would be an API call)
     setTimeout(() => {
-      this.isSendingMessage = false;
-      this.closeSendMessageModal();
+      this.finishTransaction();
     }, 1500);
   }
 
@@ -1605,6 +1629,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.newClientComment = '';
     this.isCommentExpanded = false;
     this.showTagsDropdown = false;
+    this.pendingTransactionResult = null;
+    this.selectedWelcomeTemplate = null;
+    this.isSendingMessage = false;
   }
 }
 
