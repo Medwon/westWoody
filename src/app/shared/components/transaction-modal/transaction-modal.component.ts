@@ -431,7 +431,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .search-input:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -473,7 +473,7 @@ type ModalStep = 'search' | 'found' | 'new';
 
     /* Client Card */
     .client-card {
-      background: #15803d;
+      background: #16A34A;
       color: white;
       padding: 16px;
       border-radius: 16px;
@@ -560,7 +560,7 @@ type ModalStep = 'search' | 'found' | 'new';
 
     .client-tag {
       background: rgba(220, 252, 231, 0.9);
-      color: #166534;
+      color: #15803d;
       font-size: 0.75rem;
       font-weight: 600;
       padding: 4px 10px;
@@ -570,7 +570,7 @@ type ModalStep = 'search' | 'found' | 'new';
     /* Client Comment */
     .client-comment {
       background: rgba(220, 252, 231, 0.9);
-      color: #166534;
+      color: #15803d;
       font-size: 0.8rem;
       padding: 10px 14px;
       border-radius: 10px;
@@ -588,7 +588,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .comment-more, .comment-less {
-      color: #15803d;
+      color: #16A34A;
       font-weight: 600;
       margin-left: 4px;
     }
@@ -641,7 +641,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .form-input:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -725,7 +725,7 @@ type ModalStep = 'search' | 'found' | 'new';
       border-radius: 20px;
       font-size: 0.8rem;
       font-weight: 500;
-      color: #166534;
+      color: #15803d;
       cursor: pointer;
       transition: all 0.15s ease;
     }
@@ -736,8 +736,8 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .tag-option.selected {
-      background: #15803d;
-      border-color: #15803d;
+      background: #16A34A;
+      border-color: #16A34A;
       color: white;
     }
 
@@ -760,7 +760,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .form-textarea:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -797,7 +797,7 @@ type ModalStep = 'search' | 'found' | 'new';
       position: absolute;
       width: 10px;
       height: 10px;
-      background: #15803d;
+      background: #16A34A;
       border-radius: 50%;
       top: 50%;
       left: 50%;
@@ -806,7 +806,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .radio-input:checked + .radio-custom {
-      border-color: #15803d;
+      border-color: #16A34A;
     }
 
     .radio-input:checked + .radio-custom::after {
@@ -862,7 +862,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .toggle-checkbox:checked + .toggle-switch {
-      background: #15803d;
+      background: #16A34A;
     }
 
     .toggle-checkbox:checked + .toggle-switch::after {
@@ -876,7 +876,7 @@ type ModalStep = 'search' | 'found' | 'new';
 
     .available-bonus {
       font-size: 0.85rem;
-      color: #15803d;
+      color: #16A34A;
       font-weight: 600;
     }
 
@@ -935,11 +935,11 @@ type ModalStep = 'search' | 'found' | 'new';
 
     .summary-row.total .summary-value {
       font-size: 1.25rem;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .summary-row.earned .summary-value.bonus {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .bonus-warning {
@@ -965,7 +965,7 @@ type ModalStep = 'search' | 'found' | 'new';
     /* Buttons */
     .submit-btn {
       width: 100%;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       padding: 14px;
       border: none;
@@ -998,7 +998,7 @@ type ModalStep = 'search' | 'found' | 'new';
     }
 
     .back-btn:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     @keyframes slideDown {
@@ -1132,7 +1132,7 @@ type ModalStep = 'search' | 'found' | 'new';
     .phone-icon {
       width: 20px;
       height: 20px;
-      color: #15803d;
+      color: #16A34A;
       flex-shrink: 0;
     }
 

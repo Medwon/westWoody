@@ -266,7 +266,7 @@ interface User {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       border: none;
       border-radius: 12px;
@@ -278,7 +278,7 @@ interface User {
     }
 
     .add-user-btn:hover {
-      background: #166534;
+      background: #15803d;
     }
 
     .add-user-btn svg {
@@ -338,7 +338,7 @@ interface User {
     }
 
     .user-name-link:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .user-name {
@@ -413,7 +413,7 @@ interface User {
     .action-btn.view:hover {
       background: #f0fdf4;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .action-btn.lock:hover {
@@ -431,7 +431,7 @@ interface User {
     .action-btn.activate:hover {
       background: #f0fdf4;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .form-group {
@@ -465,7 +465,7 @@ interface User {
     }
 
     .form-input:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -503,7 +503,7 @@ interface User {
     }
 
     .form-select:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.1);
     }
 
@@ -532,7 +532,7 @@ interface User {
     }
 
     .form-select:focus + .select-arrow {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .form-select option {

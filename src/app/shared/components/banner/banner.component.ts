@@ -41,7 +41,7 @@ export type BannerType = 'info' | 'success' | 'warning' | 'error';
 
     .banner.success {
       background-color: #f0fdf4;
-      color: #166534;
+      color: #15803d;
     }
 
     .banner.warning {

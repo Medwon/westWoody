@@ -579,7 +579,7 @@ type SortDirection = 'asc' | 'desc';
       gap: 4px;
       padding: 2px 8px;
       background: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
       border-radius: 12px;
       font-size: 0.75rem;
       font-weight: 600;
@@ -588,7 +588,7 @@ type SortDirection = 'asc' | 'desc';
     .remove-tag {
       background: none;
       border: none;
-      color: #15803d;
+      color: #16A34A;
       cursor: pointer;
       font-size: 1rem;
       line-height: 1;
@@ -647,7 +647,7 @@ type SortDirection = 'asc' | 'desc';
     .tag-option:hover {
       background: #dcfce7;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Sort */
@@ -707,7 +707,7 @@ type SortDirection = 'asc' | 'desc';
 
     .sort-direction-btn:hover {
       border-color: #22c55e;
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Type Filter */
@@ -739,7 +739,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .type-btn.active {
-      background: #15803d;
+      background: #16A34A;
       color: white;
     }
 
@@ -846,7 +846,7 @@ type SortDirection = 'asc' | 'desc';
       width: 42px;
       height: 42px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #15803d, #22c55e);
+      background: linear-gradient(135deg, #16A34A, #22c55e);
       color: white;
       display: flex;
       align-items: center;
@@ -873,7 +873,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .client-name-link:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-name {
@@ -884,7 +884,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .client-name-link:hover .client-name {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-type {
@@ -928,7 +928,7 @@ type SortDirection = 'asc' | 'desc';
     .tag {
       padding: 2px 8px;
       background: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
       border-radius: 10px;
       font-size: 0.7rem;
       font-weight: 600;
@@ -949,7 +949,7 @@ type SortDirection = 'asc' | 'desc';
     .stat-main {
       font-size: 0.9rem;
       font-weight: 600;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .stat-secondary {
@@ -1009,7 +1009,7 @@ type SortDirection = 'asc' | 'desc';
     .action-btn.view:hover {
       background: #f0fdf4;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .action-btn.edit:hover {
@@ -1041,7 +1041,7 @@ type SortDirection = 'asc' | 'desc';
 
     .reset-btn {
       padding: 0.5rem 1rem;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       border: none;
       border-radius: 8px;

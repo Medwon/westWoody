@@ -89,7 +89,7 @@ export type BadgeSize = 'small' | 'medium' | 'large';
 
     .badge.payment {
       background-color: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .badge.refund {

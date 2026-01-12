@@ -252,7 +252,7 @@ interface UserPayment {
       width: 100px;
       height: 100px;
       border-radius: 20px;
-      background: linear-gradient(135deg, #15803d 0%, #22c55e 100%);
+      background: linear-gradient(135deg, #16A34A 0%, #22c55e 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -311,7 +311,7 @@ interface UserPayment {
       align-items: center;
       gap: 0.5rem;
       background: #f0fdf4;
-      color: #15803d;
+      color: #16A34A;
       padding: 0.5rem 1rem;
       border-radius: 12px;
       font-weight: 600;
@@ -353,7 +353,7 @@ interface UserPayment {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .card-icon svg {
@@ -459,7 +459,7 @@ interface UserPayment {
       align-items: center;
       justify-content: center;
       font-weight: 600;
-      color: #15803d;
+      color: #16A34A;
       font-size: 0.875rem;
       flex-shrink: 0;
     }
@@ -481,7 +481,7 @@ interface UserPayment {
     }
 
     .client-name-link:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-name-link .client-name {
@@ -535,7 +535,7 @@ interface UserPayment {
 
     .method-online {
       background: #dcfce7;
-      color: #166534;
+      color: #15803d;
     }
 
     .date-info {

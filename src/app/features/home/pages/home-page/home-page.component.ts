@@ -157,7 +157,7 @@ interface RecentPayment {
           <div class="donut-container">
             <svg viewBox="0 0 200 200" class="donut-chart">
               <circle cx="100" cy="100" r="70" fill="none" stroke="#e8f5e9" stroke-width="24"/>
-              <circle cx="100" cy="100" r="70" fill="none" stroke="#15803d" stroke-width="24" 
+              <circle cx="100" cy="100" r="70" fill="none" stroke="#16A34A" stroke-width="24" 
                       stroke-dasharray="330 440" stroke-linecap="round" 
                       transform="rotate(-90 100 100)"/>
             </svg>
@@ -330,7 +330,7 @@ interface RecentPayment {
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       border: none;
       border-radius: 12px;
@@ -341,7 +341,7 @@ interface RecentPayment {
     }
 
     .new-transaction-btn:hover {
-      background: #166534;
+      background: #15803d;
     }
 
     .new-transaction-btn .btn-icon {
@@ -403,7 +403,7 @@ interface RecentPayment {
     .kpi-icon svg {
       width: 24px;
       height: 24px;
-      color: #15803d;
+      color: #16A34A;
       display: block;
     }
 
@@ -413,12 +413,12 @@ interface RecentPayment {
       padding: 0.25rem 0.625rem;
       border-radius: 20px;
       background: #f0fdf4;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .kpi-change.positive {
       background: #f0fdf4;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .kpi-change.negative {
@@ -545,7 +545,7 @@ interface RecentPayment {
     }
 
     .legend-color.active {
-      background: #15803d;
+      background: #16A34A;
     }
 
     .legend-color.forecast {
@@ -573,14 +573,14 @@ interface RecentPayment {
 
     .view-all-link {
       font-size: 0.875rem;
-      color: #15803d;
+      color: #16A34A;
       text-decoration: none;
       font-weight: 500;
       transition: color 0.2s ease;
     }
 
     .view-all-link:hover {
-      color: #166534;
+      color: #15803d;
     }
 
     .table-container {
@@ -648,7 +648,7 @@ interface RecentPayment {
       height: 40px;
       border-radius: 10px;
       background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-      color: #15803d;
+      color: #16A34A;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -671,7 +671,7 @@ interface RecentPayment {
     }
 
     .client-name-link:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-name {
@@ -682,7 +682,7 @@ interface RecentPayment {
     }
 
     .client-name-link:hover .client-name {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-phone {
@@ -693,7 +693,7 @@ interface RecentPayment {
     .amount-value {
       font-size: 0.95rem;
       font-weight: 600;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .bonus-info {
@@ -721,7 +721,7 @@ interface RecentPayment {
 
     .method-badge.method-cash {
       background: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .method-badge.method-card {
@@ -807,7 +807,7 @@ interface RecentPayment {
     .action-btn.view:hover {
       background: #f0fdf4;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .action-btn.edit:hover {

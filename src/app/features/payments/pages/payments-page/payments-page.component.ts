@@ -552,7 +552,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .type-btn.active {
-      background: #15803d;
+      background: #16A34A;
       color: white;
     }
 
@@ -617,7 +617,7 @@ type SortDirection = 'asc' | 'desc';
 
     .sort-direction-btn:hover {
       border-color: #22c55e;
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Clear Filters */
@@ -728,7 +728,7 @@ type SortDirection = 'asc' | 'desc';
       height: 40px;
       border-radius: 10px;
       background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-      color: #15803d;
+      color: #16A34A;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -750,7 +750,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .client-name-link:hover {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-name {
@@ -761,7 +761,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .client-name-link:hover .client-name {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .client-phone {
@@ -773,7 +773,7 @@ type SortDirection = 'asc' | 'desc';
     .amount-value {
       font-size: 0.95rem;
       font-weight: 600;
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Bonuses */
@@ -803,7 +803,7 @@ type SortDirection = 'asc' | 'desc';
 
     .method-badge.method-cash {
       background: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .method-badge.method-card {
@@ -862,7 +862,7 @@ type SortDirection = 'asc' | 'desc';
     .action-btn.view:hover {
       background: #f0fdf4;
       border-color: #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .action-btn.edit:hover {
@@ -894,7 +894,7 @@ type SortDirection = 'asc' | 'desc';
 
     .reset-btn {
       padding: 0.5rem 1rem;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       border: none;
       border-radius: 8px;

@@ -51,7 +51,7 @@ export type ChipVariant = 'default' | 'primary' | 'success' | 'warning' | 'error
 
     .chip.success {
       background-color: #f0fdf4;
-      color: #166534;
+      color: #15803d;
       border-color: #86efac;
     }
 

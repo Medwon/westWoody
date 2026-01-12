@@ -84,7 +84,7 @@ export type SnackbarType = 'info' | 'success' | 'warning' | 'error';
     }
 
     .snackbar.success {
-      background-color: #15803d;
+      background-color: #16A34A;
     }
 
     .snackbar.error {

@@ -17,7 +17,7 @@ import { CommonModule } from '@angular/common';
         </div>
         <h1 class="promo-title">
           <span class="title-greeting">Привет,</span>
-          <span class="title-brand">WestWood! <span class="wave-emoji">👋🏻</span></span>
+          <span class="title-brand">WestWood!<span class="wave-emoji">👋🏻</span></span>
         </h1>
         <p class="promo-text">
           Забудьте о ручном управлении бонусами и акциями.
@@ -48,7 +48,7 @@ import { CommonModule } from '@angular/common';
     .promo-panel {
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, #15803d 0%, #166534 50%, #14532d 100%);
+      background: linear-gradient(135deg, #16A34A 0%, #15803d 50%, #14532d 100%);
       position: relative;
       overflow: hidden;
       display: flex;

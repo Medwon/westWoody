@@ -41,7 +41,7 @@ export type AlertType = 'success' | 'info' | 'warning' | 'error';
     .alert.success {
       background-color: #f0fdf4;
       border-color: #86efac;
-      color: #166534;
+      color: #15803d;
     }
 
     .alert.info {

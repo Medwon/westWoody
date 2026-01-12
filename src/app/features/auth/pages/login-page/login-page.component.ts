@@ -125,7 +125,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
       display: flex;
       min-height: 100vh;
       height: 100vh;
-      background: #ffffff;
+      background: #F5F6F8;
     }
 
     /* Right Form Panel */

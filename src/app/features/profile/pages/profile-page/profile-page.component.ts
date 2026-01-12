@@ -370,7 +370,7 @@ interface ActivityItem {
       width: 80px;
       height: 80px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #15803d, #22c55e);
+      background: linear-gradient(135deg, #16A34A, #22c55e);
       color: white;
       display: flex;
       align-items: center;
@@ -420,7 +420,7 @@ interface ActivityItem {
       gap: 0.35rem;
       padding: 0.25rem 0.6rem;
       background: #f0fdf4;
-      color: #15803d;
+      color: #16A34A;
       border-radius: 6px;
       font-size: 0.75rem;
       font-weight: 500;
@@ -461,7 +461,7 @@ interface ActivityItem {
       gap: 0.35rem;
       padding: 0.25rem 0.75rem;
       background: #dcfce7;
-      color: #15803d;
+      color: #16A34A;
       border-radius: 20px;
       font-size: 0.8rem;
       font-weight: 500;
@@ -472,7 +472,7 @@ interface ActivityItem {
       border: none;
       padding: 0;
       cursor: pointer;
-      color: #15803d;
+      color: #16A34A;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -527,7 +527,7 @@ interface ActivityItem {
     }
 
     .add-tag-confirm-btn {
-      background: #15803d;
+      background: #16A34A;
       border: none;
       width: 22px;
       height: 22px;
@@ -546,7 +546,7 @@ interface ActivityItem {
 
     .edit-tags-btn {
       background: #f0fdf4;
-      border: 1px dashed #15803d;
+      border: 1px dashed #16A34A;
       width: 20px;
       height: 20px;
       border-radius: 50%;
@@ -554,7 +554,7 @@ interface ActivityItem {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: #15803d;
+      color: #16A34A;
       transition: all 0.15s;
     }
 
@@ -586,7 +586,7 @@ interface ActivityItem {
     }
 
     .save-tags-btn {
-      background: #15803d;
+      background: #16A34A;
       color: white;
     }
 
@@ -682,7 +682,7 @@ interface ActivityItem {
       padding: 0.25rem 0.6rem;
       background: #dcfce7;
       border: 1px solid #bbf7d0;
-      color: #15803d;
+      color: #16A34A;
       border-radius: 16px;
       font-size: 0.75rem;
       font-weight: 600;
@@ -728,7 +728,7 @@ interface ActivityItem {
     .comment-title svg {
       width: 18px;
       height: 18px;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .edit-comment-btn {
@@ -743,7 +743,7 @@ interface ActivityItem {
 
     .edit-comment-btn:hover {
       background: #f3f4f6;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .edit-comment-btn svg {
@@ -766,7 +766,7 @@ interface ActivityItem {
     }
 
     .save-btn {
-      background: #15803d;
+      background: #16A34A;
       color: white;
     }
 
@@ -857,7 +857,7 @@ interface ActivityItem {
 
     .stat-icon.transactions {
       background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-      color: #15803d;
+      color: #16A34A;
     }
 
     .stat-icon.total-sum {
@@ -930,7 +930,7 @@ interface ActivityItem {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .card-icon svg {
@@ -957,7 +957,7 @@ interface ActivityItem {
 
     .card-edit-btn:hover {
       background: #f3f4f6;
-      color: #15803d;
+      color: #16A34A;
     }
 
     .card-edit-btn svg {
@@ -989,7 +989,7 @@ interface ActivityItem {
     }
 
     .info-value.email {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .info-input {
@@ -1069,7 +1069,7 @@ interface ActivityItem {
     .info-select option:hover,
     .info-select option:checked {
       background: linear-gradient(to right, #f0fdf4, #dcfce7);
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Activity Card */
@@ -1151,7 +1151,7 @@ interface ActivityItem {
     }
 
     .activity-amount.success {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .activity-bonus {

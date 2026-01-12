@@ -363,7 +363,7 @@ interface BonusRule {
     }
 
     .config-card:hover {
-      border-color: #15803d;
+      border-color: #16A34A;
       transform: translateY(-3px);
     }
 
@@ -379,7 +379,7 @@ interface BonusRule {
     }
 
     .config-card.active-config::before {
-      background: #15803d;
+      background: #16A34A;
     }
 
     /* Config Header */
@@ -413,7 +413,7 @@ interface BonusRule {
     }
 
     .config-card.active-config .config-icon svg {
-      color: #15803d;
+      color: #16A34A;
     }
 
     /* Switch */
@@ -455,7 +455,7 @@ interface BonusRule {
     }
 
     input:checked + .slider {
-      background-color: #15803d;
+      background-color: #16A34A;
     }
 
     input:checked + .slider:before {
@@ -518,7 +518,7 @@ interface BonusRule {
     }
 
     .config-expiration.forever {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .expiration-icon {
@@ -540,8 +540,8 @@ interface BonusRule {
     }
 
     .btn-config-card:hover {
-      border-color: #15803d;
-      color: #15803d;
+      border-color: #16A34A;
+      color: #16A34A;
       background: #dcfce7;
     }
 
@@ -568,8 +568,8 @@ interface BonusRule {
     }
 
     .config-card-add:hover {
-      border-color: #15803d;
-      color: #15803d;
+      border-color: #16A34A;
+      color: #16A34A;
       background: #dcfce7;
       transform: translateY(-3px);
     }
@@ -629,7 +629,7 @@ interface BonusRule {
     }
 
     .form-input:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -678,12 +678,12 @@ interface BonusRule {
     }
 
     .unit-option:hover {
-      border-color: #15803d;
+      border-color: #16A34A;
       background: #f0fdf4;
     }
 
     .unit-option.selected {
-      border-color: #15803d;
+      border-color: #16A34A;
       background: #dcfce7;
     }
 
@@ -695,7 +695,7 @@ interface BonusRule {
     }
 
     .unit-option.selected .unit-icon {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .unit-icon-svg {
@@ -707,7 +707,7 @@ interface BonusRule {
     }
 
     .unit-option.selected .unit-icon-svg {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .unit-text {
@@ -718,7 +718,7 @@ interface BonusRule {
     }
 
     .unit-option.selected .unit-text {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .form-textarea {
@@ -735,7 +735,7 @@ interface BonusRule {
     }
 
     .form-textarea:focus {
-      border-color: #15803d;
+      border-color: #16A34A;
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
@@ -760,12 +760,12 @@ interface BonusRule {
     }
 
     .icon-option:hover {
-      border-color: #15803d;
+      border-color: #16A34A;
       background: #f0fdf4;
     }
 
     .icon-option.selected {
-      border-color: #15803d;
+      border-color: #16A34A;
       background: #dcfce7;
     }
 
@@ -777,7 +777,7 @@ interface BonusRule {
     }
 
     .icon-option.selected svg {
-      color: #15803d;
+      color: #16A34A;
     }
 
     .modal-actions {
@@ -789,7 +789,7 @@ interface BonusRule {
 
     .submit-btn {
       width: 100%;
-      background: #15803d;
+      background: #16A34A;
       color: white;
       padding: 14px;
       border: none;
