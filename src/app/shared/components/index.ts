@@ -33,6 +33,7 @@ export * from './progress/progress.component';
 export * from './radio/radio.component';
 export * from './radio-group/radio-group.component';
 export * from './rating/rating.component';
+export * from './refund-confirmation-modal/refund-confirmation-modal.component';
 export * from './select/select.component';
 export * from './skeleton/skeleton.component';
 export * from './slider/slider.component';

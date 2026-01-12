@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
+import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 interface Payment {
   id: string;
@@ -26,7 +29,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
@@ -85,8 +88,24 @@ type SortDirection = 'asc' | 'desc';
         <!-- Filters Section -->
         <div class="filters-section">
           <div class="filters-row">
-            <!-- Search by client name -->
+            <!-- Search by payment ID -->
             <div class="filter-group search-group">
+              <div class="search-input-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="search-icon">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <input 
+                  type="text" 
+                  [(ngModel)]="searchPaymentId" 
+                  (input)="applyFilters()"
+                  placeholder="Поиск по ID платежа..."
+                  class="filter-input">
+              </div>
+            </div>
+
+            <!-- Search by client name -->
+            <div class="filter-group">
               <div class="search-input-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="search-icon">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
@@ -124,18 +143,20 @@ type SortDirection = 'asc' | 'desc';
                   type="date" 
                   [(ngModel)]="dateFrom" 
                   (change)="applyFilters()"
-                  placeholder="От"
+                  placeholder="ДД ММ ГГГГ"
                   class="date-input">
                 <span class="date-separator">—</span>
                 <input 
                   type="date" 
                   [(ngModel)]="dateTo" 
                   (change)="applyFilters()"
-                  placeholder="До"
+                  placeholder="ДД ММ ГГГГ"
                   class="date-input">
               </div>
             </div>
+          </div>
 
+          <div class="filters-row">
             <!-- Payment method filter -->
             <div class="filter-group type-filter">
               <label class="filter-label">Способ оплаты:</label>
@@ -193,14 +214,32 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
               </button>
             </div>
+          </div>
 
-            <!-- Clear filters -->
-            <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              Сбросить
-            </button>
+          <!-- Filter Actions Footer -->
+          <div class="filters-footer">
+            <div class="button-group">
+              <app-button 
+                buttonType="danger-outline" 
+                size="small" 
+                (onClick)="clearFilters()"
+                *ngIf="hasActiveFilters()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Сбросить
+              </app-button>
+              <app-button 
+                buttonType="primary-outline" 
+                size="small" 
+                (onClick)="applyFilters()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Поиск
+              </app-button>
+            </div>
           </div>
         </div>
 
@@ -287,18 +326,27 @@ type SortDirection = 'asc' | 'desc';
                 </td>
                 <td class="td-actions">
                   <div class="actions-cell">
-                    <button class="action-btn view" [routerLink]="['/clients', payment.clientId]" title="Просмотр клиента">
+                    <a [routerLink]="['/clients', payment.clientId]" class="action-link">
+                      <app-icon-button
+                        iconButtonType="view"
+                        size="small"
+                        tooltip="Просмотр клиента">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                      </app-icon-button>
+                    </a>
+                    <app-icon-button
+                      iconButtonType="refund"
+                      size="small"
+                      tooltip="Возврат"
+                      [disabled]="payment.isRefund"
+                      (onClick)="openRefundModal(payment)">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                    </button>
-                    <button class="action-btn edit" title="Редактировать">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </button>
+                    </app-icon-button>
                   </div>
                 </td>
               </tr>
@@ -317,6 +365,14 @@ type SortDirection = 'asc' | 'desc';
 
       </div>
     </div>
+
+    <!-- Refund Confirmation Modal -->
+    <app-refund-confirmation-modal
+      [visible]="showRefundModal"
+      [payment]="selectedPaymentForRefund"
+      (visibleChange)="closeRefundModal()"
+      (confirm)="confirmRefund($event)">
+    </app-refund-confirmation-modal>
   `,
   styles: [`
     .page-wrapper {
@@ -422,6 +478,12 @@ type SortDirection = 'asc' | 'desc';
       gap: 1rem;
       align-items: flex-end;
       flex-wrap: wrap;
+    }
+
+    .filters-row + .filters-row {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #f1f5f9;
     }
 
     .filter-group {
@@ -621,30 +683,27 @@ type SortDirection = 'asc' | 'desc';
     }
 
     /* Clear Filters */
-    .clear-filters-btn {
+    /* Filter Actions Footer */
+    .filters-footer {
       display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.5rem 0.875rem;
-      border: 1.5px solid #fecaca;
-      border-radius: 8px;
-      background: #fef2f2;
-      color: #dc2626;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin-left: auto;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #f1f5f9;
     }
 
-    .clear-filters-btn svg {
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .button-group app-button {
+      width: 110px;
+    }
+
+    .button-group app-button svg {
       width: 14px;
       height: 14px;
-    }
-
-    .clear-filters-btn:hover {
-      background: #fee2e2;
-      border-color: #fca5a5;
     }
 
     /* Results Info */
@@ -840,35 +899,10 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.5rem;
     }
 
-    .action-btn {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      color: #64748b;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-
-    .action-btn svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    .action-btn.view:hover {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-      color: #16A34A;
-    }
-
-    .action-btn.edit:hover {
-      background: #dbeafe;
-      border-color: #bfdbfe;
-      color: #1d4ed8;
+    .action-link {
+      display: inline-flex;
+      text-decoration: none;
+      color: inherit;
     }
 
     /* Empty State */
@@ -940,12 +974,14 @@ type SortDirection = 'asc' | 'desc';
         min-width: 900px;
       }
     }
+
   `]
 })
 export class PaymentsPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
 
   // Filters
+  searchPaymentId = '';
   searchClientName = '';
   searchPhone = '';
   dateFrom = '';
@@ -954,6 +990,10 @@ export class PaymentsPageComponent implements OnInit {
   filterRefund: 'all' | 'paid' | 'refund' = 'all';
   sortField: SortField = 'date';
   sortDirection: SortDirection = 'desc';
+
+  // Refund modal
+  showRefundModal = false;
+  selectedPaymentForRefund: Payment | null = null;
 
   // Mock payments data
   payments: Payment[] = [
@@ -1352,10 +1392,6 @@ export class PaymentsPageComponent implements OnInit {
   filteredPayments: Payment[] = [];
 
   ngOnInit(): void {
-    const date30DaysAgo = new Date();
-    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
-    this.dateFrom = this.formatDateForInput(date30DaysAgo);
-    
     this.pageHeaderService.setPageHeader('Платежи', [
       { label: 'Главная', route: '/home' },
       { label: 'Платежи' }
@@ -1433,6 +1469,15 @@ export class PaymentsPageComponent implements OnInit {
 
   applyFilters(): void {
     let result = [...this.payments];
+
+    // Filter by payment ID
+    if (this.searchPaymentId.trim()) {
+      const search = this.searchPaymentId.toLowerCase().replace(/\s/g, '');
+      result = result.filter(p => {
+        const paymentId = this.formatPaymentId(p.id).toLowerCase().replace(/\s/g, '');
+        return paymentId.includes(search);
+      });
+    }
 
     // Filter by client name
     if (this.searchClientName.trim()) {
@@ -1531,7 +1576,8 @@ export class PaymentsPageComponent implements OnInit {
   }
 
   hasActiveFilters(): boolean {
-    return this.searchClientName.trim() !== '' ||
+    return this.searchPaymentId.trim() !== '' ||
+           this.searchClientName.trim() !== '' ||
            this.searchPhone.trim() !== '' ||
            this.dateFrom !== '' ||
            this.dateTo !== '' ||
@@ -1540,16 +1586,45 @@ export class PaymentsPageComponent implements OnInit {
   }
 
   clearFilters(): void {
+    this.searchPaymentId = '';
     this.searchClientName = '';
     this.searchPhone = '';
     this.dateFrom = '';
     this.dateTo = '';
     this.filterPaymentMethod = 'all';
     this.filterRefund = 'all';
-    const date30DaysAgo = new Date();
-    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
-    this.dateFrom = this.formatDateForInput(date30DaysAgo);
     this.applyFilters();
+  }
+
+  openRefundModal(payment: Payment): void {
+    if (payment.isRefund) {
+      return;
+    }
+    this.selectedPaymentForRefund = payment;
+    this.showRefundModal = true;
+  }
+
+  closeRefundModal(): void {
+    this.showRefundModal = false;
+    this.selectedPaymentForRefund = null;
+  }
+
+  confirmRefund(payment: Payment): void {
+    if (!payment) {
+      return;
+    }
+    
+    // Update payment to refund
+    const paymentToUpdate = this.payments.find(p => p.id === payment.id);
+    if (paymentToUpdate) {
+      paymentToUpdate.isRefund = true;
+    }
+    
+    // Apply filters to refresh the list
+    this.applyFilters();
+    
+    // Close modal
+    this.closeRefundModal();
   }
 }
 

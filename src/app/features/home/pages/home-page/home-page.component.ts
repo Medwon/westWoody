@@ -10,6 +10,7 @@ import { PageHeaderService } from '../../../../core/services/page-header.service
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 
 interface KpiCard {
@@ -38,7 +39,7 @@ interface RecentPayment {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent],
   template: `
     <div class="page-wrapper">
       <div class="dashboard">
@@ -258,23 +259,27 @@ interface RecentPayment {
                 </td>
                 <td class="td-actions">
                   <div class="actions-cell">
-                    <a [routerLink]="['/clients', payment.clientId]" title="Просмотр клиента" class="action-link">
-                      <app-button buttonType="ghost" size="small">
-                        <svg viewBox="0 0 24 24" fill="none">
+                    <a [routerLink]="['/clients', payment.clientId]" class="action-link">
+                      <app-icon-button
+                        iconButtonType="view"
+                        size="small"
+                        tooltip="Просмотр клиента">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
                           <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
                         </svg>
-                      </app-button>
+                      </app-icon-button>
                     </a>
-                    <app-button
-                      buttonType="ghost"
+                    <app-icon-button
+                      iconButtonType="refund"
                       size="small"
-                      title="Редактировать">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
+                      tooltip="Возврат"
+                      [disabled]="payment.isRefund"
+                      (onClick)="openRefundModal(payment)">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                    </app-button>
+                    </app-icon-button>
                   </div>
                 </td>
               </tr>
@@ -284,6 +289,13 @@ interface RecentPayment {
       </div>
     </div>
 
+    <!-- Refund Confirmation Modal -->
+    <app-refund-confirmation-modal
+      [visible]="showRefundModal"
+      [payment]="selectedPaymentForRefund"
+      (visibleChange)="closeRefundModal()"
+      (confirm)="confirmRefund($event)">
+    </app-refund-confirmation-modal>
   </div>
   `,
   styles: [`
@@ -785,36 +797,6 @@ interface RecentPayment {
       display: block;
     }
 
-    .action-btn {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      color: #64748b;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-
-    .action-btn svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    .action-btn.view:hover {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-      color: #16A34A;
-    }
-
-    .action-btn.edit:hover {
-      background: #dbeafe;
-      border-color: #bfdbfe;
-      color: #1d4ed8;
-    }
 
     @media (max-width: 768px) {
       .page-wrapper {
@@ -843,6 +825,10 @@ export class HomePageComponent implements OnInit {
   user$: Observable<User | null>;
   private pageHeaderService = inject(PageHeaderService);
   transactionModalService = inject(TransactionModalService);
+
+  // Refund modal
+  showRefundModal = false;
+  selectedPaymentForRefund: Payment | null = null;
 
   // KPI Cards Data
   kpiCards: KpiCard[] = [
@@ -1017,4 +1003,45 @@ export class HomePageComponent implements OnInit {
     this.transactionModalService.open();
   }
 
+  openRefundModal(payment: RecentPayment): void {
+    if (payment.isRefund) {
+      return;
+    }
+    // Convert RecentPayment to Payment format
+    const paymentForModal: Payment = {
+      id: payment.id,
+      clientId: payment.clientId,
+      clientName: payment.clientName,
+      clientPhone: payment.clientPhone,
+      amount: payment.amount,
+      bonusEarned: payment.bonusEarned,
+      bonusUsed: payment.bonusUsed,
+      paymentMethod: payment.paymentMethod,
+      isRefund: payment.isRefund,
+      date: payment.date,
+      time: payment.time
+    };
+    this.selectedPaymentForRefund = paymentForModal;
+    this.showRefundModal = true;
   }
+
+  closeRefundModal(): void {
+    this.showRefundModal = false;
+    this.selectedPaymentForRefund = null;
+  }
+
+  confirmRefund(payment: Payment): void {
+    if (!payment) {
+      return;
+    }
+    
+    // Update payment to refund
+    const paymentToUpdate = this.recentPayments.find(p => p.id === payment.id);
+    if (paymentToUpdate) {
+      paymentToUpdate.isRefund = true;
+    }
+    
+    // Close modal
+    this.closeRefundModal();
+  }
+}

@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type ButtonType = 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost';
+export type ButtonType = 'primary' | 'primary-outline' | 'secondary' | 'danger' | 'danger-outline' | 'success' | 'outline' | 'ghost';
 export type ButtonSize = 'small' | 'medium' | 'large';
 
 @Component({
@@ -54,8 +54,19 @@ export type ButtonSize = 'small' | 'medium' | 'large';
     }
 
     button.primary {
-      background-color: var(--primary-color, #007bff);
+      background-color: var(--primary-color, #16A34A);
       color: #ffffff;
+    }
+
+    button.primary-outline {
+      background-color: #16A34A;
+      border: 1.5px solid #16A34A;
+      color: #ffffff;
+    }
+
+    button.primary-outline:hover:not(:disabled) {
+      background-color: #15803d;
+      border-color: #15803d;
     }
 
     button.secondary {
@@ -66,6 +77,17 @@ export type ButtonSize = 'small' | 'medium' | 'large';
     button.danger {
       background-color: #dc3545;
       color: #ffffff;
+    }
+
+    button.danger-outline {
+      background-color: #fef2f2;
+      border: 1.5px solid #fecaca;
+      color: #dc2626;
+    }
+
+    button.danger-outline:hover:not(:disabled) {
+      background-color: #fee2e2;
+      border-color: #fca5a5;
     }
 
     button.success {

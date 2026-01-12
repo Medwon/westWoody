@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 
 interface Client {
   id: string;
@@ -28,7 +30,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
@@ -143,14 +145,14 @@ type SortDirection = 'asc' | 'desc';
                   type="date" 
                   [(ngModel)]="dateFrom" 
                   (change)="applyFilters()"
-                  placeholder="От"
+                  placeholder="ДД ММ ГГГГ"
                   class="date-input">
                 <span class="date-separator">—</span>
                 <input 
                   type="date" 
                   [(ngModel)]="dateTo" 
                   (change)="applyFilters()"
-                  placeholder="До"
+                  placeholder="ДД ММ ГГГГ"
                   class="date-input">
               </div>
             </div>
@@ -222,14 +224,32 @@ type SortDirection = 'asc' | 'desc';
                   (click)="setTypeFilter('business')">Бизнес</button>
               </div>
             </div>
+          </div>
 
-            <!-- Clear filters -->
-            <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              Сбросить
-            </button>
+          <!-- Filter Actions Footer -->
+          <div class="filters-footer">
+            <div class="button-group">
+              <app-button 
+                buttonType="danger-outline" 
+                size="small" 
+                (onClick)="clearFilters()"
+                *ngIf="hasActiveFilters()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Сбросить
+              </app-button>
+              <app-button 
+                buttonType="primary-outline" 
+                size="small" 
+                (onClick)="applyFilters()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Поиск
+              </app-button>
+            </div>
           </div>
         </div>
 
@@ -306,18 +326,26 @@ type SortDirection = 'asc' | 'desc';
                 </td>
                 <td class="td-actions">
                   <div class="actions-cell">
-                    <button class="action-btn view" [routerLink]="['/profile']" title="Просмотр">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </button>
-                    <button class="action-btn edit" title="Редактировать">
+                    <a [routerLink]="['/clients', client.id]" class="action-link">
+                      <app-icon-button
+                        iconButtonType="view"
+                        size="small"
+                        tooltip="Просмотр">
+                        <svg viewBox="0 0 24 24" fill="none">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                      </app-icon-button>
+                    </a>
+                    <app-icon-button
+                      iconButtonType="edit"
+                      size="small"
+                      tooltip="Редактировать">
                       <svg viewBox="0 0 24 24" fill="none">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
                       </svg>
-                    </button>
+                    </app-icon-button>
                   </div>
                 </td>
               </tr>
@@ -330,7 +358,9 @@ type SortDirection = 'asc' | 'desc';
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
             </svg>
             <span>Клиенты не найдены</span>
-            <button class="reset-btn" (click)="clearFilters()">Сбросить фильтры</button>
+            <app-button buttonType="primary" size="small" (onClick)="clearFilters()">
+              Сбросить фильтры
+            </app-button>
           </div>
         </div>
 
@@ -747,31 +777,27 @@ type SortDirection = 'asc' | 'desc';
       background: #f1f5f9;
     }
 
-    /* Clear Filters */
-    .clear-filters-btn {
+    /* Filter Actions Footer */
+    .filters-footer {
       display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.5rem 0.875rem;
-      border: 1.5px solid #fecaca;
-      border-radius: 8px;
-      background: #fef2f2;
-      color: #dc2626;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin-left: auto;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #f1f5f9;
     }
 
-    .clear-filters-btn svg {
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .button-group app-button {
+      width: 110px;
+    }
+
+    .button-group app-button svg {
       width: 14px;
       height: 14px;
-    }
-
-    .clear-filters-btn:hover {
-      background: #fee2e2;
-      border-color: #fca5a5;
     }
 
     /* Results Info */
@@ -987,35 +1013,10 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.5rem;
     }
 
-    .action-btn {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      color: #64748b;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-
-    .action-btn svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    .action-btn.view:hover {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-      color: #16A34A;
-    }
-
-    .action-btn.edit:hover {
-      background: #dbeafe;
-      border-color: #bfdbfe;
-      color: #1d4ed8;
+    .action-link {
+      display: inline-flex;
+      text-decoration: none;
+      color: inherit;
     }
 
     /* Empty State */
@@ -1037,21 +1038,6 @@ type SortDirection = 'asc' | 'desc';
     .empty-state span {
       font-size: 1rem;
       margin-bottom: 1rem;
-    }
-
-    .reset-btn {
-      padding: 0.5rem 1rem;
-      background: #16A34A;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .reset-btn:hover {
-      background: #14532d;
     }
 
     /* Responsive */
@@ -1246,11 +1232,6 @@ export class ClientsPageComponent implements OnInit {
   filteredClients: Client[] = [];
 
   ngOnInit(): void {
-    // Устанавливаем дату "от" на 30 дней назад по умолчанию
-    const date30DaysAgo = new Date();
-    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
-    this.dateFrom = this.formatDateForInput(date30DaysAgo);
-    
     this.pageHeaderService.setPageHeader('Клиенты', [
       { label: 'Главная', route: '/home' },
       { label: 'Клиенты' }
