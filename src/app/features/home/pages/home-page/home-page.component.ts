@@ -83,8 +83,8 @@ interface RecentPayment {
                   <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 </g>
                 <!-- Refunds icon -->
-                <g *ngSwitchCase="'refunds'">
-                  <path d="M3 12h18M9 6l-6 6 6 6M15 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <g class="refunds-icon"  *ngSwitchCase="'refunds'">
+                  <path _ngcontent-ng-c4142443301="" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
                 </g>
                 <!-- Average icon -->
                 <g *ngSwitchCase="'average'">
@@ -309,6 +309,10 @@ interface RecentPayment {
       font-weight: 700;
       color: #0f172a;
       margin: 0 0 0.25rem 0;
+    }
+
+    .refunds-icon {
+      color: #dc2626;
     }
 
     .dashboard-subtitle {
@@ -847,7 +851,7 @@ export class HomePageComponent implements OnInit {
     },
     
     {
-      iconId: 'average',
+      iconId: 'revenue',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
       value: '17 817 ₸',
       label: 'Средний чек',
@@ -870,7 +874,8 @@ export class HomePageComponent implements OnInit {
       value: '2',
       label: 'Возвратов',
       change: '-1',
-      changeType: 'positive'
+      changeType: 'negative'
+      
     },
     
     {
