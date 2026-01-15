@@ -223,7 +223,7 @@ type SortDirection = 'asc' | 'desc';
             <div class="button-group">
               <app-button 
                 buttonType="danger-outline" 
-                size="small" 
+                size="medium" 
                 (onClick)="clearFilters()"
                 *ngIf="hasActiveFilters()">
                 <svg viewBox="0 0 24 24" fill="none">
@@ -703,7 +703,7 @@ type SortDirection = 'asc' | 'desc';
 
     .button-group {
       display: flex;
-      gap: 0.5rem;
+      gap: 2rem;
     }
 
     .button-group app-button {
