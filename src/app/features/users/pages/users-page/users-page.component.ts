@@ -102,7 +102,7 @@ interface User {
                       <app-button
                         buttonType="ghost"
                         size="small"
-                        (onClick)="closeUser(user)"
+                        (onClick)="onLockClick(user)"
                         title="Закрыть профиль">
                         <svg viewBox="0 0 24 24" fill="none">
                           <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
@@ -114,7 +114,7 @@ interface User {
                       <app-button
                         buttonType="ghost"
                         size="small"
-                        (onClick)="deleteUser(user)"
+                        (onClick)="onDeleteClick(user)"
                         title="Удалить">
                         <svg viewBox="0 0 24 24" fill="none">
                           <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"/>
@@ -251,6 +251,70 @@ interface User {
           </app-button>
         </div>
       </form>
+    </app-modal>
+
+    <!-- Lock Confirmation Modal -->
+    <app-modal 
+      [visible]="isLockConfirmModalOpen" 
+      [title]="lockConfirmTitle"
+      (visibleChange)="isLockConfirmModalOpen = $event">
+      <div class="modal-body">
+        <div class="toggle-confirm-content">
+          <div class="confirm-icon disable">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="confirm-description">
+            <p class="confirm-text">{{ lockConfirmDescription }}</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <app-button
+            buttonType="ghost"
+            (onClick)="cancelLock()">
+            Отмена
+          </app-button>
+          <app-button
+            buttonType="danger"
+            (onClick)="confirmLock()">
+            Заблокировать
+          </app-button>
+        </div>
+      </div>
+    </app-modal>
+
+    <!-- Delete Confirmation Modal -->
+    <app-modal 
+      [visible]="isDeleteConfirmModalOpen" 
+      [title]="deleteConfirmTitle"
+      (visibleChange)="isDeleteConfirmModalOpen = $event">
+      <div class="modal-body">
+        <div class="toggle-confirm-content">
+          <div class="confirm-icon delete">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2"/>
+              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="confirm-description">
+            <p class="confirm-text">{{ deleteConfirmDescription }}</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <app-button
+            buttonType="ghost"
+            (onClick)="cancelDelete()">
+            Отмена
+          </app-button>
+          <app-button
+            buttonType="danger"
+            (onClick)="confirmDelete()">
+            Удалить
+          </app-button>
+        </div>
+      </div>
     </app-modal>
   `,
   styles: [`
@@ -570,6 +634,59 @@ interface User {
       padding-top: 1.5rem;
       border-top: 1px solid #e2e8f0;
     }
+
+    /* Confirmation Modal Styles */
+    .toggle-confirm-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+
+    .confirm-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .confirm-icon.disable {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .confirm-icon.delete {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .confirm-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .confirm-description {
+      text-align: center;
+    }
+
+    .confirm-text {
+      font-size: 0.9375rem;
+      color: #475569;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+    }
   `]
 })
 export class UsersPageComponent implements OnInit {
@@ -578,6 +695,18 @@ export class UsersPageComponent implements OnInit {
 
   showAddUserModal = false;
   addUserForm: FormGroup;
+
+  // Lock confirmation modal
+  isLockConfirmModalOpen = false;
+  pendingLockUser: User | null = null;
+  lockConfirmTitle = '';
+  lockConfirmDescription = '';
+
+  // Delete confirmation modal
+  isDeleteConfirmModalOpen = false;
+  pendingDeleteUser: User | null = null;
+  deleteConfirmTitle = '';
+  deleteConfirmDescription = '';
 
   // Mock data
   users: User[] = [
@@ -715,19 +844,49 @@ export class UsersPageComponent implements OnInit {
   }
 
 
-  closeUser(user: User): void {
-    const index = this.users.findIndex(u => u.id === user.id);
-    if (index !== -1) {
-      this.users[index].status = 'closed';
-      this.filteredUsers = [...this.users];
+  onLockClick(user: User): void {
+    this.pendingLockUser = user;
+    this.lockConfirmTitle = `Заблокировать пользователя "${user.firstName} ${user.lastName}"?`;
+    this.lockConfirmDescription = `При блокировке пользователь ${user.firstName} ${user.lastName} (${user.email}) потеряет доступ к системе. Его профиль будет закрыт, и он не сможет выполнять операции в системе. Вы сможете разблокировать пользователя позже или удалить его профиль.`;
+    this.isLockConfirmModalOpen = true;
+  }
+
+  confirmLock(): void {
+    if (this.pendingLockUser) {
+      const index = this.users.findIndex(u => u.id === this.pendingLockUser!.id);
+      if (index !== -1) {
+        this.users[index].status = 'closed';
+        this.filteredUsers = [...this.users];
+      }
+      this.isLockConfirmModalOpen = false;
+      this.pendingLockUser = null;
     }
   }
 
-  deleteUser(user: User): void {
-    if (confirm(`Вы уверены, что хотите удалить пользователя ${user.firstName} ${user.lastName}?`)) {
-      this.users = this.users.filter(u => u.id !== user.id);
+  cancelLock(): void {
+    this.isLockConfirmModalOpen = false;
+    this.pendingLockUser = null;
+  }
+
+  onDeleteClick(user: User): void {
+    this.pendingDeleteUser = user;
+    this.deleteConfirmTitle = `Удалить пользователя "${user.firstName} ${user.lastName}"?`;
+    this.deleteConfirmDescription = `Вы уверены, что хотите удалить пользователя ${user.firstName} ${user.lastName} (${user.email})? Это действие нельзя отменить. Все данные пользователя будут безвозвратно удалены из системы.`;
+    this.isDeleteConfirmModalOpen = true;
+  }
+
+  confirmDelete(): void {
+    if (this.pendingDeleteUser) {
+      this.users = this.users.filter(u => u.id !== this.pendingDeleteUser!.id);
       this.filteredUsers = [...this.users];
+      this.isDeleteConfirmModalOpen = false;
+      this.pendingDeleteUser = null;
     }
+  }
+
+  cancelDelete(): void {
+    this.isDeleteConfirmModalOpen = false;
+    this.pendingDeleteUser = null;
   }
 
   activateUser(user: User): void {

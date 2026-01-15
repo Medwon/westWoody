@@ -142,7 +142,7 @@ export interface SidebarMenuItem {
         <!-- Footer с действиями -->
         <div class="sidebar-footer" *ngIf="!isClosed()">
           <div class="footer-actions">
-            <a routerLink="/profile" routerLinkActive="active" class="footer-link" [title]="isCollapsed() ? 'Профиль' : ''">
+            <a routerLink="/account" routerLinkActive="active" class="footer-link" [title]="isCollapsed() ? 'Профиль' : ''">
               <svg viewBox="0 0 24 24" fill="none" class="footer-icon">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

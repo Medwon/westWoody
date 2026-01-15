@@ -34,7 +34,7 @@ export type IconButtonSize = 'small' | 'medium' | 'large';
       cursor: pointer;
       transition: all 0.15s;
       background: white;
-      color: #64748b;
+      color:rgb(0, 61, 146);
       width: 32px;
       height: 32px;
       padding: 0;
@@ -173,9 +173,9 @@ export type IconButtonSize = 'small' | 'medium' | 'large';
     }
 
     app-icon-button .icon-button.edit:hover:not(:disabled) {
-      background: #dbeafe;
-      border-color: #bfdbfe;
-      color: #1d4ed8;
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #16A34A;
     }
   `]
 })

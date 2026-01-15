@@ -182,7 +182,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     }
 
     :host ::ng-deep .register-prompt app-link a {
-      color: #15803d;
+      color:#1a202c;
       text-decoration: underline;
       font-weight: 600;
     }

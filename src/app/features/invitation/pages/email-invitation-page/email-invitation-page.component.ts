@@ -48,6 +48,7 @@ interface EmailInvitationHistory {
         [isSending]="isSending"
         [successMessage]="successMessage"
         [errorMessage]="errorMessage"
+        [hideForm]="true"
         (formSubmit)="onSubmit()"
         (templateSelected)="onTemplateSelected($event)"
         (templateCreated)="onTemplateCreated($event)"
