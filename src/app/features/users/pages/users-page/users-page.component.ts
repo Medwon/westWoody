@@ -249,6 +249,7 @@ interface User {
       background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
       min-height: calc(100vh - 64px);
       padding: 2rem;
+      margin: -2rem;
     }
 
     .users-container {

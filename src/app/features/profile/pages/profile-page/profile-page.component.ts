@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
-import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
+import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 
 interface MockClient {
   firstName: string;
@@ -1440,7 +1440,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   // Refund modal
   showRefundModal = false;
-  selectedPaymentForRefund: any = null;
+  selectedPaymentForRefund: Payment | null = null;
 
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Профиль клиента', [
@@ -1591,6 +1591,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   openRefundModal(payment: PaymentItem): void {
     this.selectedPaymentForRefund = {
       id: payment.id,
+      clientId: this.mockClient.phone.replace(/\D/g, ''), // Use phone as clientId
       clientName: this.getFullName(),
       clientPhone: this.mockClient.phone,
       amount: payment.amount,
@@ -1609,8 +1610,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     this.selectedPaymentForRefund = null;
   }
 
-  confirmRefund(refundData: { paymentId: string; reason: string }): void {
-    const paymentIndex = this.payments.findIndex(p => p.id === refundData.paymentId);
+  confirmRefund(payment: Payment): void {
+    const paymentIndex = this.payments.findIndex(p => p.id === payment.id);
     if (paymentIndex !== -1) {
       this.payments[paymentIndex].isRefund = true;
     }
