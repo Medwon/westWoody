@@ -7,6 +7,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { SidebarService } from '../../core/services/sidebar.service';
 import { TransactionModalService } from '../../core/services/transaction-modal.service';
 
+
 export interface SidebarMenuChild {
   label: string;
   iconPath: string;
@@ -872,6 +873,7 @@ export class SidebarComponent {
 
   openSidebar(): void {
     this.isClosed.set(false);
+
   }
 
   closeSidebar(): void {
