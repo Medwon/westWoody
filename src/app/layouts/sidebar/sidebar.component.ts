@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { IconButtonComponent } from '../../shared/components/icon-button/icon-button.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
 import { SidebarService } from '../../core/services/sidebar.service';
 import { TransactionModalService } from '../../core/services/transaction-modal.service';
 
@@ -26,7 +27,8 @@ export interface SidebarMenuItem {
   imports: [
     CommonModule,
     RouterModule,
-    IconButtonComponent
+    IconButtonComponent,
+    ButtonComponent
   ],
   template: `
     <!-- Overlay для закрытого sidebar на мобильных -->
@@ -54,17 +56,25 @@ export interface SidebarMenuItem {
 
         <!-- Кнопка Create -->
         <div class="sidebar-create" *ngIf="!isCollapsed() && !isClosed()">
-          <button class="create-btn" (click)="onCreateClick()">
-            <span class="create-icon">+</span>
+          <app-button
+            buttonType="ghost"
+            size="medium"
+            (onClick)="onCreateClick()"
+            [tooltip]="createButtonLabel">
+            <svg class="create-icon" viewBox="0 0 24 24" fill="none">
+              <path d="M6 12H18M12 6V18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             <span class="create-label">{{ createButtonLabel }}</span>
-          </button>
+          </app-button>
         </div>
         <div class="sidebar-create-collapsed" *ngIf="isCollapsed() && !isClosed()">
           <app-icon-button
-            icon="+"
             iconButtonType="ghost"
             size="large"
             (onClick)="onCreateClick()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M6 12H18M12 6V18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </app-icon-button>
         </div>
 
@@ -293,11 +303,21 @@ export interface SidebarMenuItem {
       color: var(--create-icon-color, var(--primary-color, #15803d)) !important;
     }
 
+    :host ::ng-deep .sidebar-create-collapsed .icon-button svg {
+      width: 32px;
+      height: 32px;
+    }
+
     :host ::ng-deep .sidebar-create-collapsed .icon-button:hover {
       background-color: var(--create-btn-bg-hover, #e5e7eb) !important;
     }
 
-    .create-btn {
+    .sidebar-create app-button {
+      width: 100%;
+      display: block;
+    }
+
+    :host ::ng-deep .sidebar-create app-button button {
       width: 100%;
       height: 44px;
       display: flex;
@@ -306,31 +326,28 @@ export interface SidebarMenuItem {
       justify-content: flex-start;
       padding: 12px;
       border-radius: 8px;
-      background-color: var(--create-btn-bg, #f3f4f6);
-      border: 1px solid var(--create-btn-border, #e5e7eb);
-      color: #1f2937;
+      background-color: var(--create-btn-bg, #f3f4f6) !important;
+      border: 1px solid var(--create-btn-border, #e5e7eb) !important;
+      color: #1f2937 !important;
       font-weight: 500;
       font-size: 0.875rem;
-      cursor: pointer;
-      transition: all 0.15s ease;
       box-sizing: border-box;
       overflow: hidden;
       white-space: nowrap;
     }
 
-    .create-btn:hover {
-      background-color: var(--create-btn-bg-hover, #e5e7eb);
+    :host ::ng-deep .sidebar-create app-button button:hover {
+      background-color: var(--create-btn-bg-hover, #e5e7eb) !important;
     }
 
-    .create-btn:active {
-      background-color: #d1d5db;
+    :host ::ng-deep .sidebar-create app-button button:active {
+      background-color: #d1d5db !important;
     }
 
-    .create-icon {
-      font-size: 24px;
-      line-height: 1;
+    :host ::ng-deep .sidebar-create app-button button svg.create-icon {
+      width: 32px;
+      height: 32px;
       color: var(--create-icon-color, var(--primary-color, #007bff));
-      font-weight: 300;
       flex-shrink: 0;
     }
 
@@ -338,6 +355,9 @@ export interface SidebarMenuItem {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      display: inline-flex;
+      align-items: center;
+      line-height: 1.5;
     }
 
     /* Плюсик в закрытом состоянии (в IconButton) */

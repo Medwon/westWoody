@@ -49,10 +49,10 @@ interface RecentPayment {
           buttonType="primary"
           size="medium"
           (onClick)="openTransactionModal()">
-          <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg class="create-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M6 12H18M12 6V18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Новая транзакция
+          <span class="create-label">Новая транзакция</span>
         </app-button>
       </div>
 
@@ -777,6 +777,22 @@ interface RecentPayment {
       display: block;
     }
 
+    :host ::ng-deep .dashboard-header app-button button {
+      height: 44px;
+      padding: 0 1rem;
+    }
+
+    :host ::ng-deep .dashboard-header app-button button svg.create-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    :host ::ng-deep app-button button .create-label {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1.5;
+    }
 
     @media (max-width: 768px) {
       .page-wrapper {

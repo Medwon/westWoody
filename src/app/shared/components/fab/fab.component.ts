@@ -13,7 +13,12 @@ export type FabSize = 'small' | 'medium' | 'large';
       [class]="getClasses()"
       [disabled]="disabled"
       (click)="onClick.emit($event)">
-      <span class="fab-icon">{{ icon }}</span>
+      <span class="fab-icon">
+        <ng-content></ng-content>
+        <svg *ngIf="showDefaultIcon" viewBox="0 0 24 24" fill="none">
+          <path d="M6 12H18M12 6V18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
     </button>
   `,
   styles: [`
@@ -58,21 +63,29 @@ export type FabSize = 'small' | 'medium' | 'large';
     }
 
     .fab-icon {
-      font-size: 1.5rem;
-      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .fab.small .fab-icon {
-      font-size: 1.125rem;
+    .fab-icon svg {
+      width: 24px;
+      height: 24px;
     }
 
-    .fab.large .fab-icon {
-      font-size: 1.75rem;
+    .fab.small .fab-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .fab.large .fab-icon svg {
+      width: 28px;
+      height: 28px;
     }
   `]
 })
 export class FabComponent {
-  @Input() icon = '+';
+  @Input() showDefaultIcon = true;
   @Input() size: FabSize = 'medium';
   @Input() disabled = false;
 
