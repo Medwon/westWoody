@@ -153,27 +153,7 @@ interface RecentPayment {
         </div>
 
         <!-- Donut Chart -->
-        <div class="chart-card donut-chart-card">
-          <h3 class="chart-title">Бонусный баланс</h3>
-          <div class="donut-container">
-            <svg viewBox="0 0 200 200" class="donut-chart">
-              <circle cx="100" cy="100" r="70" fill="none" stroke="#e8f5e9" stroke-width="24"/>
-              <circle cx="100" cy="100" r="70" fill="none" stroke="#16A34A" stroke-width="24" 
-                      stroke-dasharray="330 440" stroke-linecap="round" 
-                      transform="rotate(-90 100 100)"/>
-            </svg>
-          </div>
-          <div class="donut-legend">
-            <div class="legend-item">
-              <span class="legend-color active"></span>
-              <span class="legend-label">Активные</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color forecast"></span>
-              <span class="legend-label">Прогноз</span>
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       <!-- Recent Payments Table -->
@@ -453,8 +433,8 @@ interface RecentPayment {
     /* Charts Section */
     .charts-section {
       display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 1.5rem;
+      // grid-template-columns: 2fr 1fr;
+      // gap: 1.5rem;
       margin-bottom: 2rem;
     }
 
@@ -833,27 +813,19 @@ export class HomePageComponent implements OnInit {
   // KPI Cards Data
   kpiCards: KpiCard[] = [
     {
+      iconId: 'month',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '1 245 890 ₸',
+      label: 'Выручка за месяц',
+      change: '+18%',
+      changeType: 'positive'
+    },
+    {
       iconId: 'revenue',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
       value: '35 634 ₸',
       label: 'Выручка за сегодня',
       change: '+24%',
-      changeType: 'positive'
-    },
-    {
-      iconId: 'bonus',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '3 563',
-      label: 'Бонусов начислено',
-      change: '+12%',
-      changeType: 'positive'
-    },
-    {
-      iconId: 'clients',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '2',
-      label: 'Новых клиентов',
-      change: '+5',
       changeType: 'positive'
     },
     {
@@ -864,6 +836,16 @@ export class HomePageComponent implements OnInit {
       change: '+3',
       changeType: 'positive'
     },
+   
+    {
+      iconId: 'clients',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '2',
+      label: 'Новых клиентов',
+      change: '+5',
+      changeType: 'positive'
+    },
+    
     {
       iconId: 'average',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
@@ -873,6 +855,16 @@ export class HomePageComponent implements OnInit {
       changeType: 'positive'
     },
     {
+      iconId: 'bonus',
+      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+      value: '3 563',
+      label: 'Бонусов начислено',
+      change: '+12%',
+      changeType: 'positive'
+    },
+    
+    
+    {
       iconId: 'refunds',
       iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
       value: '2',
@@ -880,14 +872,7 @@ export class HomePageComponent implements OnInit {
       change: '-1',
       changeType: 'positive'
     },
-    {
-      iconId: 'month',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '1 245 890 ₸',
-      label: 'Выручка за месяц',
-      change: '+18%',
-      changeType: 'positive'
-    },
+    
     {
       iconId: 'today',
       iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',

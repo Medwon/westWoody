@@ -6,6 +6,7 @@ import { PageHeaderService } from '../../../../core/services/page-header.service
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
+import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 
 interface Client {
   id: string;
@@ -30,7 +31,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginatedTableWrapperComponent],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
@@ -224,6 +225,7 @@ type SortDirection = 'asc' | 'desc';
                   (click)="setTypeFilter('business')">Бизнес</button>
               </div>
             </div>
+
           </div>
 
           <!-- Filter Actions Footer -->
@@ -241,7 +243,7 @@ type SortDirection = 'asc' | 'desc';
               </app-button>
               <app-button 
                 buttonType="primary-outline" 
-                size="small" 
+                size="medium" 
                 (onClick)="applyFilters()">
                 <svg viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
@@ -258,22 +260,28 @@ type SortDirection = 'asc' | 'desc';
           <span class="results-count">Найдено: {{ filteredClients.length }} клиентов</span>
         </div>
 
-        <!-- Clients Table -->
-        <div class="table-container">
-          <table class="clients-table">
-            <thead>
-              <tr>
-                <th class="th-client">Клиент</th>
-                <th class="th-contact">Контакты</th>
-                <th class="th-tags">Тэги</th>
-                <th class="th-stats">Статистика</th>
-                <th class="th-bonuses">Бонусы</th>
-                <th class="th-date">Последний визит</th>
-                <th class="th-actions">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let client of filteredClients" class="client-row" [class.inactive]="!client.active">
+        <!-- Clients Table with Pagination -->
+        <app-paginated-table-wrapper
+          [paginationEnabled]="true"
+          [data]="filteredClients"
+          [defaultPageSize]="15"
+          #paginatedTable>
+          
+          <div class="table-container">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th class="th-client">Клиент</th>
+                  <th class="th-contact">Контакты</th>
+                  <th class="th-tags">Тэги</th>
+                  <th class="th-stats">Статистика</th>
+                  <th class="th-bonuses">Бонусы</th>
+                  <th class="th-date">Последний визит</th>
+                  <th class="th-actions">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let client of paginatedTable.paginatedData" class="client-row" [class.inactive]="!client.active">
                 <td class="td-client">
                   <div class="client-cell">
                     <div class="client-avatar" [class.business]="client.type === 'business'">
@@ -363,7 +371,7 @@ type SortDirection = 'asc' | 'desc';
             </app-button>
           </div>
         </div>
-
+        </app-paginated-table-wrapper>
       </div>
     </div>
   `,
@@ -1236,6 +1244,7 @@ export class ClientsPageComponent implements OnInit {
       { label: 'Главная', route: '/home' },
       { label: 'Клиенты' }
     ]);
+    
     this.applyFilters();
   }
 

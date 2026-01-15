@@ -1,10 +1,12 @@
 import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
+import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 
 interface MockClient {
   firstName: string;
@@ -31,7 +33,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent],
   template: `
     <div class="page-wrapper">
       <div class="profile-container">
@@ -303,22 +305,29 @@ interface PaymentItem {
             </div>
             <span class="payments-count">{{ payments.length }} платежей</span>
           </div>
-          
-          <div class="table-container">
-            <table class="payments-table">
-              <thead>
-                <tr>
-                  <th class="th-id">ID платежа</th>
-                  <th class="th-amount">Сумма</th>
-                  <th class="th-bonuses">Бонусы</th>
-                  <th class="th-method">Способ оплаты</th>
-                  <th class="th-status">Статус</th>
-                  <th class="th-date">Дата и время</th>
-                  <th class="th-actions">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let payment of payments" class="payment-row">
+
+          <!-- Payments Table with Pagination -->
+          <app-paginated-table-wrapper
+            [paginationEnabled]="true"
+            [data]="payments"
+            [defaultPageSize]="15"
+            #paginatedTable>
+            
+            <div class="table-container">
+              <table class="payments-table">
+                <thead>
+                  <tr>
+                    <th class="th-id">ID платежа</th>
+                    <th class="th-amount">Сумма</th>
+                    <th class="th-bonuses">Бонусы</th>
+                    <th class="th-method">Способ оплаты</th>
+                    <th class="th-status">Статус</th>
+                    <th class="th-date">Дата и время</th>
+                    <th class="th-actions">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
                   <td class="td-id">
                     <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
                   </td>
@@ -391,6 +400,7 @@ interface PaymentItem {
               <span>Платежи не найдены</span>
             </div>
           </div>
+          </app-paginated-table-wrapper>
         </div>
 
       </div>
@@ -1441,7 +1451,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
-
+  
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Профиль клиента', [
       { label: 'Главная', route: '/home' },

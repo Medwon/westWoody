@@ -9,10 +9,25 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
   template: `
     <div class="pagination">
       <app-icon-button
-        icon="‹"
         iconButtonType="ghost"
+        size="large"
         [disabled]="currentPage === 1"
-        (onClick)="goToPage(currentPage - 1)">
+        (onClick)="goToPage(1)"
+        title="Первая страница">
+        <svg viewBox="0 0 24 24" fill="none" class="pagination-arrow-icon">
+          <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </app-icon-button>
+      
+      <app-icon-button
+        iconButtonType="ghost"
+        size="large"
+        [disabled]="currentPage === 1"
+        (onClick)="goToPage(currentPage - 1)"
+        title="Предыдущая страница">
+        <svg viewBox="0 0 24 24" fill="none" class="pagination-arrow-icon">
+          <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </app-icon-button>
 
       <div class="pagination-pages">
@@ -22,16 +37,31 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
           [class.active]="page === currentPage"
           [class.ellipsis]="page === '...'"
           [disabled]="page === '...'"
-          (click)="page !== '...' && goToPage(page)">
+          (click)="handlePageClick(page)">
           {{ page }}
         </button>
       </div>
 
       <app-icon-button
-        icon="›"
         iconButtonType="ghost"
+        size="large"
         [disabled]="currentPage === totalPages"
-        (onClick)="goToPage(currentPage + 1)">
+        (onClick)="goToPage(currentPage + 1)"
+        title="Следующая страница">
+        <svg viewBox="0 0 24 24" fill="none" class="pagination-arrow-icon">
+          <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </app-icon-button>
+      
+      <app-icon-button
+        iconButtonType="ghost"
+        size="large"
+        [disabled]="currentPage === totalPages"
+        (onClick)="goToPage(totalPages)"
+        title="Последняя страница">
+        <svg viewBox="0 0 24 24" fill="none" class="pagination-arrow-icon">
+          <path d="M13 17l5-5-5-5M6 17l5-5-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </app-icon-button>
     </div>
   `,
@@ -49,15 +79,19 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
 
     .pagination-page {
       min-width: 40px;
+      width: 40px;
       height: 40px;
-      padding: 0 0.75rem;
+      padding: 0;
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 50%;
       background-color: #ffffff;
       color: #1a202c;
       font-size: 0.875rem;
       cursor: pointer;
       transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .pagination-page:hover:not(:disabled):not(.active):not(.ellipsis) {
@@ -66,9 +100,9 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
     }
 
     .pagination-page.active {
-      background-color: #007bff;
+      background-color: #16A34A;
       color: #ffffff;
-      border-color: #007bff;
+      border-color: #16A34A;
     }
 
     .pagination-page.ellipsis {
@@ -79,6 +113,19 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
     .pagination-page:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    /* SVG иконки стрелок */
+    .pagination-arrow-icon {
+      width: 20px;
+      height: 20px;
+      display: block;
+      color:rgb(0, 0, 0);
+    }
+
+    :host ::ng-deep app-icon-button.large .pagination-arrow-icon {
+      width: 24px;
+      height: 24px;
     }
   `]
 })
@@ -109,6 +156,12 @@ export class PaginationComponent {
     }
 
     return pages;
+  }
+
+  handlePageClick(page: number | string): void {
+    if (typeof page === 'number') {
+      this.goToPage(page);
+    }
   }
 
   goToPage(page: number): void {

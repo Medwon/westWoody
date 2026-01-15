@@ -7,6 +7,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 
 interface Payment {
   id: string;
@@ -29,7 +30,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, PaginatedTableWrapperComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
@@ -214,6 +215,7 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
               </button>
             </div>
+
           </div>
 
           <!-- Filter Actions Footer -->
@@ -231,7 +233,7 @@ type SortDirection = 'asc' | 'desc';
               </app-button>
               <app-button 
                 buttonType="primary-outline" 
-                size="small" 
+                size="medium" 
                 (onClick)="applyFilters()">
                 <svg viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
@@ -248,23 +250,29 @@ type SortDirection = 'asc' | 'desc';
           <span class="results-count">Найдено: {{ filteredPayments.length }} платежей</span>
         </div>
 
-        <!-- Payments Table -->
-        <div class="table-container">
-          <table class="payments-table">
-            <thead>
-              <tr>
-                <th class="th-id">ID платежа</th>
-                <th class="th-client">Клиент</th>
-                <th class="th-amount">Сумма</th>
-                <th class="th-bonuses">Бонусы</th>
-                <th class="th-method">Способ оплаты</th>
-                <th class="th-status">Статус</th>
-                <th class="th-date">Дата и время</th>
-                <th class="th-actions">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let payment of filteredPayments" class="payment-row">
+        <!-- Payments Table with Pagination -->
+        <app-paginated-table-wrapper
+          [paginationEnabled]="true"
+          [data]="filteredPayments"
+          [defaultPageSize]="15"
+          #paginatedTable>
+          
+          <div class="table-container">
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th class="th-id">ID платежа</th>
+                  <th class="th-client">Клиент</th>
+                  <th class="th-amount">Сумма</th>
+                  <th class="th-bonuses">Бонусы</th>
+                  <th class="th-method">Способ оплаты</th>
+                  <th class="th-status">Статус</th>
+                  <th class="th-date">Дата и время</th>
+                  <th class="th-actions">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
                 <td class="td-id">
                   <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
                 </td>
@@ -362,6 +370,7 @@ type SortDirection = 'asc' | 'desc';
             <button class="reset-btn" (click)="clearFilters()">Сбросить фильтры</button>
           </div>
         </div>
+        </app-paginated-table-wrapper>
 
       </div>
     </div>
@@ -1396,6 +1405,7 @@ export class PaymentsPageComponent implements OnInit {
       { label: 'Главная', route: '/home' },
       { label: 'Платежи' }
     ]);
+    
     this.applyFilters();
   }
 

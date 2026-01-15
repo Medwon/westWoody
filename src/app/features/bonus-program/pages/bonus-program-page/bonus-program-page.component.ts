@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 interface BonusRule {
   id: string;
@@ -22,7 +23,8 @@ interface BonusRule {
   imports: [
     CommonModule,
     FormsModule,
-    ModalComponent
+    ModalComponent,
+    ButtonComponent
   ],
   template: `
     <div class="page-wrapper">
@@ -87,7 +89,7 @@ interface BonusRule {
                 <input 
                   type="checkbox" 
                   [checked]="rule.active"
-                  (change)="toggleBonus(rule)">
+                  (click)="onToggleClick(rule, $event)">
                 <span class="slider"></span>
               </label>
             </div>
@@ -377,6 +379,42 @@ interface BonusRule {
           [disabled]="!newBonus.title || !newBonus.value">
           Создать бонус
         </button>
+      </div>
+    </app-modal>
+
+    <!-- Toggle Confirmation Modal -->
+    <app-modal 
+      [visible]="isToggleConfirmModalOpen" 
+      [title]="toggleConfirmTitle"
+      (visibleChange)="isToggleConfirmModalOpen = $event">
+      <div class="modal-body">
+        <div class="toggle-confirm-content">
+          <div class="confirm-icon" [class.enable]="pendingToggleState" [class.disable]="!pendingToggleState">
+            <svg *ngIf="pendingToggleState" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg *ngIf="!pendingToggleState" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="confirm-description">
+            <p class="confirm-text">{{ toggleConfirmDescription }}</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <app-button
+            buttonType="ghost"
+            (onClick)="cancelToggle()">
+            Отмена
+          </app-button>
+          <app-button
+            [buttonType]="pendingToggleState ? 'primary' : 'danger'"
+            (onClick)="confirmToggle()">
+            {{ pendingToggleState ? 'Включить' : 'Отключить' }}
+          </app-button>
+        </div>
       </div>
     </app-modal>
   `,
@@ -839,7 +877,8 @@ interface BonusRule {
 
     .modal-actions {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      justify-content: right;
       gap: 10px;
       margin-top: 0.5rem;
     }
@@ -892,6 +931,51 @@ interface BonusRule {
     .submit-btn:disabled {
       background: #cbd5e1;
       cursor: not-allowed;
+    }
+
+    /* Toggle Confirmation Modal */
+    .toggle-confirm-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+
+    .confirm-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .confirm-icon.enable {
+      background: #dcfce7;
+      color: #16A34A;
+    }
+
+    .confirm-icon.disable {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .confirm-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .confirm-description {
+      text-align: center;
+    }
+
+    .confirm-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #475569;
+      margin: 0;
     }
 
     @media (max-width: 768px) {
@@ -997,7 +1081,12 @@ export class BonusProgramPageComponent implements OnInit {
 
   isSettingsModalOpen = false;
   isAddModalOpen = false;
+  isToggleConfirmModalOpen = false;
   selectedRule: BonusRule | null = null;
+  pendingToggleRule: BonusRule | null = null;
+  pendingToggleState = false;
+  toggleConfirmTitle = '';
+  toggleConfirmDescription = '';
   editValue = 0;
   editExpirationDays = 0;
   editIcon = 'gift';
@@ -1019,8 +1108,43 @@ export class BonusProgramPageComponent implements OnInit {
   }
 
 
-  toggleBonus(rule: BonusRule): void {
-    rule.active = !rule.active;
+  onToggleClick(rule: BonusRule, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const target = event.target as HTMLInputElement;
+    const currentState = rule.active;
+    const newState = !currentState;
+    
+    this.pendingToggleRule = rule;
+    this.pendingToggleState = newState;
+    
+    if (newState) {
+      this.toggleConfirmTitle = `Включить "${rule.title}"?`;
+      this.toggleConfirmDescription = `При включении этого бонуса клиенты смогут получать ${rule.value}${rule.unit === '%' ? '%' : ' ' + rule.unit} при каждой транзакции. Бонусная программа начнет работать для всех будущих покупок.`;
+    } else {
+      this.toggleConfirmTitle = `Отключить "${rule.title}"?`;
+      this.toggleConfirmDescription = `При отключении этого бонуса клиенты больше не будут получать ${rule.value}${rule.unit === '%' ? '%' : ' ' + rule.unit} при транзакциях. Программа перестанет начислять бонусы для всех будущих покупок. Существующие накопленные бонусы клиентов останутся без изменений.`;
+    }
+    
+    this.isToggleConfirmModalOpen = true;
+  }
+
+  confirmToggle(): void {
+    if (this.pendingToggleRule) {
+      this.pendingToggleRule.active = this.pendingToggleState;
+      this.isToggleConfirmModalOpen = false;
+      this.pendingToggleRule = null;
+    }
+  }
+
+  cancelToggle(): void {
+    // Восстанавливаем исходное состояние checkbox
+    if (this.pendingToggleRule) {
+      // Состояние уже не изменилось, так как мы предотвратили изменение
+      this.pendingToggleRule = null;
+    }
+    this.isToggleConfirmModalOpen = false;
   }
 
   openSettingsModal(rule: BonusRule): void {

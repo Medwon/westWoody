@@ -1,11 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 
 interface User {
   id: string;
@@ -28,7 +29,8 @@ interface User {
     RouterModule,
     BadgeComponent,
     ModalComponent,
-    ButtonComponent
+    ButtonComponent,
+    PaginatedTableWrapperComponent
   ],
   template: `
     <div class="page-wrapper">
@@ -46,20 +48,26 @@ interface User {
           </app-button>
         </div>
 
-        <!-- Users Table -->
-        <div class="table-container">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>Имя</th>
-                <th>Роль</th>
-                <th>Статус</th>
-                <th>Дата добавления</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let user of filteredUsers">
+        <!-- Users Table with Pagination -->
+        <app-paginated-table-wrapper
+          [paginationEnabled]="false"
+          [data]="filteredUsers"
+          [defaultPageSize]="15"
+          #paginatedTable>
+          
+          <div class="table-container">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Имя</th>
+                  <th>Роль</th>
+                  <th>Статус</th>
+                  <th>Дата добавления</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let user of paginatedTable.paginatedData">
                 <td>
                   <div class="user-name-cell">
                     <a [routerLink]="['/users', user.id]" class="user-name-link">
@@ -129,6 +137,7 @@ interface User {
             </tbody>
           </table>
         </div>
+        </app-paginated-table-wrapper>
       </div>
     </div>
 
@@ -631,6 +640,7 @@ export class UsersPageComponent implements OnInit {
       { label: 'Главная', route: '/home' },
       { label: 'Пользователи' }
     ]);
+    
     this.filteredUsers = [...this.users];
   }
 
