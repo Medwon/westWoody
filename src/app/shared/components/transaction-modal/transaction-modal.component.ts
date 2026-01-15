@@ -291,35 +291,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             rows="3"></textarea>
         </div>
 
-        <div class="form-group">
-          <label class="input-label">Сумма первой покупки (₸)</label>
-          <input
-            type="number"
-            class="form-input"
-            [(ngModel)]="purchaseAmount"
-            placeholder="0.00"
-            min="1"
-            (input)="calculateBonus()">
-        </div>
-
-        <!-- Summary for New Client -->
-        <div class="transaction-summary">
-          <div class="summary-row">
-            <span class="summary-label">Сумма покупки:</span>
-            <span class="summary-value">{{ purchaseAmount || 0 }} ₸</span>
-          </div>
-          <div class="summary-row total">
-            <span class="summary-label">К оплате:</span>
-            <span class="summary-value">{{ purchaseAmount || 0 }} ₸</span>
-          </div>
-          <div class="summary-row earned">
-            <span class="summary-label">Будет начислено:</span>
-            <span class="summary-value bonus">+{{ calculatedBonus }} бонусов</span>
-          </div>
-        </div>
-
-        <button class="submit-btn" (click)="createAndComplete()" [disabled]="!newClientName || !purchaseAmount || purchaseAmount <= 0">
-          Оплатить и создать
+        <button class="submit-btn" (click)="createClient()" [disabled]="!newClientName">
+          Создать клиента
         </button>
 
         <button class="back-btn" (click)="goBack()">← Назад к поиску</button>
@@ -1239,6 +1212,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   pendingTransactionResult: TransactionResult | null = null;
   selectedWelcomeTemplate: any = null;
   
+  // Track if current client was just created (for transaction result)
+  isNewlyCreatedClient = false;
+  
   // Список доступных тэгов
   availableTags: string[] = [
     'VIP',
@@ -1405,7 +1381,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       phone: this.foundClient.phone,
       amount: this.purchaseAmount,
       bonuses: this.calculatedBonus,
-      isNewClient: false
+      isNewClient: this.isNewlyCreatedClient
     };
 
     // Save transaction result and open send message modal
@@ -1413,20 +1389,36 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.openSendMessageModal();
   }
 
-  createAndComplete(): void {
-    if (!this.newClientName || !this.purchaseAmount) return;
+  createClient(): void {
+    if (!this.newClientName) return;
 
-    const result: TransactionResult = {
-      clientName: this.newClientName,
+    // Parse tags from comma-separated string
+    const tags = this.newClientTags
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
+
+    // Create the new client object
+    const newClient: Client = {
+      id: 'new_' + Date.now(),
+      name: this.newClientName,
       phone: this.searchPhone,
-      amount: this.purchaseAmount,
-      bonuses: this.calculatedBonus,
-      isNewClient: true
+      balance: 0,
+      type: this.newClientType,
+      tags: tags.length > 0 ? tags : undefined,
+      comment: this.newClientComment || undefined
     };
 
-    // Save transaction result and open send message modal
-    this.pendingTransactionResult = result;
-    this.openSendMessageModal();
+    // Set as found client and navigate to payment step
+    this.foundClient = newClient;
+    this.isNewlyCreatedClient = true;
+    this.currentStep = 'found';
+    
+    // Reset payment-related fields for fresh start
+    this.purchaseAmount = null;
+    this.calculatedBonus = 0;
+    this.useBonuses = false;
+    this.bonusesToUse = 0;
   }
 
   openSendMessageModal(): void {
@@ -1468,12 +1460,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   goBackFromNotify(): void {
-    // Go back to previous step (found or new) based on whether it was an existing or new client
-    if (this.pendingTransactionResult?.isNewClient) {
-      this.currentStep = 'new';
-    } else {
-      this.currentStep = 'found';
-    }
+    // Always go back to found step (both existing and newly created clients use this step)
+    this.currentStep = 'found';
   }
 
   private finishTransaction(): void {
@@ -1569,6 +1557,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.newClientComment = '';
     this.isCommentExpanded = false;
     this.showTagsDropdown = false;
+    this.isNewlyCreatedClient = false;
   }
 
   getInitials(name: string): string {
@@ -1632,6 +1621,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.pendingTransactionResult = null;
     this.selectedWelcomeTemplate = null;
     this.isSendingMessage = false;
+    this.isNewlyCreatedClient = false;
   }
 }
 
