@@ -47,4 +47,5 @@ export * from './tooltip/tooltip.component';
 export * from './typography/typography.component';
 export * from './whatsapp-preview/whatsapp-preview.component';
 export * from './email-preview/email-preview.component';
+export * from './expandable-table-row/expandable-table-row.component';
 

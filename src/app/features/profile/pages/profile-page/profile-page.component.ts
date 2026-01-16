@@ -7,6 +7,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
+import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 
 interface MockClient {
   firstName: string;
@@ -205,6 +206,161 @@ interface PaymentItem {
             <div class="stat-info">
               <span class="stat-value">1,820</span>
               <span class="stat-label">Бонусов использовано</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bonuses Details Card -->
+        <div class="bonuses-details-card">
+          <div class="card-header" (click)="toggleBonusesExpanded()">
+            <div class="card-header-left">
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="card-title-section">
+                <h3 class="card-title">Детали бонусов</h3>
+                <div class="bonuses-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Осталось:</span>
+                    <span class="stat-value active">{{ formatAmount(getActiveBonusesTotal()) }} ₸</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Использовано:</span>
+                    <span class="stat-value used">{{ formatAmount(getUsedBonusesTotal()) }} ₸</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Сгорело:</span>
+                    <span class="stat-value expired">{{ formatAmount(getExpiredBonusesTotal()) }} ₸</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="collapse-btn" [class.collapsed]="!isBonusesExpanded">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="bonuses-content" *ngIf="isBonusesExpanded">
+            <div class="table-container" *ngIf="bonusesDetails.length > 0">
+              <table class="bonuses-table">
+                <thead>
+                  <tr>
+                    <th>Тип бонуса</th>
+                    <th>Сумма</th>
+                    <th>Начислено</th>
+                    <th>Истекает</th>
+                    <th>Осталось</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ng-container *ngFor="let bonus of bonusesDetails">
+                    <tr
+                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'"
+                        [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                        [class.used]="bonus.used"
+                        [class.refund]="bonus.type === 'refund'">
+                      <td>
+                        <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
+                          {{ getBonusTypeLabel(bonus.type) }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="bonus-amount" [class.expired-amount]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'">
+                          +{{ formatAmount(bonus.amount) }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="bonus-date">{{ formatDate(bonus.issuedAt) }}</span>
+                      </td>
+                      <td>
+                        <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
+                      </td>
+                      <td>
+                        <app-badge
+                          *ngIf="bonus.used"
+                          badgeType="bonusUsed"
+                          size="medium">
+                          Использовано
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type === 'refund'"
+                          badgeType="refund"
+                          size="medium"
+                          icon="refund">
+                          Возврат
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                          [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
+                          size="medium">
+                          {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                          badgeType="bonusExpired"
+                          size="medium">
+                          Истек
+                        </app-badge>
+                      </td>
+                      <td>
+                        <div class="actions-cell">
+                          <app-icon-button
+                            iconButtonType="ghost"
+                            size="medium"
+                            class = "view-svg-btn"
+                            [tooltip]="isBonusRowExpanded(bonus.id) ? 'Скрыть детали' : 'Показать детали'"
+                            (onClick)="toggleBonusRow(bonus.id)">
+                            <svg [class.rotated]="isBonusRowExpanded(bonus.id)" viewBox="0 0 24 24" fill="none">
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </app-icon-button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr *ngIf="isBonusRowExpanded(bonus.id)" class="bonus-details-row">
+                      <td colspan="6" class="bonus-details-cell">
+                        <div class="bonus-details-content">
+                          <div class="bonus-details-grid">
+                            <div class="refund-reason-section">
+                              <span class="refund-reason-label">Причина возврата:</span>
+                              <div class="refund-reason-text" *ngIf="bonus.refundReason">
+                                {{ bonus.refundReason }}
+                              </div>
+                              <div class="refund-reason-empty" *ngIf="!bonus.refundReason">
+                                Причина не указана
+                              </div>
+                            </div>
+                            <div class="bonus-initiated-by-section">
+                              <span class="refund-reason-label">Инициатор:</span>
+                              <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
+                                 [routerLink]="['/users', bonus.initiatedById]" 
+                                 class="bonus-initiated-by-link">
+                                {{ bonus.initiatedBy }}
+                              </a>
+                              <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
+                                {{ bonus.initiatedBy }}
+                              </div>
+                              <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
+                                Не указан
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+            <div class="empty-state" *ngIf="bonusesDetails.length === 0">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Нет активных бонусов</span>
             </div>
           </div>
         </div>
@@ -413,6 +569,7 @@ interface PaymentItem {
       (visibleChange)="closeRefundModal()"
       (confirm)="confirmRefund($event)">
     </app-refund-confirmation-modal>
+
   `,
   styles: [`
     .page-wrapper {
@@ -973,6 +1130,374 @@ interface PaymentItem {
       color: #64748b;
     }
 
+    /* Bonuses Details Card */
+    .bonuses-details-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .bonuses-details-card .card-header {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s ease;
+      padding: 1rem 1.5rem;
+      margin-bottom: 0;
+      border-bottom: none;
+    }
+
+    .bonuses-details-card .card-header:hover {
+      background: #f8fafc;
+    }
+    .card-title-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .bonuses-stats {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.8125rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 0.875rem;
+      font-weight: 700;
+    }
+
+    .stat-value.active {
+      color: #16A34A;
+    }
+
+    .stat-value.used {
+      color: #3b82f6;
+      
+    }
+
+    .stat-value.expired {
+      color: #dc2626 ;
+    }
+
+    .collapse-btn {
+      background: none;
+      border: none;
+      padding: 0.5rem;
+      cursor: pointer;
+      color: #64748b;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .collapse-btn:hover {
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+
+    .collapse-btn svg {
+      width: 20px;
+      height: 20px;
+      transition: transform 0.2s ease;
+    }
+
+    .collapse-btn.collapsed svg {
+      transform: rotate(-90deg);
+    }
+
+    .bonuses-content {
+      padding: 0 1.5rem 1.5rem;
+    }
+
+    .bonuses-content .table-container {
+      overflow-x: auto;
+    }
+
+    .bonuses-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .bonuses-table thead {
+      background: #f8fafc;
+    }
+
+    .bonuses-table th {
+      padding: 0.875rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .bonuses-table td {
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .bonuses-table th:last-child,
+    .bonuses-table td:last-child {
+      width: 80px;
+      text-align: center;
+    }
+
+    .bonuses-table tbody tr {
+      transition: background 0.15s;
+    }
+
+    .bonuses-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .bonuses-table tbody tr.expired {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.expired:hover {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.expiring-soon {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.expiring-soon:hover {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.used {
+      background: transparent;
+      opacity: 1;
+    }
+
+    .bonuses-table tbody tr.refund {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.refund:hover {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .bonuses-table tbody tr.bonus-details-row {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.bonus-details-row td {
+      border-top: none;
+      padding: 0;
+    }
+
+    .bonus-details-cell {
+      padding: 0 !important;
+      background: transparent;
+    }
+
+    .bonus-details-content {
+      padding: 1rem 1.5rem;
+      overflow: hidden;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 300px;
+      }
+    }
+
+    .bonus-details-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
+    }
+
+    .refund-reason-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      text-align: left;
+    }
+
+    .bonus-initiated-by-section {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      text-align: right;
+      min-width: 200px;
+    }
+
+    .refund-reason-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .refund-reason-text {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+
+    .refund-reason-empty {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: left;
+    }
+
+    .bonus-initiated-by-link {
+      display: inline-block;
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: right;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .bonus-initiated-by-link:hover {
+      color: #16A34A;
+    }
+
+    .bonus-initiated-by-text {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: right;
+    }
+
+    .bonus-initiated-by-empty {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: right;
+    }
+
+    .actions-cell svg {
+      transition: transform 0.3s ease;
+    }
+
+    .actions-cell svg.rotated {
+      transform: rotate(180deg);
+    }
+
+    .bonus-type-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .bonus-type-badge.bonus-type-welcome {
+      // color: #1e40af;
+      color: #1f2937;
+    }
+
+    .bonus-type-badge.bonus-type-referral {
+      // color: #92400e;
+      color: #1f2937;
+
+    }
+
+    .bonus-type-badge.bonus-type-purchase {
+      // color: #15803d;
+      color: #1f2937;
+    }
+
+    .bonus-type-badge.bonus-type-promotion {
+      // color: #be185d;
+      color: #1f2937;
+    }
+
+    .bonus-type-badge.bonus-type-loyalty {
+      // color: #3730a3;
+      color: #1f2937;
+    }
+
+    .bonus-type-badge.bonus-type-refund {
+    // color: #dc2626;
+      color: #1f2937;
+    }
+
+    .bonus-amount {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .bonus-amount.expired-amount {
+      color: #94a3b8;
+      text-decoration: line-through;
+    }
+
+    .bonus-date,
+    .bonus-expiry-date {
+      font-size: 0.875rem;
+      color: #1f2937;
+      font-weight: 500;
+    }
+
     /* Details Grid */
     .details-grid {
       display: grid;
@@ -1438,6 +1963,102 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     type: 'individual'
   };
 
+  // Состояние сворачивания бонусов
+  isBonusesExpanded = false;
+
+  // Интерфейс для детальной информации о бонусах
+  bonusesDetails: Array<{
+    id: string;
+    type: 'welcome' | 'referral' | 'purchase' | 'promotion' | 'loyalty' | 'refund';
+    amount: number;
+    issuedAt: Date;
+    expiresAt: Date;
+    used?: boolean;
+    refundReason?: string;
+    initiatedBy?: string;
+    initiatedById?: string;
+  }> = [
+    {
+      id: '1',
+      type: 'welcome',
+      amount: 500,
+      issuedAt: new Date('2025-01-01'),
+      expiresAt: new Date('2025-04-01'),
+      initiatedBy: 'Иванов Иван Иванович',
+      initiatedById: '1'
+    },
+    {
+      id: '2',
+      type: 'purchase',
+      amount: 1250,
+      issuedAt: new Date('2025-01-13'),
+      expiresAt: new Date('2025-04-13'),
+      used: true,
+      initiatedBy: 'Петрова Мария Сергеевна',
+      initiatedById: '2'
+    },
+    {
+      id: '3',
+      type: 'purchase',
+      amount: 2500,
+      issuedAt: new Date('2025-01-06'),
+      expiresAt: new Date('2025-04-06'),
+      used: true
+    },
+    {
+      id: '4',
+      type: 'referral',
+      amount: 1000,
+      issuedAt: new Date('2025-01-10'),
+      expiresAt: new Date('2025-07-10')
+    },
+    {
+      id: '5',
+      type: 'purchase',
+      amount: 4200,
+      issuedAt: new Date('2025-12-15'),
+      expiresAt: new Date('2026-03-15')
+    },
+    {
+      id: '6',
+      type: 'promotion',
+      amount: 300,
+      issuedAt: new Date('2024-12-20'),
+      expiresAt: new Date('2025-01-20'),
+      used: false
+    },
+    {
+      id: '7',
+      type: 'loyalty',
+      amount: 800,
+      issuedAt: new Date('2024-11-15'),
+      expiresAt: new Date('2025-02-15'),
+      used: true
+    },
+    {
+      id: '8',
+      type: 'refund',
+      amount: 500,
+      issuedAt: new Date('2025-01-05'),
+      expiresAt: new Date('2025-04-05'),
+      used: false,
+      refundReason: 'Возврат товара ненадлежащего качества',
+      initiatedBy: 'Сидоров Дмитрий Алексеевич',
+      initiatedById: '3'
+    },
+    {
+      id: '9',
+      type: 'refund',
+      amount: 750,
+      issuedAt: new Date('2025-01-12'),
+      expiresAt: new Date('2025-04-12'),
+      used: false
+    }
+  ];
+
+  // Раскрытые строки бонусов
+  expandedBonusRows = new Set<string>();
+
   // Мок данные платежей
   payments: PaymentItem[] = [
     { id: 'PAY-156', amount: 12500, bonusEarned: 1250, bonusUsed: 0, paymentMethod: 'card', isRefund: false, date: '13.01.2026', time: '14:32' },
@@ -1626,5 +2247,77 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       this.payments[paymentIndex].isRefund = true;
     }
     this.closeRefundModal();
+  }
+
+  // Bonus helpers
+  getBonusTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      welcome: 'Приветственный',
+      referral: 'Реферальный',
+      purchase: 'За покупку',
+      promotion: 'Акция',
+      loyalty: 'Лояльность',
+      refund: 'Возврат бонусов'
+    };
+    return labels[type] || type;
+  }
+
+  getDaysUntilExpiry(expiresAt: Date): number {
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
+
+  getDaysText(days: number): string {
+    if (days === 1) return 'день';
+    if (days >= 2 && days <= 4) return 'дня';
+    return 'дней';
+  }
+
+  formatDate(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('ru-RU', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  }
+
+  toggleBonusesExpanded(): void {
+    this.isBonusesExpanded = !this.isBonusesExpanded;
+  }
+
+  getActiveBonusesTotal(): number {
+    const now = new Date();
+    return this.bonusesDetails
+      .filter(bonus => !bonus.used && new Date(bonus.expiresAt) > now)
+      .reduce((sum, bonus) => sum + bonus.amount, 0);
+  }
+
+  getUsedBonusesTotal(): number {
+    return this.bonusesDetails
+      .filter(bonus => bonus.used)
+      .reduce((sum, bonus) => sum + bonus.amount, 0);
+  }
+
+  getExpiredBonusesTotal(): number {
+    const now = new Date();
+    return this.bonusesDetails
+      .filter(bonus => !bonus.used && bonus.type !== 'refund' && new Date(bonus.expiresAt) <= now)
+      .reduce((sum, bonus) => sum + bonus.amount, 0);
+  }
+
+  toggleBonusRow(bonusId: string): void {
+    if (this.expandedBonusRows.has(bonusId)) {
+      this.expandedBonusRows.delete(bonusId);
+    } else {
+      this.expandedBonusRows.add(bonusId);
+    }
+  }
+
+  isBonusRowExpanded(bonusId: string): boolean {
+    return this.expandedBonusRows.has(bonusId);
   }
 }

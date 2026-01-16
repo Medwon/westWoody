@@ -344,8 +344,10 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
         </div>
 
         <div class="notify-actions">
-          <button 
-            class="submit-btn send-btn" 
+          <app-button 
+            buttonType="primary"  
+            size="large"
+            class="send-message-btn"
             (click)="sendWelcomeMessage()" 
             [disabled]="isSendingMessage">
             <svg viewBox="0 0 24 24" fill="none" class="whatsapp-icon">
@@ -353,7 +355,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
               <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/>
             </svg>
             {{ isSendingMessage ? 'Отправка...' : 'Отправить в WhatsApp' }}
-          </button>
+          </app-button>
           <button class="back-btn" (click)="goBackFromNotify()">← Назад</button>
         </div>
       </div>
@@ -972,6 +974,16 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       flex-direction: column;
       gap: 2rem;
       padding: 0.5rem 0;
+    }
+      .send-message-btn {
+      width: 100%;
+      display: block;
+    }
+
+    /* Растягиваем кнопку ВНУТРИ компонента */
+    .send-message-btn ::ng-deep button {
+      width: 100% !important;
+      justify-content: center; /* Чтобы текст и иконка были по центру */
     }
 
     .template-section {

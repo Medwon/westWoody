@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ModalComponent } from '../modal/modal.component';
 import { ButtonComponent } from '../button/button.component';
 
@@ -16,12 +17,13 @@ export interface Payment {
   date: string;
   time: string;
   comment?: string;
+  refundReason?: string;
 }
 
 @Component({
   selector: 'app-refund-confirmation-modal',
   standalone: true,
-  imports: [CommonModule, ModalComponent, ButtonComponent],
+  imports: [CommonModule, FormsModule, ModalComponent, ButtonComponent],
   template: `
     <app-modal
       [visible]="visible"
@@ -58,6 +60,14 @@ export interface Payment {
             <span class="refund-label">Бонусы к откату:</span>
             <span class="refund-value bonus-amount">{{ formatAmount(payment.bonusEarned) }} ₸</span>
           </div>
+        </div>
+        <div class="refund-reason-section">
+          <label class="refund-reason-label">Причина возврата (необязательно)</label>
+          <textarea
+            [(ngModel)]="refundReason"
+            class="refund-reason-input"
+            placeholder="Укажите причину возврата..."
+            rows="3"></textarea>
         </div>
         <div modalFooter class="refund-modal-footer">
           <app-button
@@ -157,6 +167,47 @@ export interface Payment {
       font-weight: 600;
     }
 
+    .refund-reason-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .refund-reason-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.5rem;
+    }
+
+    .refund-reason-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      background: #ffffff;
+      color: #1f2937;
+      line-height: 1.5;
+      transition: all 0.2s ease;
+    }
+
+    .refund-reason-input:hover {
+      border-color: #cbd5e1;
+    }
+
+    .refund-reason-input:focus {
+      outline: none;
+      border-color: #dc2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .refund-reason-input::placeholder {
+      color: #94a3b8;
+    }
+
     .refund-modal-footer {
       display: flex;
       gap: 0.75rem;
@@ -171,13 +222,21 @@ export class RefundConfirmationModalComponent {
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() confirm = new EventEmitter<Payment>();
 
+  refundReason = '';
+
   onClose(): void {
+    this.refundReason = '';
     this.visibleChange.emit(false);
   }
 
   onConfirm(): void {
     if (this.payment) {
-      this.confirm.emit(this.payment);
+      const paymentWithReason = {
+        ...this.payment,
+        refundReason: this.refundReason.trim() || undefined
+      };
+      this.confirm.emit(paymentWithReason);
+      this.refundReason = '';
     }
   }
 

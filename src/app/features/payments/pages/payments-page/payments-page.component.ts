@@ -22,6 +22,10 @@ interface Payment {
   date: string;
   time: string;
   comment?: string;
+  refundReason?: string;
+  refundBy?: string;
+  initiatedBy?: string;
+  initiatedById?: string;
 }
 
 type SortField = 'clientName' | 'amount' | 'date' | 'paymentMethod';
@@ -272,92 +276,134 @@ type SortDirection = 'asc' | 'desc';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
-                <td class="td-id">
-                  <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
-                </td>
-                <td class="td-client">
-                  <div class="client-cell">
-                    <div class="client-avatar">
-                      {{ getInitials(payment.clientName) }}
-                    </div>
-                    <div class="client-info">
-                      <a [routerLink]="['/clients', payment.clientId]" class="client-name-link">
-                        <span class="client-name">{{ payment.clientName }}</span>
-                      </a>
-                      <span class="client-phone">{{ payment.clientPhone }}</span>
-                    </div>
-                  </div>
-                </td>
-                <td class="td-amount">
-                  <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
-                </td>
-                <td class="td-bonuses">
-                  <div class="bonus-info">
-                    <app-badge 
-                      *ngIf="payment.bonusEarned > 0"
-                      badgeType="bonusGranted" 
-                      size="medium"
-                      icon="star"
-                      class="bonus-badge">
-                      +{{ formatAmount(payment.bonusEarned) }}
-                    </app-badge>
-                    <app-badge 
-                      *ngIf="payment.bonusUsed > 0"
-                      badgeType="bonusUsed" 
-                      size="medium"
-                      icon="check"
-                      class="bonus-badge">
-                      -{{ formatAmount(payment.bonusUsed) }}
-                    </app-badge>
-                    <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
-                  </div>
-                </td>
-                <td class="td-method">
-                  <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                    {{ getPaymentMethodLabel(payment.paymentMethod) }}
-                  </span>
-                </td>
-                <td class="td-status">
-                  <app-badge 
-                    [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
-                    size="medium"
-                    [icon]="payment.isRefund ? 'refund' : 'payment'">
-                    {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
-                  </app-badge>
-                </td>
-                <td class="td-date">
-                  <div class="date-info">
-                    <span class="date-text">{{ payment.date }}</span>
-                    <span class="time-text">{{ payment.time }}</span>
-                  </div>
-                </td>
-                <td class="td-actions">
-                  <div class="actions-cell">
-                    <a [routerLink]="['/clients', payment.clientId]" class="action-link">
-                      <app-icon-button
-                        iconButtonType="view"
-                        size="small"
-                        tooltip="Просмотр клиента">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                        </svg>
-                      </app-icon-button>
-                    </a>
-                    <app-icon-button
-                      iconButtonType="refund"
-                      size="small"
-                      tooltip="Возврат"
-                      [disabled]="payment.isRefund"
-                      (onClick)="openRefundModal(payment)">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </app-icon-button>
-                  </div>
-                </td>
-              </tr>
+                <ng-container *ngFor="let payment of paginatedTable.paginatedData">
+                  <tr class="payment-row">
+                    <td class="td-id">
+                      <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                    </td>
+                    <td class="td-client">
+                      <div class="client-cell">
+                        <div class="client-avatar">
+                          {{ getInitials(payment.clientName) }}
+                        </div>
+                        <div class="client-info">
+                          <a [routerLink]="['/clients', payment.clientId]" class="client-name-link">
+                            <span class="client-name">{{ payment.clientName }}</span>
+                          </a>
+                          <span class="client-phone">{{ payment.clientPhone }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-amount">
+                      <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
+                    </td>
+                    <td class="td-bonuses">
+                      <div class="bonus-info">
+                        <app-badge 
+                          *ngIf="payment.bonusEarned > 0"
+                          badgeType="bonusGranted" 
+                          size="medium"
+                          icon="star"
+                          class="bonus-badge">
+                          +{{ formatAmount(payment.bonusEarned) }}
+                        </app-badge>
+                        <app-badge 
+                          *ngIf="payment.bonusUsed > 0"
+                          badgeType="bonusUsed" 
+                          size="medium"
+                          icon="check"
+                          class="bonus-badge">
+                          -{{ formatAmount(payment.bonusUsed) }}
+                        </app-badge>
+                        <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                      </div>
+                    </td>
+                    <td class="td-method">
+                      <span class="method-badge" [class]="'method-' + payment.paymentMethod">
+                        {{ getPaymentMethodLabel(payment.paymentMethod) }}
+                      </span>
+                    </td>
+                    <td class="td-status">
+                      <app-badge 
+                        [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
+                        size="medium"
+                        [icon]="payment.isRefund ? 'refund' : 'payment'">
+                        {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
+                      </app-badge>
+                    </td>
+                    <td class="td-date">
+                      <div class="date-info">
+                        <span class="date-text">{{ payment.date }}</span>
+                        <span class="time-text">{{ payment.time }}</span>
+                      </div>
+                    </td>
+                    <td class="td-actions">
+                      <div class="actions-cell">
+                        <a [routerLink]="['/clients', payment.clientId]" class="action-link">
+                          <app-icon-button
+                            iconButtonType="view"
+                            size="small"
+                            tooltip="Просмотр клиента">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                          </app-icon-button>
+                        </a>
+                        <app-icon-button
+                          iconButtonType="refund"
+                          size="small"
+                          tooltip="Возврат"
+                          [disabled]="payment.isRefund"
+                          (onClick)="openRefundModal(payment)">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </app-icon-button>
+                        <app-icon-button
+                          iconButtonType="ghost"
+                          size="small"
+                          [tooltip]="isPaymentRowExpanded(payment.id) ? 'Скрыть детали' : 'Показать детали'"
+                          (onClick)="togglePaymentRow(payment.id)">
+                          <svg [class.rotated]="isPaymentRowExpanded(payment.id)" viewBox="0 0 24 24" fill="none">
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </app-icon-button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr *ngIf="isPaymentRowExpanded(payment.id)" class="payment-details-row">
+                    <td colspan="8" class="payment-details-cell">
+                      <div class="payment-details-content">
+                        <div class="refund-details-grid">
+                          <div class="refund-reason-section">
+                            <span class="refund-label">Причина возврата:</span>
+                            <div class="refund-reason-text" *ngIf="payment.refundReason">
+                              {{ payment.refundReason }}
+                            </div>
+                            <div class="refund-reason-empty" *ngIf="!payment.refundReason">
+                              Нет причины возврата
+                            </div>
+                          </div>
+                          <div class="refund-by-section">
+                            <span class="refund-label">Инициатор платежа:</span>
+                            <a *ngIf="payment.initiatedBy && payment.initiatedById" 
+                               [routerLink]="['/users', payment.initiatedById]" 
+                               class="refund-by-link">
+                              {{ payment.initiatedBy }}
+                            </a>
+                            <div class="refund-by-text" *ngIf="payment.initiatedBy && !payment.initiatedById">
+                              {{ payment.initiatedBy }}
+                            </div>
+                            <div class="refund-by-empty" *ngIf="!payment.initiatedBy">
+                              Не указан
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
             </tbody>
           </table>
 
@@ -772,6 +818,142 @@ type SortDirection = 'asc' | 'desc';
       border-bottom: none;
     }
 
+    .payments-table tbody tr.payment-details-row {
+      background: transparent;
+    }
+
+    .payments-table tbody tr.payment-details-row td {
+      border-top: none;
+      padding: 0;
+    }
+
+    .payment-details-cell {
+      padding: 0 !important;
+      background: transparent;
+    }
+
+    .payment-details-content {
+      padding: 1rem 1.5rem;
+      overflow: hidden;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 300px;
+      }
+    }
+
+    .refund-details-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
+    }
+
+    .refund-reason-section {
+      flex: 1;
+      text-align: left;
+    }
+
+    .refund-by-section {
+      flex: 0 0 auto;
+      text-align: right;
+      min-width: 200px;
+    }
+
+    .refund-by-link {
+      display: inline-block;
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: right;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .refund-by-link:hover {
+      color: #16A34A;
+    }
+
+    .refund-reason-section,
+    .refund-by-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .refund-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .refund-reason-text {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+
+    .refund-by-text {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: right;
+    }
+
+    .refund-reason-empty {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: left;
+    }
+
+    .refund-by-empty {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: right;
+    }
+
+    .actions-cell svg {
+      transition: transform 0.3s ease;
+    }
+
+    .actions-cell svg.rotated {
+      transform: rotate(180deg);
+    }
+
     /* Payment ID */
     .td-id {
       min-width: 100px;
@@ -1017,7 +1199,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'card',
       isRefund: false,
       date: '15.01.2025',
-      time: '14:30'
+      time: '14:30',
+      initiatedBy: 'Иванов Иван Иванович',
+      initiatedById: '1'
     },
     {
       id: '2',
@@ -1030,7 +1214,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'online',
       isRefund: false,
       date: '15.01.2025',
-      time: '12:15'
+      time: '12:15',
+      initiatedBy: 'Петрова Мария Сергеевна',
+      initiatedById: '2'
     },
     {
       id: '3',
@@ -1043,7 +1229,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'cash',
       isRefund: false,
       date: '14.01.2025',
-      time: '18:45'
+      time: '18:45',
+      initiatedBy: 'Сидоров Дмитрий Алексеевич',
+      initiatedById: '3'
     },
     {
       id: '4',
@@ -1056,7 +1244,8 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'card',
       isRefund: false,
       date: '14.01.2025',
-      time: '16:20'
+      time: '16:20',
+      initiatedBy: 'Козлова Анна Викторовна'
     },
     {
       id: '5',
@@ -1069,7 +1258,8 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'online',
       isRefund: false,
       date: '14.01.2025',
-      time: '10:00'
+      time: '10:00',
+      initiatedBy: 'Иванов Иван Иванович'
     },
     {
       id: '6',
@@ -1082,7 +1272,8 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'card',
       isRefund: false,
       date: '13.01.2025',
-      time: '15:30'
+      time: '15:30',
+      initiatedBy: 'Петрова Мария Сергеевна'
     },
     {
       id: '7',
@@ -1108,7 +1299,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'online',
       isRefund: true,
       date: '12.01.2025',
-      time: '09:15'
+      time: '09:15',
+      refundReason: 'Возврат товара ненадлежащего качества',
+      refundBy: 'Иванов Иван Иванович'
     },
     {
       id: '9',
@@ -1290,7 +1483,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'online',
       isRefund: true,
       date: '08.01.2025',
-      time: '08:00'
+      time: '08:00',
+      refundReason: 'Отмена заказа по инициативе клиента',
+      refundBy: 'Петрова Мария Сергеевна'
     },
     {
       id: '29',
@@ -1303,7 +1498,9 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'card',
       isRefund: true,
       date: '06.01.2025',
-      time: '14:30'
+      time: '14:30',
+      refundReason: 'Двойная оплата',
+      refundBy: 'Сидоров Дмитрий Алексеевич'
     },
     {
       id: '30',
@@ -1316,7 +1513,8 @@ export class PaymentsPageComponent implements OnInit {
       paymentMethod: 'card',
       isRefund: true,
       date: '05.01.2025',
-      time: '16:15'
+      time: '16:15',
+      refundBy: 'Козлова Анна Викторовна'
     },
     {
       id: '23',
@@ -1400,6 +1598,9 @@ export class PaymentsPageComponent implements OnInit {
 
   filteredPayments: Payment[] = [];
 
+  // Раскрытые строки платежей
+  expandedPaymentRows = new Set<string>();
+
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Платежи', [
       { label: 'Главная', route: '/home' },
@@ -1407,6 +1608,18 @@ export class PaymentsPageComponent implements OnInit {
     ]);
     
     this.applyFilters();
+  }
+
+  togglePaymentRow(paymentId: string): void {
+    if (this.expandedPaymentRows.has(paymentId)) {
+      this.expandedPaymentRows.delete(paymentId);
+    } else {
+      this.expandedPaymentRows.add(paymentId);
+    }
+  }
+
+  isPaymentRowExpanded(paymentId: string): boolean {
+    return this.expandedPaymentRows.has(paymentId);
   }
 
   formatDateForInput(date: Date): string {

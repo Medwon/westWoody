@@ -12,6 +12,8 @@ import { PageHeaderService } from '../../../../core/services/page-header.service
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { InvitationFormComponent, MessageTemplate } from '../../../../shared/components/invitation-form/invitation-form.component';
+import { MessageDetailsModalComponent, MessageDetails } from '../../../../shared/components/message-details-modal/message-details-modal.component';
+import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 
 interface EmailInvitationHistory {
   id: string;
@@ -22,6 +24,8 @@ interface EmailInvitationHistory {
   status: 'sent' | 'pending' | 'failed';
   templateId?: string;
   templateName?: string;
+  templateType?: 'bonus_accrued' | 'bonus_expiration';
+  type: 'email';
 }
 
 @Component({
@@ -32,7 +36,9 @@ interface EmailInvitationHistory {
     ReactiveFormsModule,
     BadgeComponent,
     IconButtonComponent,
-    InvitationFormComponent
+    InvitationFormComponent,
+    MessageDetailsModalComponent,
+    PaginatedTableWrapperComponent
   ],
   template: `
     <div class="invitation-page">
@@ -71,7 +77,7 @@ interface EmailInvitationHistory {
             {{ invitationHistory.length }}
           </app-badge>
         </div>
-        <p class="section-description">Нажмите на контакт, чтобы отправить повторно</p>
+        <p class="section-description">История отправленных сообщений</p>
 
         <div class="history-empty" *ngIf="invitationHistory.length === 0">
           <svg viewBox="0 0 24 24" fill="none" class="empty-icon">
@@ -81,46 +87,78 @@ interface EmailInvitationHistory {
           <p class="empty-text">Вы ещё никому не отправляли письма</p>
         </div>
 
-        <div class="history-list" *ngIf="invitationHistory.length > 0">
-          <div 
-            class="history-item" 
-            *ngFor="let item of invitationHistory.slice(0, 6)"
-            (click)="resendInvitation(item)">
-            <div class="history-avatar">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-            </div>
-            <div class="history-info">
-              <span class="history-email">{{ item.email }}</span>
-              <div class="history-meta">
-                <span class="history-time">{{ formatDate(item.sentAt) }}</span>
-                <span class="history-template" *ngIf="item.templateName">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
-                  </svg>
-                  {{ item.templateName }}
-                </span>
-              </div>
-            </div>
-            <div class="history-actions">
-              <app-badge 
-                [badgeType]="getStatusBadgeType(item.status)" 
-                size="small">
-                {{ getStatusLabel(item.status) }}
-              </app-badge>
-              <app-icon-button
-                icon="↻"
-                iconButtonType="ghost"
-                size="small"
-                tooltip="Отправить повторно">
-              </app-icon-button>
-            </div>
+        <app-paginated-table-wrapper
+          *ngIf="invitationHistory.length > 0"
+          [paginationEnabled]="true"
+          [data]="invitationHistory"
+          [defaultPageSize]="15"
+          #paginatedTable>
+          
+          <div class="table-container">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Получатель</th>
+                  <th>Время отправки</th>
+                  <th>Шаблон</th>
+                  <th>Статус</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of paginatedTable.paginatedData">
+                  <td>
+                    <div class="recipient-cell">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/>
+                      </svg>
+                      <span class="recipient-value">{{ item.email }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="time-value">{{ formatDate(item.sentAt) }}</span>
+                  </td>
+                  <td>
+                    <span class="template-name" *ngIf="item.templateName">
+                      {{ item.templateName }}
+                    </span>
+                    <span class="no-template" *ngIf="!item.templateName">—</span>
+                  </td>
+                  <td>
+                    <app-badge 
+                      [badgeType]="getStatusBadgeType(item.status)" 
+                      size="small">
+                      {{ getStatusLabel(item.status) }}
+                    </app-badge>
+                  </td>
+                  <td>
+                    <div class="actions-cell">
+                      <app-icon-button
+                        iconButtonType="ghost"
+                        size="small"
+                        tooltip="Просмотреть детали"
+                        (onClick)="openMessageDetails(item)">
+                        <svg viewBox="0 0 24 24" fill="none">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                      </app-icon-button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </div>
+        </app-paginated-table-wrapper>
       </div>
+
+      <!-- Message Details Modal -->
+      <app-message-details-modal
+        [visible]="showMessageDetailsModal"
+        [message]="selectedMessage"
+        (visibleChange)="showMessageDetailsModal = $event">
+      </app-message-details-modal>
     </div>
   `,
   styles: [`
@@ -196,92 +234,91 @@ interface EmailInvitationHistory {
       margin: 0;
     }
 
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .history-item {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      background: #f9fafb;
+    .table-container {
+      background: white;
       border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .history-item:hover {
-      background: #f1f5f9;
-    }
-
-    .history-avatar {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .history-avatar svg {
-      width: 22px;
-      height: 22px;
-      color: #2563eb;
-    }
-
-    .history-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .history-email {
-      font-size: 0.9375rem;
-      font-weight: 600;
-      color: #1f2937;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    .history-meta {
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .history-table thead {
+      background: #f8fafc;
+    }
+
+    .history-table th {
+      padding: 1rem 1.5rem;
+      text-align: left;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #64748b;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .history-table td {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .history-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .history-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .recipient-cell {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      flex-wrap: wrap;
     }
 
-    .history-time {
-      font-size: 0.8125rem;
-      color: #9ca3af;
-    }
-
-    .history-template {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      font-size: 0.75rem;
+    .recipient-cell svg {
+      width: 20px;
+      height: 20px;
       color: #3b82f6;
-      background: #eff6ff;
-      padding: 0.25rem 0.5rem;
-      border-radius: 8px;
-      font-weight: 500;
-    }
-
-    .history-template svg {
-      width: 12px;
-      height: 12px;
       flex-shrink: 0;
     }
 
-    .history-actions {
+    .recipient-value {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .time-value {
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .template-type-badge {
+      display: inline-block;
+      padding: 0.375rem 0.75rem;
+      background: #eff6ff;
+      color: #3b82f6;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .template-name {
+      font-size: 0.875rem;
+      color: #475569;
+      font-weight: 500;
+    }
+
+    .no-template {
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    .actions-cell {
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -310,6 +347,9 @@ export class EmailInvitationPageComponent implements OnInit {
   invitationHistory: EmailInvitationHistory[] = [];
   messageTemplates: MessageTemplate[] = [];
   selectedTemplateId: string | null = null;
+
+  showMessageDetailsModal = false;
+  selectedMessage: MessageDetails | null = null;
 
   emailIconSvg: string;
 
@@ -386,7 +426,9 @@ export class EmailInvitationPageComponent implements OnInit {
             sentAt: new Date(),
             status: 'sent',
             templateId: selectedTemplate?.id,
-            templateName: selectedTemplate?.name
+            templateName: selectedTemplate?.name,
+            templateType: selectedTemplate?.type,
+            type: 'email'
           };
           
           this.invitationHistory.unshift(invitation);
@@ -460,7 +502,32 @@ export class EmailInvitationPageComponent implements OnInit {
     }
   }
 
-  resendInvitation(item: EmailInvitationHistory): void {
+  getTemplateTypeLabel(type: 'bonus_accrued' | 'bonus_expiration'): string {
+    switch (type) {
+      case 'bonus_accrued': return 'Начисление бонусов';
+      case 'bonus_expiration': return 'Истечение бонусов';
+      default: return type;
+    }
+  }
+
+  openMessageDetails(item: EmailInvitationHistory): void {
+    this.selectedMessage = {
+      id: item.id,
+      type: 'email',
+      recipient: item.email,
+      subject: item.subject,
+      message: item.message,
+      sentAt: item.sentAt,
+      status: item.status,
+      templateName: item.templateName
+    };
+    this.showMessageDetailsModal = true;
+  }
+
+  resendInvitation(item: EmailInvitationHistory, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
     this.invitationForm.patchValue({
       subject: item.subject,
       message: item.message
@@ -472,7 +539,12 @@ export class EmailInvitationPageComponent implements OnInit {
     try {
       const saved = localStorage.getItem('email_invitation_history');
       if (saved) {
-        this.invitationHistory = JSON.parse(saved);
+        const history = JSON.parse(saved);
+        // Добавляем type для старых записей
+        this.invitationHistory = history.map((item: any) => ({
+          ...item,
+          type: item.type || 'email'
+        }));
       }
     } catch (e) {
       this.invitationHistory = [];
