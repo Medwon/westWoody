@@ -1,11 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
-import { AppState } from '../../core/store/app.state';
 import { selectUser } from '../../core/store/auth/auth.selectors';
-import { User } from '../../core/models/user.model';
+import { AuthUser } from '../../core/models/user.model';
 import { logout } from '../../core/store/auth/auth.actions';
 import { AppBarComponent } from '../../shared/components/app-bar/app-bar.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -20,8 +18,8 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
     <app-app-bar [fixed]="true">
       <div appBarStart></div>
       <div appBarEnd *ngIf="user$ | async as user">
-        <app-avatar [name]="getFullName(user)" size="small"></app-avatar>
-        <app-typography variant="body2" class="user-name">{{ getFullName(user) }}</app-typography>
+        <app-avatar [name]="user.email" size="small"></app-avatar>
+        <app-typography variant="body2" class="user-name">{{ user.email }}</app-typography>
         <app-button buttonType="outline" size="small" (onClick)="onLogout()">
           Выйти
         </app-button>
@@ -34,18 +32,9 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
     }
   `]
 })
-export class HeaderComponent implements OnInit {
-  user$: Observable<User | null>;
-
-  constructor(private store: Store<AppState>) {
-    this.user$ = this.store.select(selectUser);
-  }
-
-  ngOnInit(): void {}
-
-  getFullName(user: User): string {
-    return `${user.firstName} ${user.lastName}`;
-  }
+export class HeaderComponent {
+  private store = inject(Store);
+  user$ = this.store.select(selectUser);
 
   onLogout(): void {
     this.store.dispatch(logout());

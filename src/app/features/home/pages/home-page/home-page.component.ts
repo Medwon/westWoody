@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { Observable } from 'rxjs';
 import { AppState } from '../../../../core/store/app.state';
 import { selectUser } from '../../../../core/store/auth/auth.selectors';
-import { User } from '../../../../core/models/user.model';
+import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -1003,7 +1003,7 @@ interface RecentPayment {
   `]
 })
 export class HomePageComponent implements OnInit {
-  user$: Observable<User | null>;
+  user$: Observable<AuthUser | null>;
   private pageHeaderService = inject(PageHeaderService);
   transactionModalService = inject(TransactionModalService);
 

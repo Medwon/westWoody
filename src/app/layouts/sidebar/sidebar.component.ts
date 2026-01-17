@@ -2,10 +2,12 @@ import { Component, Input, Output, EventEmitter, signal, effect, inject } from '
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Store } from '@ngrx/store';
 import { IconButtonComponent } from '../../shared/components/icon-button/icon-button.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { SidebarService } from '../../core/services/sidebar.service';
 import { TransactionModalService } from '../../core/services/transaction-modal.service';
+import { logout } from '../../core/store/auth/auth.actions';
 
 
 export interface SidebarMenuChild {
@@ -839,6 +841,7 @@ export class SidebarComponent {
 
   private sidebarService = inject(SidebarService);
   private transactionModalService = inject(TransactionModalService);
+  private store = inject(Store);
 
   sanitizeHtml(html: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(html);
@@ -893,6 +896,7 @@ export class SidebarComponent {
   }
 
   onLogoutClick(): void {
+    this.store.dispatch(logout());
     this.logoutClick.emit();
   }
 

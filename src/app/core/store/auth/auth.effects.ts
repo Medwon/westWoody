@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
-import { map, catchError, switchMap, tap } from 'rxjs/operators';
+import { map, catchError, tap, exhaustMap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import * as AuthActions from './auth.actions';
 
@@ -12,16 +12,33 @@ export class AuthEffects {
   private authService = inject(AuthService);
   private router = inject(Router);
 
+  // ============================================================
+  // Init Auth - Check session on app startup via /auth/me
+  // ============================================================
+  initAuth$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.initAuth),
+      exhaustMap(() =>
+        this.authService.me().pipe(
+          map((user) => AuthActions.initAuthSuccess({ user })),
+          catchError(() => of(AuthActions.initAuthFailure()))
+        )
+      )
+    )
+  );
+
+  // ============================================================
   // Login
+  // ============================================================
   login$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.login),
-      switchMap(({ credentials }) =>
+      exhaustMap(({ credentials }) =>
         this.authService.login(credentials).pipe(
-          map((response) => AuthActions.loginSuccess({ response })),
+          map((user) => AuthActions.loginSuccess({ user })),
           catchError((error) =>
             of(AuthActions.loginFailure({
-              error: error.error?.message || error.message || 'Ошибка входа'
+              error: error.error?.message || error.message || 'Неверный email или пароль'
             }))
           )
         )
@@ -40,13 +57,15 @@ export class AuthEffects {
     { dispatch: false }
   );
 
-  // Register
+  // ============================================================
+  // Register (auto-login after registration)
+  // ============================================================
   register$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.register),
-      switchMap(({ data }) =>
+      exhaustMap(({ data }) =>
         this.authService.register(data).pipe(
-          map((response) => AuthActions.registerSuccess({ response })),
+          map((user) => AuthActions.registerSuccess({ user })),
           catchError((error) =>
             of(AuthActions.registerFailure({
               error: error.error?.message || error.message || 'Ошибка регистрации'
@@ -57,27 +76,27 @@ export class AuthEffects {
     )
   );
 
+  // Register auto-logs in, redirect to home
   registerSuccess$ = createEffect(
     () =>
       this.actions$.pipe(
         ofType(AuthActions.registerSuccess),
         tap(() => {
-          // Redirect to login page with success message
-          this.router.navigate(['/auth/login'], {
-            queryParams: { registered: true }
-          });
+          this.router.navigate(['/home']);
         })
       ),
     { dispatch: false }
   );
 
-  // Activate Account
+  // ============================================================
+  // Activate Account (auto-login after activation)
+  // ============================================================
   activateAccount$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.activateAccount),
-      switchMap(({ data }) =>
-        this.authService.activateAccount(data).pipe(
-          map((response) => AuthActions.activateAccountSuccess({ response })),
+      exhaustMap(({ data }) =>
+        this.authService.activate(data).pipe(
+          map((user) => AuthActions.activateAccountSuccess({ user })),
           catchError((error) =>
             of(AuthActions.activateAccountFailure({
               error: error.error?.message || error.message || 'Ошибка активации'
@@ -88,34 +107,41 @@ export class AuthEffects {
     )
   );
 
+  // Activate auto-logs in, redirect to home
   activateAccountSuccess$ = createEffect(
     () =>
       this.actions$.pipe(
         ofType(AuthActions.activateAccountSuccess),
         tap(() => {
-          this.router.navigate(['/auth/login'], {
-            queryParams: { activated: true }
-          });
+          this.router.navigate(['/home']);
         })
       ),
     { dispatch: false }
   );
 
-  // Logout
+  // ============================================================
+  // Logout - Call server to clear HttpOnly cookie
+  // ============================================================
   logout$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.logout),
-      tap(() => {
-        this.authService.logout();
-      }),
-      map(() => AuthActions.logoutSuccess())
+      exhaustMap(() =>
+        this.authService.logout().pipe(
+          map(() => AuthActions.logoutSuccess()),
+          catchError((error) =>
+            of(AuthActions.logoutFailure({
+              error: error.error?.message || 'Ошибка выхода'
+            }))
+          )
+        )
+      )
     )
   );
 
   logoutSuccess$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(AuthActions.logoutSuccess),
+        ofType(AuthActions.logoutSuccess, AuthActions.logoutFailure),
         tap(() => {
           this.router.navigate(['/auth/login']);
         })
@@ -123,26 +149,19 @@ export class AuthEffects {
     { dispatch: false }
   );
 
-  // Check Auth (on app initialization)
-  checkAuth$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(AuthActions.checkAuth),
-      switchMap(() => {
-        const token = this.authService.getToken();
-        const user = this.authService.getStoredUser();
-
-        if (!token || !user) {
-          return of(AuthActions.checkAuthFailure());
-        }
-
-        // Check if token is expired
-        if (this.authService.isTokenExpired(token)) {
-          this.authService.logout();
-          return of(AuthActions.checkAuthFailure());
-        }
-
-        return of(AuthActions.checkAuthSuccess({ user, token }));
-      })
-    )
+  // ============================================================
+  // Session Expired - Redirect to login
+  // ============================================================
+  sessionExpired$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.sessionExpired),
+        tap(() => {
+          this.router.navigate(['/auth/login'], {
+            queryParams: { sessionExpired: true }
+          });
+        })
+      ),
+    { dispatch: false }
   );
 }

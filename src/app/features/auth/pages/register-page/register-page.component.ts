@@ -1,11 +1,9 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { AppState } from '../../../../core/store/app.state';
 import { register, clearError } from '../../../../core/store/auth/auth.actions';
 import { selectIsLoading, selectAuthError } from '../../../../core/store/auth/auth.selectors';
 import { RegisterRequest } from '../../../../core/models/user.model';
@@ -266,16 +264,15 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
   `]
 })
 export class RegisterPageComponent implements OnDestroy {
+  private fb = inject(FormBuilder);
+  private store = inject(Store);
+  private destroy$ = new Subject<void>();
+
   registerForm: FormGroup;
   isLoading$: Observable<boolean>;
   error$: Observable<string | null>;
-  
-  private destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private store: Store<AppState>
-  ) {
+  constructor() {
     this.registerForm = this.fb.group({
       firstName: ['', [Validators.required]],
       lastName: ['', [Validators.required]],
@@ -309,11 +306,11 @@ export class RegisterPageComponent implements OnDestroy {
     if (this.registerForm.valid) {
       const formValue = this.registerForm.value;
       const registerData: RegisterRequest = {
-        username: formValue.email, // Используем email как username
         email: formValue.email,
         password: formValue.password,
         firstName: formValue.firstName,
-        lastName: formValue.lastName
+        lastName: formValue.lastName,
+        roles: ['MANAGER']
       };
       this.store.dispatch(register({ data: registerData }));
     }

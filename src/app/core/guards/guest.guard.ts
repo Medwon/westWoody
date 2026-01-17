@@ -1,25 +1,28 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { map, take } from 'rxjs/operators';
-import { AppState } from '../store/app.state';
-import { selectIsAuthenticated } from '../store/auth/auth.selectors';
-import { AuthService } from '../services/auth.service';
+import { map, filter, take } from 'rxjs/operators';
+import { selectIsAuthenticated, selectIsInitialized } from '../store/auth/auth.selectors';
+import { combineLatest } from 'rxjs';
 
-export const guestGuard: CanActivateFn = (route, state) => {
+/**
+ * Guest Guard - Protects auth routes (login, register) from authenticated users
+ * 
+ * Waits for auth initialization before checking authentication state.
+ * Redirects to home if already authenticated.
+ */
+export const guestGuard: CanActivateFn = () => {
   const router = inject(Router);
-  const store = inject(Store<AppState>);
-  const authService = inject(AuthService);
+  const store = inject(Store);
 
-  // If already authenticated, redirect to home
-  if (authService.isAuthenticated()) {
-    router.navigate(['/home']);
-    return false;
-  }
-
-  return store.select(selectIsAuthenticated).pipe(
+  return combineLatest([
+    store.select(selectIsInitialized),
+    store.select(selectIsAuthenticated)
+  ]).pipe(
+    // Wait until auth is initialized
+    filter(([initialized]) => initialized),
     take(1),
-    map(isAuthenticated => {
+    map(([, isAuthenticated]) => {
       if (isAuthenticated) {
         router.navigate(['/home']);
         return false;

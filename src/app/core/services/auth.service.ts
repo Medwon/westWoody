@@ -1,103 +1,84 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   LoginRequest,
-  LoginResponse,
   RegisterRequest,
-  RegisterResponse,
   ActivateAccountRequest,
-  ActivateAccountResponse,
-  User
+  AuthUser
 } from '../models/user.model';
 
+/**
+ * Auth Service - HttpOnly Cookie Based Authentication
+ * 
+ * - NO tokens stored in localStorage/sessionStorage
+ * - All auth state managed via NgRx (in-memory only)
+ * - Cookies handled automatically by browser with withCredentials: true
+ * 
+ * Backend sets HttpOnly cookies:
+ * - accessToken (15 min expiration)
+ * - refreshToken (7 days expiration)
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
-  private readonly tokenKey = environment.tokenKey;
-  private readonly userKey = environment.userKey;
 
   constructor(private http: HttpClient) {}
 
-  // Authentication endpoints
-  login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
-      tap(response => {
-        this.saveToken(response.token);
-        this.saveUser(response.user);
-      })
-    );
+  /**
+   * Login with email and password
+   * Sets HttpOnly cookies on success
+   * @returns AuthUser { id, email, roles }
+   */
+  login(credentials: LoginRequest): Observable<AuthUser> {
+    console.log('[AuthService] POST /auth/login', credentials);
+    return this.http.post<AuthUser>(`${this.apiUrl}/login`, credentials);
   }
 
-  register(data: RegisterRequest): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${this.apiUrl}/register`, data);
+  /**
+   * Register new user
+   * Sets HttpOnly cookies on success (auto-login)
+   * @returns AuthUser { id, email, roles }
+   */
+  register(data: RegisterRequest): Observable<AuthUser> {
+    console.log('[AuthService] POST /auth/register', data);
+    return this.http.post<AuthUser>(`${this.apiUrl}/register`, data);
   }
 
-  activateAccount(data: ActivateAccountRequest): Observable<ActivateAccountResponse> {
-    return this.http.post<ActivateAccountResponse>(`${this.apiUrl}/activate`, data);
+  /**
+   * Activate account with invitation token
+   * Sets HttpOnly cookies on success (auto-login)
+   * @returns AuthUser { id, email, roles }
+   */
+  activate(data: ActivateAccountRequest): Observable<AuthUser> {
+    return this.http.post<AuthUser>(`${this.apiUrl}/activate`, data);
   }
 
-  logout(): void {
-    this.removeToken();
-    this.removeUser();
+  /**
+   * Get current authenticated user
+   * Used on app init to check if session is valid
+   * @returns AuthUser { id, email, roles }
+   */
+  me(): Observable<AuthUser> {
+    return this.http.get<AuthUser>(`${this.apiUrl}/me`);
   }
 
-  // Token management
-  saveToken(token: string): void {
-    localStorage.setItem(this.tokenKey, token);
+  /**
+   * Refresh access token using refresh token cookie
+   * Sets new HttpOnly cookies
+   * @returns AuthUser { id, email, roles }
+   */
+  refresh(): Observable<AuthUser> {
+    return this.http.post<AuthUser>(`${this.apiUrl}/refresh`, {});
   }
 
-  getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(this.tokenKey);
-  }
-
-  removeToken(): void {
-    localStorage.removeItem(this.tokenKey);
-  }
-
-  // User management in localStorage
-  saveUser(user: User): void {
-    localStorage.setItem(this.userKey, JSON.stringify(user));
-  }
-
-  getStoredUser(): User | null {
-    if (typeof window === 'undefined') return null;
-    const userStr = localStorage.getItem(this.userKey);
-    if (!userStr) return null;
-    try {
-      return JSON.parse(userStr) as User;
-    } catch {
-      return null;
-    }
-  }
-
-  removeUser(): void {
-    localStorage.removeItem(this.userKey);
-  }
-
-  // Check authentication status
-  isAuthenticated(): boolean {
-    return !!this.getToken();
-  }
-
-  // Get current user from token (JWT decode)
-  decodeToken(token: string): any {
-    try {
-      const payload = token.split('.')[1];
-      return JSON.parse(atob(payload));
-    } catch {
-      return null;
-    }
-  }
-
-  isTokenExpired(token: string): boolean {
-    const decoded = this.decodeToken(token);
-    if (!decoded || !decoded.exp) return true;
-    const expirationDate = new Date(decoded.exp * 1000);
-    return expirationDate <= new Date();
+  /**
+   * Logout - Revokes refresh token and clears cookies
+   */
+  logout(): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/logout`, {});
   }
 }

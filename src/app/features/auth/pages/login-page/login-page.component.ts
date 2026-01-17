@@ -1,11 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { AppState } from '../../../../core/store/app.state';
 import { login, clearError } from '../../../../core/store/auth/auth.actions';
 import { selectIsLoading, selectAuthError } from '../../../../core/store/auth/auth.selectors';
 import { LoginRequest } from '../../../../core/models/user.model';
@@ -47,17 +46,6 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
             </p>
           </div>
 
-        <!-- Success messages from registration or activation -->
-        <app-alert
-          *ngIf="successMessage"
-          type="success"
-          [title]="'Успешно'"
-          [dismissible]="true"
-          (dismissed)="successMessage = ''"
-          class="success-alert">
-          {{ successMessage }}
-        </app-alert>
-
         <!-- Session expired message -->
         <app-alert
           *ngIf="sessionExpired"
@@ -81,12 +69,12 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
 
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
           <app-input
-            id="username"
+            id="email"
             label="Email"
             type="email"
             placeholder="Введите email"
-            formControlName="username"
-            [errorMessage]="getErrorMessage('username')"
+            formControlName="email"
+            [errorMessage]="getErrorMessage('email')"
             [required]="true">
           </app-input>
 
@@ -191,7 +179,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
       color: #0F0F10 !important;
     }
 
-    .success-alert, .warning-alert, .error-alert {
+    .warning-alert, .error-alert {
       margin-bottom: 1.5rem;
       animation: shake 0.5s ease-out;
     }
@@ -267,21 +255,19 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
   `]
 })
 export class LoginPageComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private store = inject(Store);
+  private route = inject(ActivatedRoute);
+  private destroy$ = new Subject<void>();
+
   loginForm: FormGroup;
   isLoading$: Observable<boolean>;
   error$: Observable<string | null>;
-  successMessage = '';
   sessionExpired = false;
-  
-  private destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private store: Store<AppState>,
-    private route: ActivatedRoute
-  ) {
+  constructor() {
     this.loginForm = this.fb.group({
-      username: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
 
@@ -292,12 +278,6 @@ export class LoginPageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Check for query params
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      if (params['registered']) {
-        this.successMessage = 'Регистрация прошла успешно! Проверьте вашу почту для активации аккаунта.';
-      }
-      if (params['activated']) {
-        this.successMessage = 'Аккаунт успешно активирован! Теперь вы можете войти.';
-      }
       if (params['sessionExpired'] || params['expired']) {
         this.sessionExpired = true;
       }
@@ -325,6 +305,9 @@ export class LoginPageComponent implements OnInit, OnDestroy {
     if (control?.errors && control.touched) {
       if (control.errors['required']) {
         return 'Это поле обязательно для заполнения';
+      }
+      if (control.errors['email']) {
+        return 'Неверный формат email';
       }
       if (control.errors['minlength']) {
         return `Минимальная длина: ${control.errors['minlength'].requiredLength} символов`;

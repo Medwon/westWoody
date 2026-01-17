@@ -3,7 +3,7 @@ import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
-import { isDevMode } from '@angular/core';
+import { isDevMode, APP_INITIALIZER, inject } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 
 import { AppComponent } from './app/app.component';
@@ -11,6 +11,16 @@ import { routes } from './app/app.routes';
 import { appReducers } from './app/core/store/app.reducer';
 import { AuthEffects } from './app/core/store/auth/auth.effects';
 import { authInterceptor } from './app/core/services/http-interceptor.service';
+import { AppInitService } from './app/core/services/app-init.service';
+
+/**
+ * App initializer factory
+ * Checks auth session on app startup via /auth/me endpoint
+ */
+function initializeApp(): () => Promise<void> {
+  const appInitService = inject(AppInitService);
+  return () => appInitService.initializeApp();
+}
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -30,7 +40,13 @@ bootstrapApplication(AppComponent, {
       autoPause: true,
       trace: false,
       traceLimit: 75
-    })
+    }),
+    // Initialize auth check on app startup
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeApp,
+      multi: true
+    }
   ]
 }).catch(err => console.error(err));
 

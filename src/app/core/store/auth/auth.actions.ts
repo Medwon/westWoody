@@ -1,15 +1,26 @@
 import { createAction, props } from '@ngrx/store';
 import {
-  User,
+  AuthUser,
   LoginRequest,
-  LoginResponse,
   RegisterRequest,
-  RegisterResponse,
-  ActivateAccountRequest,
-  ActivateAccountResponse
+  ActivateAccountRequest
 } from '../../models/user.model';
 
+// ============================================================
+// App Initialization - Check if user has valid session cookie
+// ============================================================
+export const initAuth = createAction('[Auth] Init Auth');
+
+export const initAuthSuccess = createAction(
+  '[Auth] Init Auth Success',
+  props<{ user: AuthUser }>()
+);
+
+export const initAuthFailure = createAction('[Auth] Init Auth Failure');
+
+// ============================================================
 // Login
+// ============================================================
 export const login = createAction(
   '[Auth] Login',
   props<{ credentials: LoginRequest }>()
@@ -17,7 +28,7 @@ export const login = createAction(
 
 export const loginSuccess = createAction(
   '[Auth] Login Success',
-  props<{ response: LoginResponse }>()
+  props<{ user: AuthUser }>()
 );
 
 export const loginFailure = createAction(
@@ -25,7 +36,9 @@ export const loginFailure = createAction(
   props<{ error: string }>()
 );
 
-// Register
+// ============================================================
+// Register (auto-login after registration)
+// ============================================================
 export const register = createAction(
   '[Auth] Register',
   props<{ data: RegisterRequest }>()
@@ -33,7 +46,7 @@ export const register = createAction(
 
 export const registerSuccess = createAction(
   '[Auth] Register Success',
-  props<{ response: RegisterResponse }>()
+  props<{ user: AuthUser }>()
 );
 
 export const registerFailure = createAction(
@@ -41,7 +54,9 @@ export const registerFailure = createAction(
   props<{ error: string }>()
 );
 
-// Activate Account
+// ============================================================
+// Activate Account (auto-login after activation)
+// ============================================================
 export const activateAccount = createAction(
   '[Auth] Activate Account',
   props<{ data: ActivateAccountRequest }>()
@@ -49,7 +64,7 @@ export const activateAccount = createAction(
 
 export const activateAccountSuccess = createAction(
   '[Auth] Activate Account Success',
-  props<{ response: ActivateAccountResponse }>()
+  props<{ user: AuthUser }>()
 );
 
 export const activateAccountFailure = createAction(
@@ -57,26 +72,32 @@ export const activateAccountFailure = createAction(
   props<{ error: string }>()
 );
 
+// ============================================================
 // Logout
+// ============================================================
 export const logout = createAction('[Auth] Logout');
 
 export const logoutSuccess = createAction('[Auth] Logout Success');
 
-// Check Auth (on app init)
-export const checkAuth = createAction('[Auth] Check Auth');
-
-export const checkAuthSuccess = createAction(
-  '[Auth] Check Auth Success',
-  props<{ user: User; token: string }>()
+export const logoutFailure = createAction(
+  '[Auth] Logout Failure',
+  props<{ error: string }>()
 );
 
-export const checkAuthFailure = createAction('[Auth] Check Auth Failure');
+// ============================================================
+// Session Expired (triggered by 401 interceptor)
+// ============================================================
+export const sessionExpired = createAction('[Auth] Session Expired');
 
+// ============================================================
 // Clear errors
+// ============================================================
 export const clearError = createAction('[Auth] Clear Error');
 
+// ============================================================
 // Update user in store
-export const updateUserInStore = createAction(
+// ============================================================
+export const updateUser = createAction(
   '[Auth] Update User',
-  props<{ user: User }>()
+  props<{ user: AuthUser }>()
 );

@@ -1,43 +1,42 @@
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpHandlerFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { catchError, throwError } from 'rxjs';
-import { AuthService } from './auth.service';
-import { AppState } from '../store/app.state';
+import { environment } from '../../../environments/environment';
 import * as AuthActions from '../store/auth/auth.actions';
 
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const router = inject(Router);
-  const store = inject(Store<AppState>);
-  
-  const token = authService.getToken();
+/**
+ * Auth Interceptor - HttpOnly Cookie Based Authentication
+ * 
+ * - Adds withCredentials: true to all API requests
+ * - Handles 401 globally by dispatching sessionExpired action
+ * - NO manual token handling (cookies managed by browser)
+ */
+export const authInterceptor: HttpInterceptorFn = (
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn
+) => {
+  const store = inject(Store);
 
-  // Clone request with auth header if token exists
-  let authReq = req;
-  if (token) {
-    authReq = req.clone({
-      headers: req.headers.set('Authorization', `Bearer ${token}`)
-    });
-  }
+  // Only add credentials to requests to our API
+  const isApiRequest = req.url.startsWith(environment.apiUrl);
+  
+  const authReq = isApiRequest
+    ? req.clone({ withCredentials: true })
+    : req;
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      // Handle 401 Unauthorized - token expired or invalid
-      if (error.status === 401) {
-        authService.logout();
-        store.dispatch(AuthActions.logoutSuccess());
-        router.navigate(['/auth/login'], {
-          queryParams: { sessionExpired: true }
-        });
-      }
-
-      // Handle 403 Forbidden - not enough permissions
-      if (error.status === 403) {
-        router.navigate(['/home'], {
-          queryParams: { accessDenied: true }
-        });
+      // Handle 401 Unauthorized - session expired or invalid
+      if (error.status === 401 && isApiRequest) {
+        // Skip session expired for auth endpoints (login, register)
+        const isAuthEndpoint = req.url.includes('/auth/login') || 
+                               req.url.includes('/auth/register') ||
+                               req.url.includes('/auth/me');
+        
+        if (!isAuthEndpoint) {
+          store.dispatch(AuthActions.sessionExpired());
+        }
       }
 
       return throwError(() => error);

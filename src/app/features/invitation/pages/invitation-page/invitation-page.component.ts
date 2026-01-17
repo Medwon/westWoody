@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { Observable } from 'rxjs';
 import { AppState } from '../../../../core/store/app.state';
 import { selectUser } from '../../../../core/store/auth/auth.selectors';
-import { User } from '../../../../core/models/user.model';
+import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 
 // Shared Components
@@ -334,7 +334,7 @@ interface InvitationHistory {
   `]
 })
 export class InvitationPageComponent implements OnInit {
-  user$: Observable<User | null>;
+  user$: Observable<AuthUser | null>;
   invitationForm: FormGroup;
   
   isSending = false;

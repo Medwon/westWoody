@@ -1,7 +1,14 @@
 // User roles
 export type UserRole = 'ADMIN' | 'MANAGER' | 'USER';
 
-// User model
+// Auth User - returned from auth endpoints
+export interface AuthUser {
+  id: number;
+  email: string;
+  roles: UserRole[];
+}
+
+// Full User model - for user management endpoints
 export interface User {
   id: string;
   username: string;
@@ -14,29 +21,23 @@ export interface User {
   updatedAt?: string;
 }
 
-// Auth state for NgRx
+// Auth state for NgRx (stored ONLY in memory)
 export interface AuthState {
-  user: User | null;
-  token: string | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 }
 
 // Login
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  user: User;
 }
 
 // Register
 export interface RegisterRequest {
-  username: string;
   email: string;
   password: string;
   firstName: string;
@@ -44,20 +45,10 @@ export interface RegisterRequest {
   roles?: UserRole[];
 }
 
-export interface RegisterResponse {
-  message: string;
-  userId: string;
-}
-
-// Activate account
+// Activate account (for invited users)
 export interface ActivateAccountRequest {
   token: string;
-  username: string;
   password: string;
-}
-
-export interface ActivateAccountResponse {
-  message: string;
 }
 
 // Invite user

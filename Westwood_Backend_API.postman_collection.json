@@ -1,0 +1,2303 @@
+{
+	"info": {
+		"_postman_id": "westwood-backend-api",
+		"name": "Westwood Backend API",
+		"description": "Complete API collection for Westwood Backend application\n\n## Authentication\n\nThis API uses **cookie-based authentication** with HttpOnly, Secure cookies:\n\n1. **Login/Register**: Use `/api/v1/auth/login` or `/api/v1/auth/register` to authenticate\n2. **Cookies**: Access and refresh tokens are automatically set in HttpOnly cookies\n3. **Subsequent Requests**: Cookies are automatically sent with each request - no Authorization header needed\n4. **Refresh Token**: Use `/api/v1/auth/refresh` to get new tokens when access token expires\n5. **Logout**: Use `/api/v1/auth/logout` to revoke tokens and clear cookies\n\n**Note**: Postman automatically manages cookies. After login, all authenticated endpoints will work without manual token management.\n\n**Token Expiration**:\n- Access Token: 15 minutes\n- Refresh Token: 7 days",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticates user with email and password. Returns access token and refresh token in HttpOnly, Secure cookies. Tokens are not exposed to JavaScript for security.\n\n**Response:** Returns user information (id, email, roles) in JSON body. Access and refresh tokens are automatically set in HttpOnly cookies.\n\n**Cookies set:**\n- `accessToken` - JWT access token (15 minutes expiration)\n- `refreshToken` - JWT refresh token (7 days expiration)"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "login"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 1,\n  \"email\": \"admin@example.com\",\n  \"roles\": [\"ADMIN\", \"MANAGER\"]\n}"
+						},
+						{
+							"name": "Invalid Credentials",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"wrong@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "login"]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 401,\n  \"message\": \"Invalid email or password\",\n  \"timestamp\": \"2024-01-15T10:30:00\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"roles\": [\"MANAGER\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registers a new user. Returns access token and refresh token in HttpOnly, Secure cookies. Tokens are not exposed to JavaScript for security.\n\n**Response:** Returns user information (id, email, roles) in JSON body. Access and refresh tokens are automatically set in HttpOnly cookies.\n\n**Cookies set:**\n- `accessToken` - JWT access token (15 minutes expiration)\n- `refreshToken` - JWT refresh token (7 days expiration)"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"roles\": [\"MANAGER\"]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "register"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 2,\n  \"email\": \"newuser@example.com\",\n  \"roles\": [\"MANAGER\"]\n}"
+						},
+						{
+							"name": "Email Already Exists",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"existing@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "register"]
+								}
+							},
+							"status": "Conflict",
+							"code": 409,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 409,\n  \"message\": \"Email is already in use!\",\n  \"timestamp\": \"2024-01-15T10:30:00\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Activate Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{activationToken}}\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/activate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"activate"
+							]
+						},
+						"description": "Activates a user account using the activation token from invitation email. After activation, automatically logs in the user and returns access/refresh tokens in HttpOnly cookies.\n\n**Response:** Returns user information (id, email, roles) in JSON body. Access and refresh tokens are automatically set in HttpOnly cookies."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"valid-activation-token\",\n  \"password\": \"password123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/activate",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "activate"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 3,\n  \"email\": \"invited@example.com\",\n  \"roles\": [\"MANAGER\"]\n}"
+						}
+					]
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refreshes the access token using the refresh token from HttpOnly cookie. Returns new access and refresh tokens in cookies. Implements token rotation for security.\n\n**How it works:**\n1. Reads refresh token from HttpOnly cookie\n2. Validates and revokes old refresh token\n3. Generates new access and refresh tokens\n4. Sets new tokens in HttpOnly cookies\n5. Returns user information in response body\n\n**Token Rotation:** Old refresh token is revoked when a new one is issued, preventing token reuse attacks."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/refresh",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "refresh"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "New access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "New refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 1,\n  \"email\": \"admin@example.com\",\n  \"roles\": [\"ADMIN\", \"MANAGER\"]\n}"
+						},
+						{
+							"name": "Invalid/Expired Refresh Token",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/refresh",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "refresh"]
+								}
+							},
+							"status": "Forbidden",
+							"code": 403,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 403,\n  \"message\": \"Refresh token has expired. Please login again.\",\n  \"timestamp\": \"2024-01-15T10:30:00\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logs out the user by revoking refresh token and clearing HttpOnly cookies.\n\n**What happens:**\n1. Revokes the refresh token in database\n2. Deletes accessToken cookie\n3. Deletes refreshToken cookie\n4. Clears security context\n\n**Note:** After logout, user must login again to get new tokens."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/logout",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "logout"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
+									"description": "Delete access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
+									"description": "Delete refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": ""
+						}
+					]
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Returns current authenticated user information. Requires valid access token in HttpOnly cookie. No Authorization header needed - authentication is handled via cookies."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/me",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "me"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": 1,\n  \"email\": \"admin@example.com\",\n  \"roles\": [\"ADMIN\", \"MANAGER\"]\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"johndoe@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by Email",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/email/{{email}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"email",
+								"{{email}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"johndoe.updated@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe Updated\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invite User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/invite",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"invite"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Clients",
+			"item": [
+				{
+					"name": "Create Client",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"name\": \"Jane\",\n  \"surname\": \"Smith\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"notes\": \"VIP client\",\n  \"tags\": [\"vip\", \"premium\"],\n  \"clientType\": \"INDIVIDUAL\",\n  \"referrerId\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Clients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Clients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients?search=Jane",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "Jane"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Clients by Tag",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients?tag=vip",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients"
+							],
+							"query": [
+								{
+									"key": "tag",
+									"value": "vip"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"name\": \"Jane\",\n  \"surname\": \"Smith Updated\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"notes\": \"Updated VIP client\",\n  \"tags\": [\"vip\", \"premium\", \"loyal\"],\n  \"clientType\": \"INDIVIDUAL\",\n  \"referrerId\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Client",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client by Phone",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/phone/+1234567890",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"phone",
+								"+1234567890"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client Notes",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Updated client notes\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}/notes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}",
+								"notes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client Tags",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tags\": [\"vip\", \"premium\", \"loyal\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Clients with Pagination",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"\",\n  \"phone\": \"\",\n  \"email\": \"\",\n  \"lastVisitFrom\": null,\n  \"lastVisitTo\": null,\n  \"tags\": [],\n  \"clientType\": null,\n  \"sortBy\": \"lastVisit\",\n  \"sortDirection\": \"DESC\",\n  \"page\": 0,\n  \"size\": 10\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/search",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"search"
+							],
+							"description": "Search clients with filters and pagination. All filter fields are optional. sortBy can be: 'name', 'createdAt', 'lastVisit'. sortDirection can be 'ASC' or 'DESC'."
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payments",
+			"item": [
+				{
+					"name": "Create Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"amount\": 100.50,\n  \"notes\": \"Payment for services\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments"
+							]
+						},
+						"description": "Creates a payment immediately with COMPLETED status. For workflows that require bonus application before completion, use Create Draft Payment instead. This endpoint creates PaymentCreated event and processes bonuses (cashback, milestones) immediately."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Draft Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"{{clientId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/draft",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"draft"
+							]
+						},
+						"description": "Step 1: Creates a draft payment with PENDING status. Use this when opening the payment form to get a paymentTxId. Returns paymentTxId that should be used in the Complete Payment request."
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"originalAmount\": 12000.00,\n  \"bonusAmountUsed\": 2000.00,\n  \"notes\": \"Payment for services\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}/complete",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"{{paymentTxId}}",
+								"complete"
+							]
+						},
+						"description": "Finalizes a PENDING payment with all payment data. originalAmount is the purchase amount (12000), bonusAmountUsed is the bonus discount (2000, optional - default 0), finalAmount (10000) is calculated automatically. Creates BonusUsed event if bonuses are used. Grants cashback bonuses only if no bonuses were used."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by Transaction ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"{{paymentTxId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payments by Client ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/client/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"client",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Total by Client and Time Range",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/client/{{clientId}}/total?from=2024-01-01T00:00:00&to=2024-12-31T23:59:59",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"client",
+								"{{clientId}}",
+								"total"
+							],
+							"query": [
+								{
+									"key": "from",
+									"value": "2024-01-01T00:00:00"
+								},
+								{
+									"key": "to",
+									"value": "2024-12-31T23:59:59"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refund Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Refund reason: customer request\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"{{paymentTxId}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Payments with Pagination",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paymentId\": \"\",\n  \"clientName\": \"\",\n  \"phone\": \"\",\n  \"periodFrom\": null,\n  \"periodTo\": null,\n  \"paymentMethod\": null,\n  \"paymentType\": \"ALL\",\n  \"sortBy\": \"date\",\n  \"sortDirection\": \"DESC\",\n  \"page\": 0,\n  \"size\": 10\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/search",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"search"
+							],
+							"description": "Search payments with filters and pagination. All filter fields are optional. paymentType can be: 'ALL', 'PAID' (COMPLETED), 'REFUND' (REFUNDED). sortBy can be: 'date', 'amount', 'clientName'. sortDirection can be 'ASC' or 'DESC'. paymentMethod is reserved for future use. Response includes bonusGranted (bonuses granted for this payment), bonusUsed (bonuses used to cover this payment), and refundReason (if payment was refunded)."
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bonuses",
+			"item": [
+				{
+					"name": "Get Client Bonus Balance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonuses/client/{{clientId}}/balance",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonuses",
+								"client",
+								"{{clientId}}",
+								"balance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Bonus History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonuses/client/{{clientId}}/history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonuses",
+								"client",
+								"{{clientId}}",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Recalculate Bonus Balance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonuses/recalculate/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonuses",
+								"recalculate",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bonus Types",
+			"item": [
+				{
+					"name": "Create Bonus Type",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Special Promotion\",\n  \"type\": \"BASIC_CASHBACK\",\n  \"bonusPercentage\": 5.00,\n  \"expirationDays\": 30,\n  \"description\": \"5% cashback for special promotion\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Bonus Types",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Bonus Types",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types/active",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bonus Type by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types/{{bonusTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types",
+								"{{bonusTypeId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bonus Type",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Special Promotion Updated\",\n  \"type\": \"BASIC_CASHBACK\",\n  \"enabled\": true,\n  \"bonusPercentage\": 7.50,\n  \"expirationDays\": 45,\n  \"description\": \"Updated promotion with 7.5% cashback\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types/{{bonusTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types",
+								"{{bonusTypeId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle Bonus Type",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types/{{bonusTypeId}}/toggle?enabled=false",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types",
+								"{{bonusTypeId}}",
+								"toggle"
+							],
+							"query": [
+								{
+									"key": "enabled",
+									"value": "false"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bonus Type",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bonus-types/{{bonusTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bonus-types",
+								"{{bonusTypeId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Analytics",
+			"item": [
+				{
+					"name": "Get Client Value Rankings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/value",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"value"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Spending by Time Range",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/{{clientId}}/spending?from=2024-01-01T00:00:00&to=2024-12-31T23:59:59",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"{{clientId}}",
+								"spending"
+							],
+							"query": [
+								{
+									"key": "from",
+									"value": "2024-01-01T00:00:00"
+								},
+								{
+									"key": "to",
+									"value": "2024-12-31T23:59:59"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Value",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/{{clientId}}/value",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"{{clientId}}",
+								"value"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monthly Revenue",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/monthly",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"monthly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Revenue",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Transaction Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/transactions/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"transactions",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get New Clients Count (Daily)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/new/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"new",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Average Check",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/average-check?period=DAILY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"average-check"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "DAILY",
+									"description": "Period: DAILY or MONTHLY"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bonuses Accrued",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/bonuses/accrued?period=DAILY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"bonuses",
+								"accrued"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "DAILY",
+									"description": "Period: DAILY or MONTHLY"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Refunds Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/refunds/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"refunds",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Clients Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/active",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monthly Revenue Chart",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/monthly/chart?year=2024&month=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"monthly",
+								"chart"
+							],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Year (optional, defaults to current year)"
+								},
+								{
+									"key": "month",
+									"value": "1",
+									"description": "Month 1-12 (optional, defaults to current month)"
+								}
+							],
+							"description": "Returns daily revenue data for the specified month. Each day contains: revenue, transaction count, bonuses granted, bonuses used. Data is returned from day 1 to the current day (if current month) or to the last day of the month."
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Message Templates",
+			"item": [
+				{
+					"name": "Create Message Template",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Basic Cashback Notification\",\n  \"type\": \"BASIC_CASHBACK_BONUS_GRANT\",\n  \"content\": \"Hello {{clientName}}, and thank you for purchasing today. You have been granted a bonus of {{clientGrantedBonus}} tenge.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Message Templates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Templates by Type",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates?type=BASIC_CASHBACK_BONUS_GRANT",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "BASIC_CASHBACK_BONUS_GRANT"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Template by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Message Template",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Basic Cashback Notification Updated\",\n  \"type\": \"BASIC_CASHBACK_BONUS_GRANT\",\n  \"content\": \"Hello {{clientName}}, thank you for your purchase! You have been granted a bonus of {{clientGrantedBonus}} tenge. Your current bonus balance is {{clientBonus}} tenge.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Message Template",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Populated Message Template",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/populated?type=BASIC_CASHBACK_BONUS_GRANT&clientId={{clientId}}&paymentTxId={{paymentTxId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"populated"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "BASIC_CASHBACK_BONUS_GRANT",
+									"description": "Template type"
+								},
+								{
+									"key": "clientId",
+									"value": "{{clientId}}",
+									"description": "Client UUID"
+								},
+								{
+									"key": "paymentTxId",
+									"value": "{{paymentTxId}}",
+									"description": "Payment transaction ID (optional for BASIC_CASHBACK_BONUS_GRANT type)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Template Variables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/variables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"variables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Template Types",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"types"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Messages",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"messageContent\": \"Hello Jane, and thank you for purchasing today. You have been granted a bonus of 1000 tenge.\",\n  \"channel\": \"EMAIL\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/messages/send",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"messages",
+								"send"
+							]
+						},
+						"description": "Sends a message to a client. The messageContent should be obtained from the /message-templates/populated endpoint first. Channel can be EMAIL, WHATSAPP, or SMS."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Records by Channel",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/messages/channel/EMAIL",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"messages",
+								"channel",
+								"EMAIL"
+							],
+							"description": "Channel can be EMAIL, WHATSAPP, or SMS"
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "clientId",
+			"value": "",
+			"type": "string"
+		},
+			{
+			"key": "paymentId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "configId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "activationToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "templateId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "paymentTxId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

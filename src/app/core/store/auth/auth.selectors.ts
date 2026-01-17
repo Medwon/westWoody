@@ -8,11 +8,6 @@ export const selectUser = createSelector(
   (state: AuthState) => state.user
 );
 
-export const selectToken = createSelector(
-  selectAuthState,
-  (state: AuthState) => state.token
-);
-
 export const selectIsAuthenticated = createSelector(
   selectAuthState,
   (state: AuthState) => state.isAuthenticated
@@ -23,20 +18,30 @@ export const selectIsLoading = createSelector(
   (state: AuthState) => state.isLoading
 );
 
+export const selectIsInitialized = createSelector(
+  selectAuthState,
+  (state: AuthState) => state.isInitialized
+);
+
 export const selectAuthError = createSelector(
   selectAuthState,
   (state: AuthState) => state.error
 );
 
-// Additional selectors
+// Composite selectors
 export const selectUserRoles = createSelector(
   selectUser,
-  (user) => user?.roles || []
+  (user) => user?.roles ?? []
 );
 
-export const selectUserFullName = createSelector(
+export const selectUserEmail = createSelector(
   selectUser,
-  (user) => user ? `${user.firstName} ${user.lastName}` : ''
+  (user) => user?.email ?? ''
+);
+
+export const selectUserId = createSelector(
+  selectUser,
+  (user) => user?.id ?? null
 );
 
 export const selectIsAdmin = createSelector(
@@ -47,4 +52,11 @@ export const selectIsAdmin = createSelector(
 export const selectIsManager = createSelector(
   selectUserRoles,
   (roles) => roles.includes('MANAGER') || roles.includes('ADMIN')
+);
+
+// Auth ready selector - true when auth check is complete
+export const selectAuthReady = createSelector(
+  selectIsInitialized,
+  selectIsLoading,
+  (initialized, loading) => initialized && !loading
 );

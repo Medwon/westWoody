@@ -1,14 +1,20 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn, ActivatedRouteSnapshot } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { map, take } from 'rxjs/operators';
-import { AppState } from '../store/app.state';
-import { selectUserRoles } from '../store/auth/auth.selectors';
+import { map, filter, take } from 'rxjs/operators';
+import { selectUserRoles, selectIsInitialized } from '../store/auth/auth.selectors';
 import { UserRole } from '../models/user.model';
+import { combineLatest } from 'rxjs';
 
-export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state) => {
+/**
+ * Role Guard - Protects routes that require specific roles
+ * 
+ * Usage in routes:
+ * { path: 'admin', canActivate: [authGuard, roleGuard], data: { roles: ['ADMIN'] } }
+ */
+export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const router = inject(Router);
-  const store = inject(Store<AppState>);
+  const store = inject(Store);
 
   const requiredRoles = route.data['roles'] as UserRole[];
 
@@ -16,9 +22,13 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state) =
     return true;
   }
 
-  return store.select(selectUserRoles).pipe(
+  return combineLatest([
+    store.select(selectIsInitialized),
+    store.select(selectUserRoles)
+  ]).pipe(
+    filter(([initialized]) => initialized),
     take(1),
-    map(userRoles => {
+    map(([, userRoles]) => {
       const hasRole = requiredRoles.some(role => userRoles.includes(role));
       
       if (!hasRole) {
