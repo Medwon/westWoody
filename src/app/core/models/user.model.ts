@@ -1,5 +1,5 @@
 // User roles
-export type UserRole = 'ADMIN' | 'MANAGER' | 'USER';
+export type UserRole = 'SUDO' | 'ADMIN' | 'MANAGER' | 'USER';
 
 // Auth User - returned from auth endpoints
 // Note: id can be UUID string or number, firstName/lastName are optional (not returned by activate endpoint)
@@ -14,12 +14,14 @@ export interface AuthUser {
 // Full User model - for user management endpoints
 export interface User {
   id: string;
-  username: string;
+  username?: string;
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   roles: UserRole[];
   active: boolean;
+  accountStatus?: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -86,13 +88,39 @@ export interface ActivateAccountRequest {
 // Invite user
 export interface InviteUserRequest {
   email: string;
+  phone: string;
   firstName: string;
   lastName: string;
+  role: UserRole;
 }
 
 export interface InviteUserResponse {
-  message: string;
-  userId: string;
+  id: string;
+  email: string;
+  phone?: string;
+  firstName: string;
+  lastName: string;
+  roles: UserRole[];
+  accountStatus: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE';
+  active: boolean;
+}
+
+// User Transaction
+export interface UserTransaction {
+  txId: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string;
+  amount: number;
+  status: 'COMPLETED' | 'REFUNDED' | string;
+  paymentMethod?: string | null;
+  enteredByUsername: string;
+  createdAt: string;
+  refundedPaymentTxId?: string | null;
+  bonusGranted: number;
+  bonusUsed: number;
+  refundReason?: string | null;
 }
 
 // Update user

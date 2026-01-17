@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { User, UpdateUserRequest, InviteUserRequest, InviteUserResponse } from '../models/user.model';
+import { User, UpdateUserRequest, InviteUserRequest, InviteUserResponse, UserTransaction } from '../models/user.model';
 
 @Injectable({
   providedIn: 'root'
@@ -44,7 +44,13 @@ export class UsersService {
 
   // Invite user
   inviteUser(data: InviteUserRequest): Observable<InviteUserResponse> {
+    console.log('[UsersService] POST /users/invite', data);
     return this.http.post<InviteUserResponse>(`${this.apiUrl}/invite`, data);
+  }
+
+  // Get user transactions
+  getUserTransactions(userId: string): Observable<UserTransaction[]> {
+    return this.http.get<UserTransaction[]>(`${this.apiUrl}/${userId}/transactions`);
   }
 }
 

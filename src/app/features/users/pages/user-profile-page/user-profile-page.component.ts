@@ -2,7 +2,11 @@ import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { UsersService } from '../../../../core/services/users.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { User as ApiUser, UserRole, UserTransaction } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
 interface User {
   id: string;
@@ -17,13 +21,14 @@ interface User {
 
 interface UserPayment {
   id: string;
+  txId?: string;
   clientId: string;
   clientName: string;
   clientPhone: string;
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  paymentMethod: 'cash' | 'card' | 'online' | string;
   isRefund: boolean;
   date: string;
   time: string;
@@ -32,10 +37,15 @@ interface UserPayment {
 @Component({
   selector: 'app-user-profile-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
-      <div class="profile-container">
+      <!-- Loading State -->
+      <div class="loading-container" *ngIf="isLoading">
+        <app-loader></app-loader>
+      </div>
+
+      <div class="profile-container" *ngIf="!isLoading && user">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -44,26 +54,26 @@ interface UserPayment {
               <div class="avatar-large">
                 {{ getInitials() }}
               </div>
-              <div class="status-indicator" [class.active]="mockUser.status === 'active'"></div>
+              <div class="status-indicator" [class.active]="user.status === 'active'"></div>
             </div>
             <div class="profile-main-info">
               <div class="name-row">
                 <h1 class="profile-name">{{ getFullName() }}</h1>
                 <app-badge 
-                  [badgeType]="getStatusBadgeType(mockUser.status)" 
+                  [badgeType]="getStatusBadgeType(user.status)" 
                   size="medium">
-                  {{ getStatusLabel(mockUser.status) }}
+                  {{ getStatusLabel(user.status) }}
                 </app-badge>
               </div>
-              <p class="profile-email">{{ mockUser.email }}</p>
-              <p class="profile-phone">{{ mockUser.phoneNumber }}</p>
+              <p class="profile-email">{{ user.email }}</p>
+              <p class="profile-phone" *ngIf="user.phoneNumber">{{ user.phoneNumber }}</p>
               <div class="role-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>{{ mockUser.role }}</span>
+                <span>{{ user.role }}</span>
               </div>
             </div>
           </div>
@@ -85,27 +95,27 @@ interface UserPayment {
           <div class="info-content">
             <div class="info-row">
               <span class="info-label">Имя:</span>
-              <span class="info-value">{{ mockUser.firstName }}</span>
+              <span class="info-value">{{ user.firstName }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Фамилия:</span>
-              <span class="info-value">{{ mockUser.lastName }}</span>
+              <span class="info-value">{{ user.lastName }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Email:</span>
-              <span class="info-value">{{ mockUser.email }}</span>
+              <span class="info-value">{{ user.email }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Телефон:</span>
-              <span class="info-value">{{ mockUser.phoneNumber }}</span>
+              <span class="info-value">{{ user.phoneNumber || '—' }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Роль:</span>
-              <span class="info-value">{{ mockUser.role }}</span>
+              <span class="info-value">{{ user.role }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Дата регистрации:</span>
-              <span class="info-value">{{ formatDate(mockUser.createdAt) }}</span>
+              <span class="info-value">{{ formatDate(user.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -138,7 +148,7 @@ interface UserPayment {
               <tbody>
                 <tr *ngFor="let payment of userPayments" class="payment-row">
                   <td class="td-id">
-                    <span class="payment-id">#{{ payment.id }}</span>
+                    <span class="payment-id">#{{ payment.txId || payment.id }}</span>
                   </td>
                   <td class="td-client">
                     <div class="client-cell">
@@ -159,41 +169,41 @@ interface UserPayment {
                   <td class="td-bonuses">
                     <div class="bonus-info">
                       <app-badge 
-                        *ngIf="payment.bonusEarned > 0"
+                        *ngIf="getBonusGranted(payment) > 0"
                         badgeType="bonusGranted" 
                         size="medium"
                         icon="star"
                         class="bonus-badge">
-                        +{{ formatAmount(payment.bonusEarned) }}
+                        +{{ formatAmount(getBonusGranted(payment)) }}
                       </app-badge>
                       <app-badge 
-                        *ngIf="payment.bonusUsed > 0"
+                        *ngIf="getBonusUsed(payment) > 0"
                         badgeType="bonusUsed" 
                         size="medium"
                         icon="check"
                         class="bonus-badge">
-                        -{{ formatAmount(payment.bonusUsed) }}
+                        -{{ formatAmount(getBonusUsed(payment)) }}
                       </app-badge>
-                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                      <span class="bonus-none" *ngIf="getBonusGranted(payment) === 0 && getBonusUsed(payment) === 0">—</span>
                     </div>
                   </td>
                   <td class="td-method">
-                    <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                      {{ getPaymentMethodLabel(payment.paymentMethod) }}
+                    <span class="method-badge" [class]="'method-' + (getPaymentMethod(payment) || 'unknown')">
+                      {{ getPaymentMethodLabel(getPaymentMethod(payment)) }}
                     </span>
                   </td>
                   <td class="td-status">
                     <app-badge 
-                      [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
+                      [badgeType]="isRefunded(payment) ? 'refund' : 'payment'" 
                       size="medium"
-                      [icon]="payment.isRefund ? 'refund' : 'payment'">
-                      {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
+                      [icon]="isRefunded(payment) ? 'refund' : 'payment'">
+                      {{ isRefunded(payment) ? 'Возврат' : 'Оплачено' }}
                     </app-badge>
                   </td>
                   <td class="td-date">
                     <div class="date-info">
-                      <span class="date-text">{{ payment.date }}</span>
-                      <span class="time-text">{{ payment.time }}</span>
+                      <span class="date-text">{{ getFormattedDate(payment) }}</span>
+                      <span class="time-text">{{ getFormattedTime(payment) }}</span>
                     </div>
                   </td>
                 </tr>
@@ -578,83 +588,124 @@ interface UserPayment {
 export class UserProfilePageComponent implements OnInit, AfterViewInit {
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
+  private usersService = inject(UsersService);
+  private toastService = inject(ToastService);
 
-  mockUser: User = {
-    id: '1',
-    firstName: 'Иван',
-    lastName: 'Иванов',
-    email: 'ivan@example.com',
-    phoneNumber: '+7 (777) 123-45-67',
-    role: 'Администратор',
-    status: 'active',
-    createdAt: '2024-01-15'
-  };
-
-  userPayments: UserPayment[] = [
-    {
-      id: 'PAY-001',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 12500,
-      bonusEarned: 125,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '14:30'
-    },
-    {
-      id: 'PAY-002',
-      clientId: '2',
-      clientName: 'Мария Сидорова',
-      clientPhone: '+7 (777) 234-56-78',
-      amount: 8750,
-      bonusEarned: 0,
-      bonusUsed: 500,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '15:45'
-    },
-    {
-      id: 'PAY-003',
-      clientId: '3',
-      clientName: 'Дмитрий Козлов',
-      clientPhone: '+7 (777) 345-67-89',
-      amount: 25000,
-      bonusEarned: 250,
-      bonusUsed: 0,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '10:20'
-    },
-    {
-      id: 'PAY-004',
-      clientId: '4',
-      clientName: 'Елена Новикова',
-      clientPhone: '+7 (777) 456-78-90',
-      amount: 15300,
-      bonusEarned: 0,
-      bonusUsed: 2800,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '13.01.2025',
-      time: '16:10'
-    }
-  ];
+  user: User | null = null;
+  userPayments: UserPayment[] = [];
+  isLoading = true;
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('id');
     if (userId) {
-      // TODO: Load user data by ID
       this.pageHeaderService.setPageHeader('Профиль пользователя', [
         { label: 'Главная', route: '/home' },
         { label: 'Пользователи', route: '/users' },
         { label: 'Профиль пользователя' }
       ]);
+      this.loadUser(userId);
+      this.loadTransactions(userId);
+    } else {
+      this.isLoading = false;
+      this.toastService.error('ID пользователя не указан');
     }
+  }
+
+  loadUser(userId: string): void {
+    this.usersService.getUserById(userId).subscribe({
+      next: (apiUser) => {
+        this.user = this.mapApiUserToUser(apiUser);
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки пользователя';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  loadTransactions(userId: string): void {
+    this.usersService.getUserTransactions(userId).subscribe({
+      next: (transactions) => {
+        this.userPayments = transactions.map(tx => this.mapTransactionToPayment(tx));
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки транзакций';
+        this.toastService.error(errorMessage);
+      }
+    });
+  }
+
+  mapApiUserToUser(apiUser: ApiUser): User {
+    return {
+      id: apiUser.id,
+      firstName: apiUser.firstName,
+      lastName: apiUser.lastName,
+      email: apiUser.email,
+      phoneNumber: apiUser.phone || '—',
+      role: this.getRoleLabel(apiUser.roles),
+      status: this.mapAccountStatusToStatus(apiUser.accountStatus, apiUser.active),
+      createdAt: apiUser.createdAt || ''
+    };
+  }
+
+  mapAccountStatusToStatus(accountStatus?: string, active?: boolean): 'invited' | 'active' | 'closed' {
+    if (accountStatus === 'PENDING_ACTIVATION') {
+      return 'invited';
+    }
+    if (active === false) {
+      return 'closed';
+    }
+    return 'active';
+  }
+
+  getRoleLabel(roles: UserRole[]): string {
+    if (roles.includes('SUDO')) return 'Супер администратор';
+    if (roles.includes('ADMIN')) return 'Администратор';
+    if (roles.includes('MANAGER')) return 'Менеджер';
+    return roles.join(', ');
+  }
+
+  mapTransactionToPayment(tx: UserTransaction): UserPayment {
+    const date = new Date(tx.createdAt);
+    return {
+      id: tx.txId,
+      clientId: tx.clientId,
+      clientName: tx.clientName,
+      clientPhone: tx.clientPhone,
+      amount: tx.amount,
+      bonusEarned: tx.bonusGranted,
+      bonusUsed: tx.bonusUsed,
+      paymentMethod: tx.paymentMethod || 'unknown',
+      isRefund: tx.status === 'REFUNDED',
+      date: date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      time: date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    };
+  }
+
+  getBonusGranted(payment: UserPayment): number {
+    return payment.bonusEarned || 0;
+  }
+
+  getBonusUsed(payment: UserPayment): number {
+    return payment.bonusUsed || 0;
+  }
+
+  getPaymentMethod(payment: UserPayment): string {
+    return payment.paymentMethod || 'unknown';
+  }
+
+  isRefunded(payment: UserPayment): boolean {
+    return payment.isRefund || false;
+  }
+
+  getFormattedDate(payment: UserPayment): string {
+    return payment.date || '';
+  }
+
+  getFormattedTime(payment: UserPayment): string {
+    return payment.time || '';
   }
 
   ngAfterViewInit(): void {
@@ -666,7 +717,8 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
   }
 
   getFullName(): string {
-    return `${this.mockUser.firstName} ${this.mockUser.lastName}`;
+    if (!this.user) return '';
+    return `${this.user.firstName} ${this.user.lastName}`;
   }
 
   getInitials(name?: string): string {
@@ -674,7 +726,8 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
       const parts = name.split(' ');
       return parts.map(p => p.charAt(0)).join('').toUpperCase().slice(0, 2);
     }
-    return `${this.mockUser.firstName.charAt(0)}${this.mockUser.lastName.charAt(0)}`.toUpperCase();
+    if (!this.user) return '';
+    return `${this.user.firstName.charAt(0)}${this.user.lastName.charAt(0)}`.toUpperCase();
   }
 
   getStatusBadgeType(status: string): 'primary' | 'secondary' | 'success' | 'warning' | 'danger' {

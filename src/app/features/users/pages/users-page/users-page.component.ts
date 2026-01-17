@@ -3,10 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { UsersService } from '../../../../core/services/users.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { User as ApiUser, UserRole, InviteUserRequest } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
 interface User {
   id: string;
@@ -30,7 +34,8 @@ interface User {
     BadgeComponent,
     ModalComponent,
     ButtonComponent,
-    PaginatedTableWrapperComponent
+    PaginatedTableWrapperComponent,
+    LoaderComponent
   ],
   template: `
     <div class="page-wrapper">
@@ -48,8 +53,14 @@ interface User {
           </app-button>
         </div>
 
+        <!-- Loading State -->
+        <div class="loading-container" *ngIf="isLoading">
+          <app-loader></app-loader>
+        </div>
+
         <!-- Users Table with Pagination -->
         <app-paginated-table-wrapper
+          *ngIf="!isLoading"
           [paginationEnabled]="false"
           [data]="filteredUsers"
           [defaultPageSize]="15"
@@ -223,10 +234,9 @@ interface User {
               class="form-select"
               [class.error]="addUserForm.get('role')?.invalid && addUserForm.get('role')?.touched">
               <option value="">Выберите роль</option>
-              <option value="Администратор">Администратор</option>
-              <option value="Менеджер">Менеджер</option>
-              <option value="Кассир">Кассир</option>
-              <option value="Оператор">Оператор</option>
+              <option value="SUDO">Супер администратор</option>
+              <option value="ADMIN">Администратор</option>
+              <option value="MANAGER">Менеджер</option>
             </select>
             <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
               <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -687,14 +697,24 @@ interface User {
       padding-top: 1.5rem;
       border-top: 1px solid #e2e8f0;
     }
+
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+    }
   `]
 })
 export class UsersPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
   private fb = inject(FormBuilder);
+  private usersService = inject(UsersService);
+  private toastService = inject(ToastService);
 
   showAddUserModal = false;
   addUserForm: FormGroup;
+  isLoading = true;
 
   // Lock confirmation modal
   isLockConfirmModalOpen = false;
@@ -708,50 +728,7 @@ export class UsersPageComponent implements OnInit {
   deleteConfirmTitle = '';
   deleteConfirmDescription = '';
 
-  // Mock data
-  users: User[] = [
-    {
-      id: '1',
-      firstName: 'Иван',
-      lastName: 'Иванов',
-      email: 'ivan@example.com',
-      phoneNumber: '+7 (777) 123-45-67',
-      role: 'Администратор',
-      status: 'active',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      firstName: 'Мария',
-      lastName: 'Петрова',
-      email: 'maria@example.com',
-      phoneNumber: '+7 (777) 234-56-78',
-      role: 'Менеджер',
-      status: 'active',
-      createdAt: '2024-02-20'
-    },
-    {
-      id: '3',
-      firstName: 'Алексей',
-      lastName: 'Сидоров',
-      email: 'alexey@example.com',
-      phoneNumber: '+7 (777) 345-67-89',
-      role: 'Кассир',
-      status: 'invited',
-      createdAt: '2024-03-10'
-    },
-    {
-      id: '4',
-      firstName: 'Елена',
-      lastName: 'Козлова',
-      email: 'elena@example.com',
-      phoneNumber: '+7 (777) 456-78-90',
-      role: 'Оператор',
-      status: 'closed',
-      createdAt: '2024-01-05'
-    }
-  ];
-
+  users: User[] = [];
   filteredUsers: User[] = [];
 
   constructor() {
@@ -770,7 +747,53 @@ export class UsersPageComponent implements OnInit {
       { label: 'Пользователи' }
     ]);
     
-    this.filteredUsers = [...this.users];
+    this.loadUsers();
+  }
+
+  loadUsers(): void {
+    this.isLoading = true;
+    this.usersService.getUsers().subscribe({
+      next: (apiUsers) => {
+        this.users = apiUsers.map(user => this.mapApiUserToUser(user));
+        this.filteredUsers = [...this.users];
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки пользователей';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  mapApiUserToUser(apiUser: ApiUser): User {
+    return {
+      id: apiUser.id,
+      firstName: apiUser.firstName,
+      lastName: apiUser.lastName,
+      email: apiUser.email,
+      phoneNumber: apiUser.phone || '—',
+      role: this.getRoleLabel(apiUser.roles),
+      status: this.mapAccountStatusToStatus(apiUser.accountStatus, apiUser.active),
+      createdAt: apiUser.createdAt || ''
+    };
+  }
+
+  mapAccountStatusToStatus(accountStatus?: string, active?: boolean): 'invited' | 'active' | 'closed' {
+    if (accountStatus === 'PENDING_ACTIVATION') {
+      return 'invited';
+    }
+    if (active === false) {
+      return 'closed';
+    }
+    return 'active';
+  }
+
+  getRoleLabel(roles: UserRole[]): string {
+    if (roles.includes('SUDO')) return 'Супер администратор';
+    if (roles.includes('ADMIN')) return 'Администратор';
+    if (roles.includes('MANAGER')) return 'Менеджер';
+    return roles.join(', ');
   }
 
   openAddUserModal(): void {
@@ -785,15 +808,30 @@ export class UsersPageComponent implements OnInit {
 
   onSubmitAddUser(): void {
     if (this.addUserForm.valid) {
-      const newUser: User = {
-        id: Date.now().toString(),
-        ...this.addUserForm.value,
-        status: 'invited',
-        createdAt: new Date().toISOString().split('T')[0]
+      const formValue = this.addUserForm.value;
+      const inviteData: InviteUserRequest = {
+        email: formValue.email,
+        phone: formValue.phoneNumber, // Map phoneNumber to phone
+        firstName: formValue.firstName,
+        lastName: formValue.lastName,
+        role: formValue.role as UserRole
       };
-      this.users.push(newUser);
-      this.filteredUsers = [...this.users];
-      this.closeAddUserModal();
+
+      console.log('[UsersPage] Inviting user with data:', inviteData);
+
+      this.usersService.inviteUser(inviteData).subscribe({
+        next: (response) => {
+          console.log('[UsersPage] Invite success:', response);
+          this.toastService.success('Пользователь успешно приглашен');
+          this.closeAddUserModal();
+          this.loadUsers(); // Reload users list
+        },
+        error: (err) => {
+          console.error('[UsersPage] Invite error:', err);
+          const errorMessage = err.error?.message || err.error?.errors || 'Ошибка приглашения пользователя';
+          this.toastService.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
+        }
+      });
     } else {
       Object.keys(this.addUserForm.controls).forEach(key => {
         this.addUserForm.get(key)?.markAsTouched();
