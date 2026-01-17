@@ -1,13 +1,16 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, catchError, of, tap } from 'rxjs';
 import { AppState } from '../../../../core/store/app.state';
 import { selectUser } from '../../../../core/store/auth/auth.selectors';
 import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
+import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
@@ -34,6 +37,8 @@ interface RecentPayment {
   isRefund: boolean;
   date: string;
   time: string;
+  initiatedBy?: string | null;
+  refundReason?: string | null;
 }
 
 @Component({
@@ -214,7 +219,8 @@ interface RecentPayment {
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let payment of recentPayments" class="payment-row">
+              <ng-container *ngFor="let payment of recentPayments">
+              <tr class="payment-row" [class.expanded]="isRowExpanded(payment.id)">
                 <td class="td-id">
                   <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
                 </td>
@@ -297,9 +303,46 @@ interface RecentPayment {
                         <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </app-icon-button>
+                    <app-icon-button
+                      iconButtonType="ghost"
+                      size="small"
+                      [tooltip]="isRowExpanded(payment.id) ? 'Скрыть детали' : 'Показать детали'"
+                      (onClick)="toggleRowExpansion(payment.id)">
+                      <svg [class.rotated]="isRowExpanded(payment.id)" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </app-icon-button>
                   </div>
                 </td>
               </tr>
+              <!-- Expandable row -->
+              <tr *ngIf="isRowExpanded(payment.id)" class="payment-details-row">
+                <td colspan="9" class="payment-details-cell">
+                  <div class="payment-details-content">
+                    <div class="refund-details-grid">
+                      <div class="refund-reason-section">
+                        <span class="refund-label">Причина возврата:</span>
+                        <div class="refund-reason-text" *ngIf="payment.refundReason">
+                          {{ payment.refundReason }}
+                        </div>
+                        <div class="refund-reason-empty" *ngIf="!payment.refundReason">
+                          Нет причины возврата
+                        </div>
+                      </div>
+                      <div class="refund-by-section">
+                        <span class="refund-label">Инициатор платежа:</span>
+                        <div class="refund-by-text" *ngIf="payment.initiatedBy">
+                          {{ payment.initiatedBy }}
+                        </div>
+                        <div class="refund-by-empty" *ngIf="!payment.initiatedBy">
+                          Не указан
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              </ng-container>
             </tbody>
           </table>
         </div>
@@ -310,7 +353,8 @@ interface RecentPayment {
     <app-refund-confirmation-modal
       [visible]="showRefundModal"
       [payment]="selectedPaymentForRefund"
-      (visibleChange)="closeRefundModal()"
+      [isProcessing]="isProcessingRefund"
+      (visibleChange)="onRefundModalVisibleChange($event)"
       (confirm)="confirmRefund($event)">
     </app-refund-confirmation-modal>
   </div>
@@ -940,6 +984,123 @@ interface RecentPayment {
       color: inherit;
     }
 
+    /* Expandable row styles */
+    .payments-table tbody tr.payment-details-row {
+      background: transparent;
+    }
+
+    .payments-table tbody tr.payment-details-row td {
+      border-top: none;
+      padding: 0;
+    }
+
+    .payment-details-cell {
+      padding: 0 !important;
+      background: transparent;
+    }
+
+    .payment-details-content {
+      padding: 1rem 1.5rem;
+      overflow: hidden;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 300px;
+      }
+    }
+
+    .refund-details-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
+    }
+
+    .refund-reason-section {
+      flex: 1;
+      text-align: left;
+    }
+
+    .refund-by-section {
+      flex: 0 0 auto;
+      text-align: right;
+      min-width: 200px;
+    }
+
+    .refund-reason-section,
+    .refund-by-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .refund-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .refund-reason-text {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+
+    .refund-by-text {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      text-align: right;
+    }
+
+    .refund-reason-empty {
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: left;
+    }
+
+    .refund-by-empty {
+      padding: 0.75rem 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      font-style: italic;
+      text-align: right;
+    }
+
+    .actions-cell svg {
+      transition: transform 0.3s ease;
+    }
+
+    .actions-cell svg.rotated {
+      transform: rotate(180deg);
+    }
+
     /* Стили для SVG внутри app-button */
     :host ::ng-deep app-button svg,
     app-button svg {
@@ -1006,10 +1167,23 @@ export class HomePageComponent implements OnInit {
   user$: Observable<AuthUser | null>;
   private pageHeaderService = inject(PageHeaderService);
   transactionModalService = inject(TransactionModalService);
+  private analyticsService = inject(AnalyticsService);
+  private paymentsService = inject(PaymentsService);
+  private toastService = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
 
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
+  isProcessingRefund = false;
+  
+  // Expanded rows
+  expandedRows = new Set<string>();
+
+  // Loading state
+  isLoading = true;
+  isChartLoading = true;
+  isLoadingPayments = false;
 
   // KPI Cards Data
   kpiCards: KpiCard[] = [
@@ -1086,73 +1260,7 @@ export class HomePageComponent implements OnInit {
   ];
 
   // Recent Payments Data
-  recentPayments: RecentPayment[] = [
-    {
-      id: '1',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 12500,
-      bonusEarned: 125,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '14:30'
-    },
-    {
-      id: '2',
-      clientId: '2',
-      clientName: 'ТОО «ТехноПлюс»',
-      clientPhone: '+7 (701) 555-12-34',
-      amount: 45000,
-      bonusEarned: 450,
-      bonusUsed: 200,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '12:15'
-    },
-    {
-      id: '3',
-      clientId: '3',
-      clientName: 'Мария Иванова',
-      clientPhone: '+7 (707) 987-65-43',
-      amount: 5600,
-      bonusEarned: 56,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '18:45'
-    },
-    {
-      id: '4',
-      clientId: '4',
-      clientName: 'Дмитрий Сидоров',
-      clientPhone: '+7 (702) 111-22-33',
-      amount: 8900,
-      bonusEarned: 0,
-      bonusUsed: 89,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '16:20'
-    },
-    {
-      id: '5',
-      clientId: '5',
-      clientName: 'ИП «Строй-Мастер»',
-      clientPhone: '+7 (700) 333-44-55',
-      amount: 125000,
-      bonusEarned: 1250,
-      bonusUsed: 500,
-      paymentMethod: 'online',
-      isRefund: true,
-      date: '14.01.2025',
-      time: '10:00'
-    }
-  ];
+  recentPayments: RecentPayment[] = [];
 
   constructor(private store: Store<AppState>) {
     this.user$ = this.store.select(selectUser);
@@ -1162,18 +1270,401 @@ export class HomePageComponent implements OnInit {
     this.pageHeaderService.setPageHeader('Быстрый Обзор', [
       { label: 'Главная' }
     ]);
+    this.loadAnalyticsData();
+    this.loadChartData();
+    this.loadRecentPayments();
   }
 
-  getInitials(name: string): string {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  loadAnalyticsData(): void {
+    this.isLoading = true;
+    forkJoin({
+      monthlyRevenue: this.analyticsService.getMonthlyRevenue().pipe(
+        catchError((error) => {
+          console.error('Error loading monthly revenue:', error);
+          return of({ revenue: 0, changePercent: 0 });
+        }),
+        tap((data) => console.log('Monthly revenue response:', data))
+      ),
+      dailyRevenue: this.analyticsService.getDailyRevenue().pipe(
+        catchError((error) => {
+          console.error('Error loading daily revenue:', error);
+          return of({ revenue: 0, changePercent: 0 });
+        }),
+        tap((data) => console.log('Daily revenue response:', data))
+      ),
+      dailyTransactions: this.analyticsService.getDailyTransactions().pipe(
+        catchError((error) => {
+          console.error('Error loading daily transactions:', error);
+          return of({ count: 0, changeAbsolute: 0 });
+        }),
+        tap((data) => console.log('Daily transactions response:', data))
+      ),
+      newClients: this.analyticsService.getNewClients('DAILY').pipe(
+        catchError((error) => {
+          console.error('Error loading new clients:', error);
+          return of({ count: 0, changeAbsolute: 0, type: 'NEW' as const, period: 'DAILY' as const });
+        }),
+        tap((data) => console.log('New clients response:', data))
+      ),
+      averageCheck: this.analyticsService.getAverageCheck('MONTHLY').pipe(
+        catchError((error) => {
+          console.error('Error loading average check:', error);
+          return of({ averageCheck: 0, changePercent: 0 });
+        }),
+        tap((data) => console.log('Average check response:', data))
+      ),
+      bonusesAccrued: this.analyticsService.getBonusesAccrued('MONTHLY').pipe(
+        catchError((error) => {
+          console.error('Error loading bonuses accrued:', error);
+          return of({ amount: 0, changePercentage: 0 });
+        }),
+        tap((data) => console.log('Bonuses accrued response:', data))
+      ),
+      dailyRefunds: this.analyticsService.getDailyRefunds().pipe(
+        catchError((error) => {
+          console.error('Error loading daily refunds:', error);
+          return of({ count: 0, changeAbsolute: 0 });
+        }),
+        tap((data) => console.log('Daily refunds response:', data))
+      ),
+      activeClients: this.analyticsService.getActiveClients().pipe(
+        catchError((error) => {
+          console.error('Error loading active clients:', error);
+          return of({ count: 0, changeAbsolute: 0 });
+        }),
+        tap((data) => console.log('Active clients response:', data))
+      )
+    }).subscribe({
+      next: (data) => {
+        console.log('All analytics data received:', data);
+        console.log('Monthly revenue:', data.monthlyRevenue);
+        console.log('Daily revenue:', data.dailyRevenue);
+        console.log('Average check:', data.averageCheck);
+        console.log('Bonuses accrued:', data.bonusesAccrued);
+        this.updateKpiCards(data);
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading analytics data:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  loadRecentPayments(): void {
+    this.isLoadingPayments = true;
+    this.paymentsService.searchPayments({
+      page: 0,
+      size: 5,
+      sortBy: 'date',
+      sortDirection: 'DESC'
+    }).pipe(
+      catchError((error) => {
+        console.error('Error loading recent payments:', error);
+        return of({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 5 });
+      })
+    ).subscribe({
+      next: (response) => {
+        console.log('Recent payments received:', response);
+        this.recentPayments = response.content.map(payment => this.convertPaymentToRecentPayment(payment));
+        this.isLoadingPayments = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error in recent payments subscription:', error);
+        this.isLoadingPayments = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  convertPaymentToRecentPayment(payment: PaymentSearchResult): RecentPayment {
+    if (!payment.createdAt) {
+      const now = new Date();
+      return {
+        id: payment.txId || '',
+        clientId: payment.clientId || '',
+        clientName: payment.clientName || '—',
+        clientPhone: payment.clientPhone || '—',
+        amount: payment.amount || 0,
+        bonusEarned: payment.bonusGranted || 0,
+        bonusUsed: payment.bonusUsed || 0,
+        paymentMethod: 'card',
+        isRefund: payment.status === 'REFUNDED' || payment.refundedPaymentTxId !== null,
+        date: now.toLocaleDateString('ru-RU'),
+        time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+        initiatedBy: payment.initiatedBy || null,
+        refundReason: payment.refundReason || null
+      };
+    }
+    
+    const createdAt = new Date(payment.createdAt);
+    // Check if date is valid
+    if (isNaN(createdAt.getTime())) {
+      const now = new Date();
+      createdAt.setTime(now.getTime());
+    }
+    
+    // Format date as DD.MM.YYYY
+    const day = String(createdAt.getDate()).padStart(2, '0');
+    const month = String(createdAt.getMonth() + 1).padStart(2, '0');
+    const year = createdAt.getFullYear();
+    const dateStr = `${day}.${month}.${year}`;
+    
+    // Format time as HH:MM
+    const hours = String(createdAt.getHours()).padStart(2, '0');
+    const minutes = String(createdAt.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+    
+    // Determine payment method from paymentMethod or default
+    let paymentMethod: 'cash' | 'card' | 'online' = 'card';
+    if (payment.paymentMethod) {
+      const method = payment.paymentMethod.toLowerCase();
+      if (method.includes('cash') || method.includes('налич')) {
+        paymentMethod = 'cash';
+      } else if (method.includes('online') || method.includes('онлайн')) {
+        paymentMethod = 'online';
+      } else {
+        paymentMethod = 'card';
+      }
+    }
+    
+    return {
+      id: payment.txId || '',
+      clientId: payment.clientId || '',
+      clientName: payment.clientName || '—',
+      clientPhone: payment.clientPhone || '—',
+      amount: payment.amount || 0,
+      bonusEarned: payment.bonusGranted || 0,
+      bonusUsed: payment.bonusUsed || 0,
+      paymentMethod: paymentMethod,
+      isRefund: payment.status === 'REFUNDED' || payment.refundedPaymentTxId !== null,
+      date: dateStr,
+      time: timeStr,
+      initiatedBy: payment.initiatedBy || null,
+      refundReason: payment.refundReason || null
+    };
+  }
+
+  loadChartData(): void {
+    this.isChartLoading = true;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    console.log('Loading chart data for:', currentYear, currentMonth);
+    
+    this.analyticsService.getMonthlyRevenueChart(currentYear, currentMonth).pipe(
+      catchError((error) => {
+        console.error('Error loading chart data:', error);
+        console.error('Error status:', error.status);
+        
+        // Try previous month if current month fails
+        let fallbackYear = currentYear;
+        let fallbackMonth = currentMonth - 1;
+        
+        if (fallbackMonth < 1) {
+          fallbackMonth = 12;
+          fallbackYear = currentYear - 1;
+        }
+        
+        console.log('Trying fallback date:', fallbackYear, fallbackMonth);
+        
+        // Retry with fallback date
+        return this.analyticsService.getMonthlyRevenueChart(fallbackYear, fallbackMonth).pipe(
+          catchError((fallbackError) => {
+            console.error('Fallback also failed:', fallbackError);
+            // Return empty data if both attempts fail
+            return of({ dailyData: [], year: fallbackYear, month: fallbackMonth });
+          })
+        );
+      })
+    ).subscribe({
+      next: (chartData) => {
+        console.log('Chart data received:', chartData);
+        console.log('Chart data array length:', chartData.dailyData?.length);
+        const dataArray = chartData.dailyData || (chartData as any).data || [];
+        this.updateChartData(dataArray);
+        this.isChartLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Subscription error:', error);
+        this.isChartLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  updateKpiCards(data: any): void {
+    // Extract values with fallback support
+    const monthlyRevenue = data.monthlyRevenue?.amount ?? data.monthlyRevenue?.revenue ?? 0;
+    const monthlyRevenueChange = data.monthlyRevenue?.changePercentage ?? data.monthlyRevenue?.changePercent;
+    
+    const dailyRevenue = data.dailyRevenue?.amount ?? data.dailyRevenue?.revenue ?? 0;
+    const dailyRevenueChange = data.dailyRevenue?.changePercentage ?? data.dailyRevenue?.changePercent;
+    
+    const averageCheck = data.averageCheck?.amount ?? data.averageCheck?.averageCheck ?? 0;
+    const averageCheckChange = data.averageCheck?.changePercentage ?? data.averageCheck?.changePercent;
+    
+    const bonusesAccrued = data.bonusesAccrued?.amount ?? data.bonusesAccrued?.count ?? 0;
+    const bonusesAccruedChange = data.bonusesAccrued?.changePercentage ?? data.bonusesAccrued?.changePercent;
+    
+    this.kpiCards = [
+      {
+        iconId: 'month',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: this.formatCurrency(monthlyRevenue),
+        label: 'Выручка за месяц',
+        change: monthlyRevenueChange != null ? `${monthlyRevenueChange > 0 ? '+' : ''}${monthlyRevenueChange.toFixed(0)}%` : undefined,
+        changeType: monthlyRevenueChange != null && monthlyRevenueChange >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'revenue',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: this.formatCurrency(dailyRevenue),
+        label: 'Выручка за сегодня',
+        change: dailyRevenueChange != null ? `${dailyRevenueChange > 0 ? '+' : ''}${dailyRevenueChange.toFixed(0)}%` : undefined,
+        changeType: dailyRevenueChange != null && dailyRevenueChange >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'transactions',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: (data.dailyTransactions?.count ?? 0).toString(),
+        label: 'Транзакций сегодня',
+        change: data.dailyTransactions?.changeAbsolute != null ? `${data.dailyTransactions.changeAbsolute > 0 ? '+' : ''}${data.dailyTransactions.changeAbsolute}` : undefined,
+        changeType: data.dailyTransactions?.changeAbsolute != null && data.dailyTransactions.changeAbsolute >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'clients',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: (data.newClients?.count ?? 0).toString(),
+        label: 'Новых клиентов',
+        change: data.newClients?.changeAbsolute != null ? `${data.newClients.changeAbsolute > 0 ? '+' : ''}${data.newClients.changeAbsolute}` : undefined,
+        changeType: data.newClients?.changeAbsolute != null && data.newClients.changeAbsolute >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'revenue',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: this.formatCurrency(averageCheck),
+        label: 'Средний чек',
+        change: averageCheckChange != null ? `${averageCheckChange > 0 ? '+' : ''}${averageCheckChange.toFixed(0)}%` : undefined,
+        changeType: averageCheckChange != null && averageCheckChange >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'bonus',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: this.formatCurrency(bonusesAccrued),
+        label: 'Бонусов начислено',
+        change: bonusesAccruedChange != null ? `${bonusesAccruedChange > 0 ? '+' : ''}${bonusesAccruedChange.toFixed(0)}%` : undefined,
+        changeType: bonusesAccruedChange != null && bonusesAccruedChange >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'refunds',
+        iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
+        value: (data.dailyRefunds?.count ?? 0).toString(),
+        label: 'Возвратов',
+        change: data.dailyRefunds?.changeAbsolute != null ? `${data.dailyRefunds.changeAbsolute > 0 ? '+' : ''}${data.dailyRefunds.changeAbsolute}` : undefined,
+        changeType: data.dailyRefunds?.changeAbsolute != null && data.dailyRefunds.changeAbsolute >= 0 ? 'positive' : 'negative'
+      },
+      {
+        iconId: 'today',
+        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+        value: (data.activeClients?.count ?? 0).toString(),
+        label: 'Активных клиентов',
+        change: data.activeClients?.changeAbsolute != null ? `${data.activeClients.changeAbsolute > 0 ? '+' : ''}${data.activeClients.changeAbsolute}` : undefined,
+        changeType: data.activeClients?.changeAbsolute != null && data.activeClients.changeAbsolute >= 0 ? 'positive' : 'negative'
+      }
+    ];
+  }
+
+  updateChartData(chartData: any[]): void {
+    console.log('Updating chart data with:', chartData);
+    if (!chartData || chartData.length === 0) {
+      console.log('Chart data is empty, clearing cache');
+      this._chartDataCache = null;
+      return;
+    }
+
+    const daysInMonth = this.getDaysInCurrentMonth();
+    const svgWidth = 600;
+    const svgHeight = 300;
+    const padding = 50;
+    const chartWidth = svgWidth - padding * 2;
+    const chartHeight = svgHeight - padding * 2;
+
+    // Find max revenue for scaling
+    const maxRevenue = Math.max(...chartData.map(d => (d.revenue || d.amount || 0)), 1);
+    console.log('Max revenue for scaling:', maxRevenue);
+
+    const points = chartData.map((dataPoint) => {
+      const day = dataPoint.day || dataPoint.dayNumber || 1;
+      const dayRatio = daysInMonth > 1 ? (day - 1) / (daysInMonth - 1) : 0;
+      const x = padding + dayRatio * chartWidth;
+      const revenue = dataPoint.revenue || dataPoint.amount || 0;
+      const y = svgHeight - padding - (revenue / maxRevenue) * chartHeight;
+      
+      // Use new field names from API (transactionCount, bonusesGranted, bonusesUsed)
+      // with fallback to old field names for backward compatibility
+      const transactions = dataPoint.transactionCount ?? dataPoint.transactions ?? 0;
+      const bonusEarned = dataPoint.bonusesGranted ?? dataPoint.bonusEarned ?? dataPoint.bonusesAccrued ?? 0;
+      const bonusUsed = dataPoint.bonusesUsed ?? dataPoint.bonusUsed ?? 0;
+      
+      return {
+        x,
+        y,
+        day: day,
+        revenue: revenue,
+        transactions: transactions,
+        bonusEarned: bonusEarned,
+        bonusUsed: bonusUsed
+      };
+    });
+
+    console.log('Updated chart cache with', points.length, 'points');
+    this._chartDataCache = points;
+  }
+
+  formatCurrency(amount: number | null | undefined, showSymbol: boolean = true): string {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return showSymbol ? '0 ₸' : '0';
+    }
+    const formatted = amount.toLocaleString('ru-RU', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+    return showSymbol ? `${formatted} ₸` : formatted;
+  }
+
+  getInitials(name: string | null | undefined): string {
+    if (!name || name.trim() === '') {
+      return '—';
+    }
+    const parts = name.trim().split(' ').filter(n => n.length > 0);
+    if (parts.length === 0) {
+      return '—';
+    }
+    return parts.map(n => n[0]).join('').toUpperCase().slice(0, 2);
   }
 
   formatAmount(amount: number): string {
-    return amount.toLocaleString('ru-RU');
+    return amount.toLocaleString('ru-RU', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
   }
 
   formatPaymentId(id: string): string {
+    if (!id) return '—';
+    // If id is already in format like "PTX-26-APQTM", return it as is
+    if (id.includes('-')) {
+      return id;
+    }
+    // Otherwise, try to parse as number
     const numId = parseInt(id, 10);
+    if (isNaN(numId)) {
+      return id;
+    }
     return `PAY-${String(numId).padStart(3, '0')}`;
   }
 
@@ -1194,6 +1685,8 @@ export class HomePageComponent implements OnInit {
     if (payment.isRefund) {
       return;
     }
+    // Reset processing state when opening modal
+    this.isProcessingRefund = false;
     // Convert RecentPayment to Payment format
     const paymentForModal: Payment = {
       id: payment.id,
@@ -1213,23 +1706,56 @@ export class HomePageComponent implements OnInit {
   }
 
   closeRefundModal(): void {
-    this.showRefundModal = false;
-    this.selectedPaymentForRefund = null;
+    if (!this.isProcessingRefund) {
+      this.showRefundModal = false;
+      this.selectedPaymentForRefund = null;
+      this.isProcessingRefund = false;
+    }
+  }
+  
+  onRefundModalVisibleChange(visible: boolean): void {
+    if (!visible && !this.isProcessingRefund) {
+      this.closeRefundModal();
+    }
   }
 
   confirmRefund(payment: Payment): void {
-    if (!payment) {
+    if (!payment || this.isProcessingRefund) {
       return;
     }
     
-    // Update payment to refund
-    const paymentToUpdate = this.recentPayments.find(p => p.id === payment.id);
-    if (paymentToUpdate) {
-      paymentToUpdate.isRefund = true;
-    }
+    this.isProcessingRefund = true;
     
-    // Close modal
-    this.closeRefundModal();
+    this.paymentsService.refundPayment(payment.id, {
+      notes: payment.refundReason || ''
+    }).subscribe({
+      next: () => {
+        this.toastService.success('Возврат успешно выполнен');
+        // Reload payments to get updated data
+        this.loadRecentPayments();
+        this.isProcessingRefund = false;
+        this.showRefundModal = false;
+        this.selectedPaymentForRefund = null;
+      },
+      error: (error) => {
+        console.error('Error processing refund:', error);
+        const errorMessage = error?.error?.message || 'Ошибка при выполнении возврата';
+        this.toastService.error(errorMessage);
+        // Не сбрасываем isProcessingRefund при ошибке, чтобы кнопка оставалась заблокированной
+      }
+    });
+  }
+  
+  toggleRowExpansion(paymentId: string): void {
+    if (this.expandedRows.has(paymentId)) {
+      this.expandedRows.delete(paymentId);
+    } else {
+      this.expandedRows.add(paymentId);
+    }
+  }
+  
+  isRowExpanded(paymentId: string): boolean {
+    return this.expandedRows.has(paymentId);
   }
 
   getDaysInCurrentMonth(): number {
@@ -1238,6 +1764,12 @@ export class HomePageComponent implements OnInit {
   }
 
   getChartDataPoints(): Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> {
+    // If we have cached chart data from API, use it
+    if (this._chartDataCache && this._chartDataCache.length > 0) {
+      return this._chartDataCache;
+    }
+
+    // Otherwise, generate sample data as fallback
     const daysInMonth = this.getDaysInCurrentMonth();
     const svgWidth = 600;
     const svgHeight = 300;
@@ -1274,10 +1806,16 @@ export class HomePageComponent implements OnInit {
   private _chartDataCache: Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> | null = null;
   
   getChartData(): Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> {
-    if (!this._chartDataCache) {
-      this._chartDataCache = this.getChartDataPoints();
+    // If we have cached chart data from API, use it
+    if (this._chartDataCache && this._chartDataCache.length > 0) {
+      return this._chartDataCache;
     }
-    return this._chartDataCache;
+    // Fallback to generated data if no API data available (only if not loading)
+    if (!this.isChartLoading) {
+      return this.getChartDataPoints();
+    }
+    // Return empty array while loading
+    return [];
   }
 
   getMonthName(): string {
