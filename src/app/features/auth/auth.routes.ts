@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { activationGuard } from '../../core/guards/activation.guard';
 
 export const AUTH_ROUTES: Routes = [
   {
@@ -16,7 +17,8 @@ export const AUTH_ROUTES: Routes = [
   },
   {
     path: 'activation',
-    loadComponent: () => import('./pages/activation-page/activation-page.component').then(m => m.ActivationPageComponent)
+    loadComponent: () => import('./pages/activation-page/activation-page.component').then(m => m.ActivationPageComponent),
+    canActivate: [activationGuard]
   }
 ];
 

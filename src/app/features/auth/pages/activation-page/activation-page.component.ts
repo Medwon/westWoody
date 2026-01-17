@@ -1,9 +1,13 @@
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { ToastService } from '../../../../core/services/toast.service';
+import { activateAccount } from '../../../../core/store/auth/auth.actions';
+import { selectAuthError, selectIsLoading, selectIsAuthenticated } from '../../../../core/store/auth/auth.selectors';
 import { AlertComponent } from '../../../../shared/components/alert/alert.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -200,20 +204,50 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     }
   `]
 })
-export class ActivationPageComponent implements OnDestroy {
+export class ActivationPageComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private store = inject(Store);
+  private toastService = inject(ToastService);
   private destroy$ = new Subject<void>();
 
   activationForm: FormGroup;
   isLoading = false;
   errorMessage = '';
   successMessage = '';
+  activationToken: string | null = null;
 
   constructor() {
     this.activationForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.passwordMatchValidator });
+  }
+
+  ngOnInit(): void {
+    // Get token from query parameters
+    this.activationToken = this.route.snapshot.queryParams['token'];
+    
+    if (!this.activationToken) {
+      this.errorMessage = 'Токен активации не найден. Пожалуйста, используйте ссылку из письма.';
+    }
+
+    // Subscribe to auth state changes
+    this.store.select(selectIsLoading).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(isLoading => {
+      this.isLoading = isLoading;
+    });
+
+    this.store.select(selectAuthError).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(error => {
+      if (error) {
+        this.errorMessage = error;
+        this.toastService.error(error);
+      }
+    });
+
   }
 
   ngOnDestroy(): void {
@@ -238,17 +272,22 @@ export class ActivationPageComponent implements OnDestroy {
   }
 
   onSubmit(): void {
-    if (this.activationForm.valid) {
-      this.isLoading = true;
-      const formValue = this.activationForm.value;
+    if (this.activationForm.valid && this.activationToken) {
+      this.errorMessage = '';
+      this.successMessage = '';
       
-      // TODO: Implement activation API call
-      // For now, just simulate success
-      setTimeout(() => {
-        this.isLoading = false;
-        this.successMessage = 'Аккаунт успешно активирован!';
-        // TODO: Navigate to login or dashboard
-      }, 1500);
+      const formValue = this.activationForm.value;
+      const activateData = {
+        token: this.activationToken,
+        password: formValue.password
+      };
+
+      console.log('[ActivationPage] Activating account with token:', this.activationToken);
+
+      // Dispatch action - effect will handle API call, state update, and navigation
+      this.store.dispatch(activateAccount({ data: activateData }));
+    } else if (!this.activationToken) {
+      this.errorMessage = 'Токен активации не найден. Пожалуйста, используйте ссылку из письма.';
     }
   }
 

@@ -2,8 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
-import { map, catchError, tap, exhaustMap } from 'rxjs/operators';
+import { map, catchError, tap, exhaustMap, delay } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import * as AuthActions from './auth.actions';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class AuthEffects {
   private actions$ = inject(Actions);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toastService = inject(ToastService);
 
   // ============================================================
   // Init Auth - Check session on app startup via /auth/me
@@ -112,6 +114,10 @@ export class AuthEffects {
     () =>
       this.actions$.pipe(
         ofType(AuthActions.activateAccountSuccess),
+        tap(() => {
+          this.toastService.success('Аккаунт успешно активирован!');
+        }),
+        delay(500), // Small delay to show toast before navigation
         tap(() => {
           this.router.navigate(['/home']);
         })
