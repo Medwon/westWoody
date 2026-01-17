@@ -150,6 +150,10 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
 
         <!-- Summary -->
         <div class="transaction-summary">
+          <div class="summary-row payment-id">
+            <span class="summary-label">ID платежа:</span>
+            <span class="summary-value id-value">#{{ paymentId || '—' }}</span>
+          </div>
           <div class="summary-row">
             <span class="summary-label">Сумма покупки:</span>
             <span class="summary-value">{{ purchaseAmount || 0 }} ₸</span>
@@ -866,6 +870,12 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       border-bottom: 1px solid #e2e8f0;
     }
 
+    .summary-row.payment-id {
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 0.5rem;
+    }
+
     .summary-label {
       color: #64748b;
       font-size: 0.9rem;
@@ -874,6 +884,17 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
     .summary-value {
       font-weight: 600;
       color: #1f2937;
+    }
+
+    .summary-value.id-value {
+      font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 0.85rem;
+      color: #475569;
+      letter-spacing: 0.5px;
+      background: #f1f5f9;
+      padding: 0.375rem 0.75rem;
+      border-radius: 8px;
+      font-weight: 500;
     }
 
     .summary-row.discount .summary-value {
@@ -1212,6 +1233,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   calculatedBonus = 0;
   useBonuses = false;
   bonusesToUse = 0;
+  paymentId: string | null = null;
   newClientName = '';
   newClientType: 'individual' | 'business' = 'individual';
   newClientTags = '';

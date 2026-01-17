@@ -256,7 +256,8 @@ interface User {
           <app-button
             buttonType="primary"
             type="submit"
-            [disabled]="addUserForm.invalid">
+            [disabled]="addUserForm.invalid || isInviting"
+            [loading]="isInviting">
             Пригласить
           </app-button>
         </div>
@@ -715,6 +716,7 @@ export class UsersPageComponent implements OnInit {
   showAddUserModal = false;
   addUserForm: FormGroup;
   isLoading = true;
+  isInviting = false;
 
   // Lock confirmation modal
   isLockConfirmModalOpen = false;
@@ -799,15 +801,18 @@ export class UsersPageComponent implements OnInit {
   openAddUserModal(): void {
     this.showAddUserModal = true;
     this.addUserForm.reset();
+    this.isInviting = false;
   }
 
   closeAddUserModal(): void {
     this.showAddUserModal = false;
     this.addUserForm.reset();
+    this.isInviting = false;
   }
 
   onSubmitAddUser(): void {
-    if (this.addUserForm.valid) {
+    if (this.addUserForm.valid && !this.isInviting) {
+      this.isInviting = true;
       const formValue = this.addUserForm.value;
       const inviteData: InviteUserRequest = {
         email: formValue.email,
@@ -830,6 +835,7 @@ export class UsersPageComponent implements OnInit {
           console.error('[UsersPage] Invite error:', err);
           const errorMessage = err.error?.message || err.error?.errors || 'Ошибка приглашения пользователя';
           this.toastService.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
+          // Не сбрасываем isInviting при ошибке, чтобы кнопка оставалась заблокированной
         }
       });
     } else {

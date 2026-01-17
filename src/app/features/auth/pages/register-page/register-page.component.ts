@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -263,7 +263,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     }
   `]
 })
-export class RegisterPageComponent implements OnDestroy {
+export class RegisterPageComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private destroy$ = new Subject<void>();
@@ -283,6 +283,11 @@ export class RegisterPageComponent implements OnDestroy {
 
     this.isLoading$ = this.store.select(selectIsLoading);
     this.error$ = this.store.select(selectAuthError);
+  }
+
+  ngOnInit(): void {
+    // Clear any existing errors when entering the page
+    this.store.dispatch(clearError());
   }
 
   ngOnDestroy(): void {
