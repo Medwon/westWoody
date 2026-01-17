@@ -2,9 +2,13 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { BonusTypesService } from '../../../../core/services/bonus-types.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BonusCalculatorComponent } from '../../../../shared/components/bonus-calculator/bonus-calculator.component';
+import { BonusTypeResponse, BonusIconType as BackendIconType, BonusTypeType, PreconfiguredBonusType } from '../../../../core/models/bonus-type.model';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
 interface BonusRule {
   id: string;
@@ -26,13 +30,19 @@ interface BonusRule {
     FormsModule,
     ModalComponent,
     ButtonComponent,
-    BonusCalculatorComponent
+    BonusCalculatorComponent,
+    LoaderComponent
   ],
   template: `
     <div class="page-wrapper">
       <div class="bonus-program">
+        <!-- Loading State -->
+        <div class="loading-container" *ngIf="isLoading">
+          <app-loader></app-loader>
+        </div>
+
         <!-- Config Grid -->
-        <div class="config-grid">
+        <div class="config-grid" *ngIf="!isLoading">
           <!-- Bonus Cards -->
           <div 
             class="config-card" 
@@ -134,9 +144,7 @@ interface BonusRule {
         </div>
 
         <!-- Bonus Calculator -->
-        <app-bonus-calculator
-          [monthlyRevenue]="1245890"
-          [averageCheck]="17817">
+        <app-bonus-calculator>
         </app-bonus-calculator>
       </div>
     </div>
@@ -257,6 +265,27 @@ interface BonusRule {
           Создайте новый тип бонуса для вашей программы лояльности.
         </div>
         
+        <div class="form-group">
+          <label class="input-label">
+            Тип бонуса
+            <span class="required-mark">*</span>
+          </label>
+          <div class="select-wrapper">
+            <select 
+              class="form-select"
+              [(ngModel)]="newBonus.type"
+              [disabled]="isLoadingPreconfiguredTypes">
+              <option value="">Выберите тип бонуса</option>
+              <option *ngFor="let preType of preconfiguredTypes" [value]="preType.type">
+                {{ preType.displayName }}
+              </option>
+            </select>
+            <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="input-label">Название бонуса</label>
           <input 
@@ -384,7 +413,7 @@ interface BonusRule {
         <button 
           class="submit-btn" 
           (click)="addNewBonus()"
-          [disabled]="!newBonus.title || !newBonus.value">
+          [disabled]="!newBonus.title || !newBonus.value || !newBonus.type">
           Создать бонус
         </button>
       </div>
@@ -736,6 +765,51 @@ interface BonusRule {
       box-shadow: 0 0 0 3px #dcfce7;
     }
 
+    .select-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: 0.2s;
+      background: white;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .form-select:focus {
+      border-color: #16A34A;
+      box-shadow: 0 0 0 3px #dcfce7;
+    }
+
+    .form-select:disabled {
+      background: #f1f5f9;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .select-arrow {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    .required-mark {
+      color: #ef4444;
+      margin-left: 4px;
+    }
+
     .expiration-input {
       display: flex;
       align-items: center;
@@ -986,6 +1060,14 @@ interface BonusRule {
       margin: 0;
     }
 
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      padding: 2rem;
+    }
+
     @media (max-width: 768px) {
       .page-wrapper {
         margin: -1rem;
@@ -1004,53 +1086,11 @@ interface BonusRule {
 })
 export class BonusProgramPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
+  private bonusTypesService = inject(BonusTypesService);
+  private toastService = inject(ToastService);
 
-  bonusRules: BonusRule[] = [
-    {
-      id: 'cashback',
-      icon: 'wallet',
-      title: 'Базовый Кэшбек',
-      description: 'Процент от суммы чека, возвращаемый клиенту в виде баллов.',
-      value: 10,
-      unit: '%',
-      label: 'Процент начисления',
-      active: true,
-      expirationDays: 90
-    },
-    {
-      id: 'welcome',
-      icon: 'party',
-      title: 'Приветственный',
-      description: 'Начисляется единоразово при регистрации нового клиента.',
-      value: 500,
-      unit: 'баллов',
-      label: 'Количество баллов',
-      active: true,
-      expirationDays: 30
-    },
-    {
-      id: 'birthday',
-      icon: 'cake',
-      title: 'День Рождения',
-      description: 'Подарочные баллы в день рождения клиента.',
-      value: 1000,
-      unit: 'баллов',
-      label: 'Количество баллов',
-      active: false,
-      expirationDays: 14
-    },
-    {
-      id: 'referral',
-      icon: 'share',
-      title: 'Приведи друга',
-      description: 'Бонус за каждого приглашенного нового клиента.',
-      value: 300,
-      unit: 'баллов',
-      label: 'Награда за друга',
-      active: false,
-      expirationDays: 60
-    }
-  ];
+  isLoading = true;
+  bonusRules: BonusRule[] = [];
 
   availableIcons = [
     { 
@@ -1099,13 +1139,17 @@ export class BonusProgramPageComponent implements OnInit {
   editExpirationDays = 0;
   editIcon = 'gift';
 
+  preconfiguredTypes: PreconfiguredBonusType[] = [];
+  isLoadingPreconfiguredTypes = false;
+
   newBonus = {
     title: '',
     description: '',
     value: 0,
     unit: 'баллов',
     icon: 'gift',
-    expirationDays: 30
+    expirationDays: 30,
+    type: '' as BonusTypeType | ''
   };
 
   ngOnInit(): void {
@@ -1113,6 +1157,94 @@ export class BonusProgramPageComponent implements OnInit {
       { label: 'Главная', route: '/home' },
       { label: 'Бонусная программа' }
     ]);
+    this.loadBonusTypes();
+    this.loadPreconfiguredTypes();
+  }
+
+  loadPreconfiguredTypes(): void {
+    this.isLoadingPreconfiguredTypes = true;
+    this.bonusTypesService.getPreconfiguredBonusTypes().subscribe({
+      next: (types) => {
+        this.preconfiguredTypes = types;
+        this.isLoadingPreconfiguredTypes = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки предустановленных типов бонусов';
+        this.toastService.error(errorMessage);
+        this.isLoadingPreconfiguredTypes = false;
+      }
+    });
+  }
+
+  loadBonusTypes(): void {
+    this.isLoading = true;
+    this.bonusTypesService.getAllBonusTypes().subscribe({
+      next: (bonusTypes) => {
+        this.bonusRules = bonusTypes.map(bt => this.mapBonusTypeToRule(bt));
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки типов бонусов';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // Map backend BonusTypeResponse to frontend BonusRule
+  mapBonusTypeToRule(bonusType: BonusTypeResponse): BonusRule {
+    const value = bonusType.bonusPercentage ?? bonusType.bonusAmount ?? 0;
+    const unit = bonusType.bonusPercentage ? '%' : 'баллов';
+    const label = bonusType.bonusPercentage ? 'Процент начисления' : 'Количество баллов';
+    const icon = this.mapBackendIconToFrontend(bonusType.iconType);
+
+    return {
+      id: bonusType.id.toString(),
+      icon: icon,
+      title: bonusType.name,
+      description: bonusType.description,
+      value: value,
+      unit: unit,
+      label: label,
+      active: bonusType.enabled,
+      expirationDays: bonusType.expirationDays
+    };
+  }
+
+  // Map backend icon type (UPPERCASE) to frontend icon (lowercase)
+  mapBackendIconToFrontend(backendIcon: BackendIconType | null | undefined): string {
+    if (!backendIcon) {
+      return 'gift'; // Default icon if iconType is null/undefined
+    }
+    return backendIcon.toLowerCase();
+  }
+
+  // Map frontend icon (lowercase) to backend icon type (UPPERCASE)
+  mapFrontendIconToBackend(frontendIcon: string | null | undefined): BackendIconType {
+    if (!frontendIcon) {
+      return 'GIFT'; // Default icon type if frontendIcon is null/undefined
+    }
+    return frontendIcon.toUpperCase() as BackendIconType;
+  }
+
+  // Map frontend BonusRule to backend CreateBonusTypeRequest
+  mapRuleToCreateRequest(rule: Partial<BonusRule>, type: BonusTypeType = 'BASIC_CASHBACK'): any {
+    const isPercentage = rule.unit === '%';
+    const request: any = {
+      name: rule.title || '',
+      type: type,
+      expirationDays: rule.expirationDays ?? 30,
+      description: rule.description || '',
+      iconType: this.mapFrontendIconToBackend(rule.icon || 'gift')
+    };
+
+    if (isPercentage) {
+      request.bonusPercentage = rule.value ?? 0;
+    } else {
+      request.bonusAmount = rule.value ?? 0;
+    }
+
+    return request;
   }
 
 
@@ -1140,9 +1272,22 @@ export class BonusProgramPageComponent implements OnInit {
 
   confirmToggle(): void {
     if (this.pendingToggleRule) {
-      this.pendingToggleRule.active = this.pendingToggleState;
-      this.isToggleConfirmModalOpen = false;
-      this.pendingToggleRule = null;
+      const bonusTypeId = parseInt(this.pendingToggleRule.id);
+      this.bonusTypesService.toggleBonusType(bonusTypeId, this.pendingToggleState).subscribe({
+        next: (updatedBonusType) => {
+          // Reload all bonus types to ensure we have the latest state
+          this.loadBonusTypes();
+          this.toastService.success(
+            this.pendingToggleState ? 'Бонус успешно включен' : 'Бонус успешно отключен'
+          );
+          this.isToggleConfirmModalOpen = false;
+          this.pendingToggleRule = null;
+        },
+        error: (err) => {
+          const errorMessage = err.error?.message || 'Ошибка при изменении статуса бонуса';
+          this.toastService.error(errorMessage);
+        }
+      });
     }
   }
 
@@ -1165,21 +1310,58 @@ export class BonusProgramPageComponent implements OnInit {
 
   saveSettings(): void {
     if (this.selectedRule && this.editValue >= 0) {
-      this.selectedRule.value = this.editValue;
-      this.selectedRule.expirationDays = this.editExpirationDays;
-      this.selectedRule.icon = this.editIcon;
-      this.isSettingsModalOpen = false;
+      const bonusTypeId = parseInt(this.selectedRule.id);
+      const isPercentage = this.selectedRule.unit === '%';
+      const updateData: any = {
+        name: this.selectedRule.title,
+        enabled: this.selectedRule.active,
+        description: this.selectedRule.description || '',
+        expirationDays: this.editExpirationDays,
+        iconType: this.mapFrontendIconToBackend(this.editIcon)
+      };
+
+      if (isPercentage) {
+        updateData.bonusPercentage = this.editValue;
+      } else {
+        updateData.bonusAmount = this.editValue;
+      }
+
+      this.bonusTypesService.updateBonusType(bonusTypeId, updateData).subscribe({
+        next: (updatedBonusType) => {
+          const index = this.bonusRules.findIndex(r => r.id === this.selectedRule!.id);
+          if (index !== -1) {
+            this.bonusRules[index] = this.mapBonusTypeToRule(updatedBonusType);
+          }
+          this.toastService.success('Настройки бонуса успешно сохранены');
+          this.isSettingsModalOpen = false;
+          this.selectedRule = null;
+        },
+        error: (err) => {
+          const errorMessage = err.error?.message || 'Ошибка при сохранении настроек';
+          this.toastService.error(errorMessage);
+        }
+      });
     }
   }
 
   deleteBonus(): void {
     if (this.selectedRule) {
-      const index = this.bonusRules.findIndex(r => r.id === this.selectedRule!.id);
-      if (index !== -1) {
-        this.bonusRules.splice(index, 1);
-      }
-      this.isSettingsModalOpen = false;
-      this.selectedRule = null;
+      const bonusTypeId = parseInt(this.selectedRule.id);
+      this.bonusTypesService.deleteBonusType(bonusTypeId).subscribe({
+        next: () => {
+          const index = this.bonusRules.findIndex(r => r.id === this.selectedRule!.id);
+          if (index !== -1) {
+            this.bonusRules.splice(index, 1);
+          }
+          this.toastService.success('Бонус успешно удален');
+          this.isSettingsModalOpen = false;
+          this.selectedRule = null;
+        },
+        error: (err) => {
+          const errorMessage = err.error?.message || 'Ошибка при удалении бонуса';
+          this.toastService.error(errorMessage);
+        }
+      });
     }
   }
 
@@ -1190,28 +1372,51 @@ export class BonusProgramPageComponent implements OnInit {
       value: 0,
       unit: 'баллов',
       icon: 'gift',
-      expirationDays: 30
+      expirationDays: 30,
+      type: '' as BonusTypeType | ''
     };
     this.isAddModalOpen = true;
   }
 
   addNewBonus(): void {
-    if (!this.newBonus.title || !this.newBonus.value) return;
+    if (!this.newBonus.title || !this.newBonus.value || !this.newBonus.type) return;
 
-    const newRule: BonusRule = {
-      id: 'custom-' + Date.now(),
-      icon: this.newBonus.icon,
-      title: this.newBonus.title,
+    const isPercentage = this.newBonus.unit === '%';
+    const createData: any = {
+      name: this.newBonus.title,
+      type: this.newBonus.type as BonusTypeType,
+      expirationDays: this.newBonus.expirationDays,
       description: this.newBonus.description || 'Пользовательский бонус',
-      value: this.newBonus.value,
-      unit: this.newBonus.unit,
-      label: this.newBonus.unit === '%' ? 'Процент начисления' : 'Количество баллов',
-      active: true,
-      expirationDays: this.newBonus.expirationDays
+      iconType: this.mapFrontendIconToBackend(this.newBonus.icon)
     };
 
-    this.bonusRules.push(newRule);
-    this.isAddModalOpen = false;
+    if (isPercentage) {
+      createData.bonusPercentage = this.newBonus.value;
+    } else {
+      createData.bonusAmount = this.newBonus.value;
+    }
+
+    this.bonusTypesService.createBonusType(createData).subscribe({
+      next: (createdBonusType) => {
+        const newRule = this.mapBonusTypeToRule(createdBonusType);
+        this.bonusRules.push(newRule);
+        this.toastService.success('Бонус успешно создан');
+        this.isAddModalOpen = false;
+        this.newBonus = {
+          title: '',
+          description: '',
+          value: 0,
+          unit: 'баллов',
+          icon: 'gift',
+          expirationDays: 30,
+          type: '' as BonusTypeType | ''
+        };
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при создании бонуса';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 }
 

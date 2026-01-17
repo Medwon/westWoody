@@ -783,7 +783,7 @@ export class UsersPageComponent implements OnInit {
     if (accountStatus === 'PENDING_ACTIVATION') {
       return 'invited';
     }
-    if (active === false) {
+    if (accountStatus === 'LOCKED' || active === false) {
       return 'closed';
     }
     return 'active';
@@ -891,13 +891,22 @@ export class UsersPageComponent implements OnInit {
 
   confirmLock(): void {
     if (this.pendingLockUser) {
-      const index = this.users.findIndex(u => u.id === this.pendingLockUser!.id);
-      if (index !== -1) {
-        this.users[index].status = 'closed';
-        this.filteredUsers = [...this.users];
-      }
-      this.isLockConfirmModalOpen = false;
-      this.pendingLockUser = null;
+      this.usersService.lockUser(this.pendingLockUser.id).subscribe({
+        next: (updatedUser) => {
+          const index = this.users.findIndex(u => u.id === this.pendingLockUser!.id);
+          if (index !== -1) {
+            this.users[index] = this.mapApiUserToUser(updatedUser);
+            this.filteredUsers = [...this.users];
+          }
+          this.toastService.success('Пользователь успешно заблокирован');
+          this.isLockConfirmModalOpen = false;
+          this.pendingLockUser = null;
+        },
+        error: (err) => {
+          const errorMessage = err.error?.message || 'Ошибка при блокировке пользователя';
+          this.toastService.error(errorMessage);
+        }
+      });
     }
   }
 
@@ -908,17 +917,25 @@ export class UsersPageComponent implements OnInit {
 
   onDeleteClick(user: User): void {
     this.pendingDeleteUser = user;
-    this.deleteConfirmTitle = `Удалить пользователя "${user.firstName} ${user.lastName}"?`;
-    this.deleteConfirmDescription = `Вы уверены, что хотите удалить пользователя ${user.firstName} ${user.lastName} (${user.email})? Это действие нельзя отменить. Все данные пользователя будут безвозвратно удалены из системы.`;
+    this.deleteConfirmTitle = `Удалить заблокированных пользователей?`;
+    this.deleteConfirmDescription = `Вы уверены, что хотите удалить всех заблокированных пользователей? Это действие нельзя отменить. Все данные заблокированных пользователей будут безвозвратно удалены из системы.`;
     this.isDeleteConfirmModalOpen = true;
   }
 
   confirmDelete(): void {
     if (this.pendingDeleteUser) {
-      this.users = this.users.filter(u => u.id !== this.pendingDeleteUser!.id);
-      this.filteredUsers = [...this.users];
-      this.isDeleteConfirmModalOpen = false;
-      this.pendingDeleteUser = null;
+      this.usersService.deleteLockedUsers().subscribe({
+        next: (response) => {
+          this.toastService.success(`Успешно удалено пользователей: ${response.deletedCount}`);
+          this.loadUsers(); // Reload users list to reflect changes
+          this.isDeleteConfirmModalOpen = false;
+          this.pendingDeleteUser = null;
+        },
+        error: (err) => {
+          const errorMessage = err.error?.message || 'Ошибка при удалении заблокированных пользователей';
+          this.toastService.error(errorMessage);
+        }
+      });
     }
   }
 
@@ -928,11 +945,20 @@ export class UsersPageComponent implements OnInit {
   }
 
   activateUser(user: User): void {
-    const index = this.users.findIndex(u => u.id === user.id);
-    if (index !== -1) {
-      this.users[index].status = 'active';
-      this.filteredUsers = [...this.users];
-    }
+    this.usersService.unlockUser(user.id).subscribe({
+      next: (updatedUser) => {
+        const index = this.users.findIndex(u => u.id === user.id);
+        if (index !== -1) {
+          this.users[index] = this.mapApiUserToUser(updatedUser);
+          this.filteredUsers = [...this.users];
+        }
+        this.toastService.success('Пользователь успешно разблокирован');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при разблокировке пользователя';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 }
 

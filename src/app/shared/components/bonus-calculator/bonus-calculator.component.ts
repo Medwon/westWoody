@@ -1,8 +1,11 @@
-import { Component, Input, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, signal, computed, OnChanges, SimpleChanges, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { SliderComponent } from '../slider/slider.component';
 import { ModalComponent } from '../modal/modal.component';
+import { AnalyticsService } from '../../../core/services/analytics.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 interface CalculatorStatus {
   type: 'danger' | 'warning' | 'excellent' | 'low-motivation';
@@ -16,6 +19,10 @@ interface CalculatorStatus {
   imports: [CommonModule, FormsModule, SliderComponent, ModalComponent],
   template: `
     <div class="calculator-wrapper">
+      <div *ngIf="isLoading()" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Загрузка данных...</p>
+      </div>
       <div class="calculator-header">
         <div class="header-icon">
          <svg style="width: 100px; height: 100px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><style>.cls-1{fill:#1d384d}</style></defs><g id="icons_without_caption" data-name="icons without caption"><g id="CALCULATOR"><path class="cls-1" d="M169.67 201.83H86.33a18.48 18.48 0 0 1-18.46-18.46V72.63a18.48 18.48 0 0 1 18.46-18.46h83.34a18.48 18.48 0 0 1 18.46 18.46v110.74a18.48 18.48 0 0 1-18.46 18.46zM86.33 58.17a14.47 14.47 0 0 0-14.46 14.46v110.74a14.47 14.47 0 0 0 14.46 14.46h83.34a14.48 14.48 0 0 0 14.46-14.46V72.63a14.47 14.47 0 0 0-14.46-14.46z"/><path class="cls-1" d="M97.16 148.06a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8zM128.86 148.06a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8zM97.16 181.29a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8.01zM128.86 181.29a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8.01zM160.56 148.06a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8zM160.56 181.29a12 12 0 1 1 12-12 12 12 0 0 1-12 12zm0-19.91a8 8 0 1 0 8 8 8 8 0 0 0-8-8.01zM172.52 105.89H85.2V73.34h87.32zm-83.32-4h79.32V77.34H89.2z"/></g></g></svg>
@@ -351,6 +358,7 @@ interface CalculatorStatus {
   `,
   styles: [`
     .calculator-wrapper {
+      position: relative;
       background: white;
       border-radius: 16px;
       padding: 2.5rem;
@@ -968,9 +976,48 @@ interface CalculatorStatus {
       background: #dc2626;
     }
 
-    .threshold-label {
-      white-space: nowrap;
-    }
+      .threshold-label {
+        white-space: nowrap;
+      }
+
+      /* Loading Overlay */
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        border-radius: 16px;
+        z-index: 10;
+      }
+
+      .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e2e8f0;
+        border-top-color: #16A34A;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        font-size: 0.9rem;
+        color: #64748b;
+        font-weight: 500;
+        margin: 0;
+      }
 
     /* Help Button */
     .help-button {
@@ -1184,20 +1231,52 @@ interface CalculatorStatus {
     }
   `]
 })
-export class BonusCalculatorComponent implements OnChanges {
-  @Input() monthlyRevenue: number = 1245890;
-  @Input() averageCheck: number = 17817;
+export class BonusCalculatorComponent implements OnInit {
+  // Inputs are optional - if not provided, will fetch from API
+  @Input() monthlyRevenue?: number;
+  @Input() averageCheck?: number;
 
-  monthlyRevenueSignal = signal<number>(1245890);
-  averageCheckSignal = signal<number>(17817);
+  monthlyRevenueSignal = signal<number>(0);
+  averageCheckSignal = signal<number>(0);
+  
+  isLoading = signal<boolean>(false);
+  
+  private analyticsService = inject(AnalyticsService);
+  private toastService = inject(ToastService);
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['monthlyRevenue'] && changes['monthlyRevenue'].currentValue !== undefined && changes['monthlyRevenue'].currentValue !== null) {
-      this.monthlyRevenueSignal.set(changes['monthlyRevenue'].currentValue);
+  ngOnInit(): void {
+    // If inputs are provided, use them; otherwise fetch from API
+    if (this.monthlyRevenue !== undefined && this.averageCheck !== undefined) {
+      this.monthlyRevenueSignal.set(this.monthlyRevenue);
+      this.averageCheckSignal.set(this.averageCheck);
+    } else {
+      this.loadAnalyticsData();
     }
-    if (changes['averageCheck'] && changes['averageCheck'].currentValue !== undefined && changes['averageCheck'].currentValue !== null) {
-      this.averageCheckSignal.set(changes['averageCheck'].currentValue);
-    }
+  }
+
+  loadAnalyticsData(): void {
+    this.isLoading.set(true);
+    
+    // Fetch both endpoints in parallel
+    forkJoin({
+      revenue: this.analyticsService.getMonthlyRevenue(),
+      averageCheck: this.analyticsService.getAverageCheck('MONTHLY')
+    }).subscribe({
+      next: (responses) => {
+        if (responses.revenue.revenue !== undefined && responses.revenue.revenue !== null) {
+          this.monthlyRevenueSignal.set(responses.revenue.revenue);
+        }
+        if (responses.averageCheck.averageCheck !== undefined && responses.averageCheck.averageCheck !== null) {
+          this.averageCheckSignal.set(responses.averageCheck.averageCheck);
+        }
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки аналитических данных';
+        this.toastService.error(errorMessage);
+        this.isLoading.set(false);
+      }
+    });
   }
 
   isFinancialHelpModalOpen = false;

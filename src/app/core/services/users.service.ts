@@ -52,5 +52,20 @@ export class UsersService {
   getUserTransactions(userId: string): Observable<UserTransaction[]> {
     return this.http.get<UserTransaction[]>(`${this.apiUrl}/${userId}/transactions`);
   }
+
+  // Lock user
+  lockUser(userId: string): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${userId}/lock`, {});
+  }
+
+  // Unlock user
+  unlockUser(userId: string): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${userId}/unlock`, {});
+  }
+
+  // Delete all locked users
+  deleteLockedUsers(): Observable<{ deletedCount: number }> {
+    return this.http.delete<{ deletedCount: number }>(`${this.apiUrl}/locked`);
+  }
 }
 
