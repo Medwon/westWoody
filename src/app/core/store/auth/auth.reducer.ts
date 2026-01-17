@@ -151,6 +151,50 @@ export const authReducer = createReducer(
   })),
 
   // ============================================================
+  // Forgot Password
+  // ============================================================
+  on(AuthActions.forgotPassword, (state) => ({
+    ...state,
+    isLoading: true,
+    error: null
+  })),
+
+  on(AuthActions.forgotPasswordSuccess, (state) => ({
+    ...state,
+    isLoading: false,
+    error: null
+  })),
+
+  on(AuthActions.forgotPasswordFailure, (state, { error }) => ({
+    ...state,
+    isLoading: false,
+    error
+  })),
+
+  // ============================================================
+  // Reset Password (auto-login)
+  // ============================================================
+  on(AuthActions.resetPassword, (state) => ({
+    ...state,
+    isLoading: true,
+    error: null
+  })),
+
+  on(AuthActions.resetPasswordSuccess, (state, { user }) => ({
+    ...state,
+    user,
+    isAuthenticated: true,
+    isLoading: false,
+    error: null
+  })),
+
+  on(AuthActions.resetPasswordFailure, (state, { error }) => ({
+    ...state,
+    isLoading: false,
+    error
+  })),
+
+  // ============================================================
   // Update User
   // ============================================================
   on(AuthActions.updateUser, (state, { user }) => ({

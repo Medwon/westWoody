@@ -85,6 +85,17 @@ export interface ActivateAccountRequest {
   password: string;
 }
 
+// Forgot password
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+// Reset password
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
 // Invite user
 export interface InviteUserRequest {
   email: string;

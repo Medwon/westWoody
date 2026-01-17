@@ -6,6 +6,8 @@ import {
   LoginRequest,
   RegisterRequest,
   ActivateAccountRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   AuthUser
 } from '../models/user.model';
 
@@ -80,5 +82,24 @@ export class AuthService {
    */
   logout(): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/logout`, {});
+  }
+
+  /**
+   * Request password reset - sends reset token to email
+   * @returns Observable<void> - 200 OK response
+   */
+  forgotPassword(data: ForgotPasswordRequest): Observable<void> {
+    console.log('[AuthService] POST /auth/forgot-password', data);
+    return this.http.post<void>(`${this.apiUrl}/forgot-password`, data);
+  }
+
+  /**
+   * Reset password with token from email
+   * Sets HttpOnly cookies on success (auto-login)
+   * @returns AuthUser { id, email, firstName, lastName, roles }
+   */
+  resetPassword(data: ResetPasswordRequest): Observable<AuthUser> {
+    console.log('[AuthService] POST /auth/reset-password', { token: data.token, password: '***' });
+    return this.http.post<AuthUser>(`${this.apiUrl}/reset-password`, data);
   }
 }

@@ -29,10 +29,13 @@ export const authInterceptor: HttpInterceptorFn = (
     catchError((error: HttpErrorResponse) => {
       // Handle 401 Unauthorized - session expired or invalid
       if (error.status === 401 && isApiRequest) {
-        // Skip session expired for auth endpoints (login, register)
+        // Skip session expired for auth endpoints (login, register, forgot-password, reset-password, activate)
         const isAuthEndpoint = req.url.includes('/auth/login') || 
                                req.url.includes('/auth/register') ||
-                               req.url.includes('/auth/me');
+                               req.url.includes('/auth/me') ||
+                               req.url.includes('/auth/forgot-password') ||
+                               req.url.includes('/auth/reset-password') ||
+                               req.url.includes('/auth/activate');
         
         if (!isAuthEndpoint) {
           store.dispatch(AuthActions.sessionExpired());

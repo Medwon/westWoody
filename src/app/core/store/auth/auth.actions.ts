@@ -3,7 +3,9 @@ import {
   AuthUser,
   LoginRequest,
   RegisterRequest,
-  ActivateAccountRequest
+  ActivateAccountRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest
 } from '../../models/user.model';
 
 // ============================================================
@@ -93,6 +95,39 @@ export const sessionExpired = createAction('[Auth] Session Expired');
 // Clear errors
 // ============================================================
 export const clearError = createAction('[Auth] Clear Error');
+
+// ============================================================
+// Forgot Password
+// ============================================================
+export const forgotPassword = createAction(
+  '[Auth] Forgot Password',
+  props<{ data: ForgotPasswordRequest }>()
+);
+
+export const forgotPasswordSuccess = createAction('[Auth] Forgot Password Success');
+
+export const forgotPasswordFailure = createAction(
+  '[Auth] Forgot Password Failure',
+  props<{ error: string }>()
+);
+
+// ============================================================
+// Reset Password (auto-login after reset)
+// ============================================================
+export const resetPassword = createAction(
+  '[Auth] Reset Password',
+  props<{ data: ResetPasswordRequest }>()
+);
+
+export const resetPasswordSuccess = createAction(
+  '[Auth] Reset Password Success',
+  props<{ user: AuthUser }>()
+);
+
+export const resetPasswordFailure = createAction(
+  '[Auth] Reset Password Failure',
+  props<{ error: string }>()
+);
 
 // ============================================================
 // Update user in store

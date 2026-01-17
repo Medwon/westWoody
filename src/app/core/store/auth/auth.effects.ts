@@ -156,6 +156,74 @@ export class AuthEffects {
   );
 
   // ============================================================
+  // Forgot Password
+  // ============================================================
+  forgotPassword$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.forgotPassword),
+      exhaustMap(({ data }) =>
+        this.authService.forgotPassword(data).pipe(
+          map(() => AuthActions.forgotPasswordSuccess()),
+          catchError((error) => {
+            // Handle different error formats from API
+            const errorMessage = error.error?.message || 
+                                error.message || 
+                                (error.status === 404 ? 'Пользователь с таким email не найден' : null) ||
+                                'Ошибка отправки запроса на сброс пароля';
+            return of(AuthActions.forgotPasswordFailure({ error: errorMessage }));
+          })
+        )
+      )
+    )
+  );
+
+  forgotPasswordSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.forgotPasswordSuccess),
+        tap(() => {
+          this.toastService.success('Письмо для сброса пароля отправлено на вашу почту');
+        })
+      ),
+    { dispatch: false }
+  );
+
+  // ============================================================
+  // Reset Password (auto-login after reset)
+  // ============================================================
+  resetPassword$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.resetPassword),
+      exhaustMap(({ data }) =>
+        this.authService.resetPassword(data).pipe(
+          map((user) => AuthActions.resetPasswordSuccess({ user })),
+          catchError((error) =>
+            of(AuthActions.resetPasswordFailure({
+              error: error.error?.message || error.message || 'Ошибка сброса пароля'
+            }))
+          )
+        )
+      )
+    )
+  );
+
+  // Reset password auto-logs in, redirect to home
+  resetPasswordSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.resetPasswordSuccess),
+        tap(() => {
+          this.toastService.success('Пароль успешно изменен!');
+        }),
+        delay(500), // Small delay to show toast before navigation
+        tap(() => {
+          this.router.navigate(['/home']);
+        })
+      ),
+    { dispatch: false }
+  );
+
+  // ============================================================
   // Session Expired - Redirect to login
   // ============================================================
   sessionExpired$ = createEffect(
