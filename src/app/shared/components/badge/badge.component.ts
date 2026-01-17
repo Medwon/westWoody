@@ -25,6 +25,13 @@ export type BadgeSize = 'small' | 'medium' | 'large';
         <svg *ngIf="icon === 'payment'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
         </svg>
+        <svg *ngIf="icon === 'expired'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <svg *ngIf="icon === 'used'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </span>
       <ng-content></ng-content>
     </span>
@@ -165,7 +172,7 @@ export class BadgeComponent {
   @Input() badgeType: BadgeType = 'primary';
   @Input() size: BadgeSize = 'medium';
   @Input() dot = false;
-  @Input() icon: 'star' | 'check' | 'refund' | 'payment' | null = null;
+  @Input() icon: 'star' | 'check' | 'refund' | 'payment' | 'expired' | 'used' | null = null;
 
   getBadgeClasses(): string {
     return `${this.badgeType} ${this.size}`;

@@ -27,9 +27,12 @@ export class PaginationService {
   /**
    * Инициализирует параметры пагинации из query параметров роута
    */
-  initFromRoute(route: ActivatedRoute): PaginationParams {
-    const page = parseInt(route.snapshot.queryParams['page'] || '1', 10);
-    const pageSize = parseInt(route.snapshot.queryParams['pageSize'] || String(this.defaultPageSize), 10);
+  initFromRoute(route: ActivatedRoute, paginationKey: string = 'default'): PaginationParams {
+    const pageParam = paginationKey === 'default' ? 'page' : `${paginationKey}Page`;
+    const pageSizeParam = paginationKey === 'default' ? 'pageSize' : `${paginationKey}PageSize`;
+    
+    const page = parseInt(route.snapshot.queryParams[pageParam] || '1', 10);
+    const pageSize = parseInt(route.snapshot.queryParams[pageSizeParam] || String(this.defaultPageSize), 10);
     
     return {
       page: isNaN(page) || page < 1 ? 1 : page,
@@ -40,29 +43,33 @@ export class PaginationService {
   /**
    * Обновляет query параметры роута для пагинации
    */
-  updateRoute(route: ActivatedRoute, page: number, pageSize: number): void {
+  updateRoute(route: ActivatedRoute, page: number, pageSize: number, paginationKey: string = 'default'): void {
     // Получаем текущие query параметры
     const currentParams = { ...route.snapshot.queryParams };
     
-    // Создаем новый объект query параметров, копируя все существующие параметры кроме page и pageSize
+    // Определяем имена параметров на основе ключа
+    const pageParam = paginationKey === 'default' ? 'page' : `${paginationKey}Page`;
+    const pageSizeParam = paginationKey === 'default' ? 'pageSize' : `${paginationKey}PageSize`;
+    
+    // Создаем новый объект query параметров, копируя все существующие параметры кроме параметров этой пагинации
     const queryParams: any = {};
     
-    // Сохраняем все существующие параметры, кроме page и pageSize
+    // Сохраняем все существующие параметры, кроме параметров этой пагинации
     Object.keys(currentParams).forEach(key => {
-      if (key !== 'page' && key !== 'pageSize') {
+      if (key !== pageParam && key !== pageSizeParam) {
         queryParams[key] = currentParams[key];
       }
     });
     
     // Устанавливаем параметр page только если это не первая страница
     if (page > 1) {
-      queryParams.page = page;
+      queryParams[pageParam] = page;
     }
     // Если page === 1, параметр не добавляется, что удалит его из URL
     
     // Устанавливаем параметр pageSize только если он отличается от дефолтного
     if (pageSize !== this.defaultPageSize) {
-      queryParams.pageSize = pageSize;
+      queryParams[pageSizeParam] = pageSize;
     }
     // Если pageSize === default, параметр не добавляется, что удалит его из URL
 

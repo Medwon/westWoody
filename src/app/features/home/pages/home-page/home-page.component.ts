@@ -117,36 +117,73 @@ interface RecentPayment {
       <div class="charts-section">
         <!-- Line Chart -->
         <div class="chart-card line-chart-card">
+          <h3 class="chart-title">Выручка за месяц</h3>
           <div class="chart-container">
             <div class="chart-y-axis">
-              <span>24 000</span>
-              <span>22 000</span>
+              <span>30 000</span>
+              <span>25 000</span>
               <span>20 000</span>
-              <span>18 000</span>
-              <span>16 000</span>
-              <span>14 000</span>
-              <span>12 000</span>
+              <span>15 000</span>
+              <span>10 000</span>
+              <span>5 000</span>
+              <span>0</span>
             </div>
             <div class="chart-area">
-              <svg viewBox="0 0 600 300" preserveAspectRatio="none" class="line-chart">
-                <defs>
-                  <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.3" />
-                    <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0.02" />
-                  </linearGradient>
-                </defs>
-                <!-- Area fill -->
-                <path d="M0,280 Q150,250 300,180 T600,20 L600,300 L0,300 Z" fill="url(#chartGradient)" />
-                <!-- Line -->
-                <path d="M0,280 Q150,250 300,180 T600,20" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
-                <!-- Start point -->
-                <circle cx="0" cy="280" r="6" fill="#22c55e"/>
-                <!-- End point -->
-                <circle cx="600" cy="20" r="6" fill="white" stroke="#22c55e" stroke-width="3"/>
-              </svg>
+              <div class="chart-svg-wrapper">
+                <svg viewBox="0 0 600 300" preserveAspectRatio="none" class="line-chart">
+                  <defs>
+                    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.3" />
+                      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0.02" />
+                    </linearGradient>
+                  </defs>
+                  <!-- Grid lines -->
+                  <g stroke="#e2e8f0" stroke-width="1" opacity="0.5">
+                    <line x1="50" y1="50" x2="550" y2="50" vector-effect="non-scaling-stroke"/>
+                    <line x1="50" y1="100" x2="550" y2="100" vector-effect="non-scaling-stroke"/>
+                    <line x1="50" y1="150" x2="550" y2="150" vector-effect="non-scaling-stroke"/>
+                    <line x1="50" y1="200" x2="550" y2="200" vector-effect="non-scaling-stroke"/>
+                    <line x1="50" y1="250" x2="550" y2="250" vector-effect="non-scaling-stroke"/>
+                  </g>
+                  <!-- Area fill -->
+                  <path [attr.d]="getAreaPath()" fill="url(#chartGradient)" />
+                  <!-- Line -->
+                  <path [attr.d]="getChartPath()" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+                </svg>
+                <!-- Data points rendered as HTML for correct circles -->
+                <div class="chart-points">
+                  <div 
+                    *ngFor="let point of getChartData(); let last = last"
+                    class="chart-point-wrapper"
+                    [style.left.%]="(point.x / 600) * 100"
+                    [style.top.%]="(point.y / 300) * 100">
+                    <div class="chart-point" [class.last-point]="last"></div>
+                    <div class="chart-tooltip">
+                      <div class="tooltip-day">{{ point.day }} {{ getMonthName() }}</div>
+                      <div class="tooltip-stats">
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">Выручка:</span>
+                          <span class="tooltip-revenue">{{ formatAmount(point.revenue) }} ₸</span>
+                        </div>
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">Транзакций:</span>
+                          <span class="tooltip-value">{{ point.transactions }}</span>
+                        </div>
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">Начислено:</span>
+                          <span class="tooltip-bonus-earned">+{{ formatAmount(point.bonusEarned) }}</span>
+                        </div>
+                        <div class="tooltip-row" *ngIf="point.bonusUsed > 0">
+                          <span class="tooltip-label">Использовано:</span>
+                          <span class="tooltip-bonus-used">-{{ formatAmount(point.bonusUsed) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="chart-x-axis">
-                <span>22:00</span>
-                <span>22:00</span>
+                <span *ngFor="let label of getXAxisLabels(); let i = index" [style.left.%]="(getXAxisLabelPositions()[i] / 600) * 100">{{ label }}</span>
               </div>
             </div>
           </div>
@@ -465,11 +502,13 @@ interface RecentPayment {
     /* Line Chart */
     .line-chart-card {
       min-height: 350px;
+      overflow: visible;
     }
 
     .chart-container {
       display: flex;
-      height: 280px;
+      height: 320px;
+      overflow: visible;
     }
 
     .chart-y-axis {
@@ -485,19 +524,161 @@ interface RecentPayment {
       flex: 1;
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    .chart-svg-wrapper {
+      flex: 1;
+      position: relative;
+      min-height: 280px;
+      overflow: visible;
     }
 
     .line-chart {
-      flex: 1;
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .chart-points {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .chart-point-wrapper {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      z-index: 1;
+      pointer-events: auto;
+      padding: 8px;
+    }
+
+    .chart-point-wrapper:hover {
+      z-index: 10;
+    }
+
+    .chart-point {
+      width: 10px;
+      height: 10px;
+      background: #22c55e;
+      border-radius: 50%;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .chart-point-wrapper:hover .chart-point {
+      transform: scale(1.3);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+    }
+
+    .chart-point.last-point {
+      width: 12px;
+      height: 12px;
+      background: white;
+      border: 2.5px solid #22c55e;
+      box-sizing: border-box;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%) translateY(6px) scale(0.97);
+      background: #1f2937;
+      color: white;
+      padding: 0.625rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+    }
+
+    .chart-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+      transition: opacity 0.3s ease;
+    }
+
+    .chart-point-wrapper:hover .chart-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    .tooltip-day {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.375rem;
+      border-bottom: 1px solid #374151;
+      color: #f3f4f6;
+    }
+
+    .tooltip-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .tooltip-label {
+      color: #9ca3af;
+      font-size: 0.75rem;
+    }
+
+    .tooltip-value {
+      color: #f3f4f6;
+      font-weight: 500;
+    }
+
+    .tooltip-revenue {
+      color: #22c55e;
+      font-weight: 600;
+    }
+
+    .tooltip-bonus-earned {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+
+    .tooltip-bonus-used {
+      color: #f472b6;
+      font-weight: 600;
     }
 
     .chart-x-axis {
-      display: flex;
-      justify-content: space-between;
+      position: relative;
+      height: 20px;
       padding-top: 0.5rem;
       font-size: 0.75rem;
       color: #94a3b8;
+    }
+
+    .chart-x-axis span {
+      position: absolute;
+      transform: translateX(-50%);
     }
 
     /* Donut Chart */
@@ -1049,5 +1230,137 @@ export class HomePageComponent implements OnInit {
     
     // Close modal
     this.closeRefundModal();
+  }
+
+  getDaysInCurrentMonth(): number {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  }
+
+  getChartDataPoints(): Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> {
+    const daysInMonth = this.getDaysInCurrentMonth();
+    const svgWidth = 600;
+    const svgHeight = 300;
+    const padding = 50;
+    const chartWidth = svgWidth - padding * 2;
+    const chartHeight = svgHeight - padding * 2;
+    
+    const points: Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> = [];
+    
+    if (daysInMonth === 0) return points;
+    
+    // Generate sample revenue data (increasing trend with some variation)
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayRatio = daysInMonth > 1 ? (day - 1) / (daysInMonth - 1) : 0;
+      const x = padding + dayRatio * chartWidth;
+      // Simulate revenue: starts around 5000, ends around 25000, with some variation
+      const baseRevenue = 5000 + (day / daysInMonth) * 20000;
+      const variation = Math.sin(day * 0.2) * 2000; // Add some wave pattern
+      const revenue = Math.round(baseRevenue + variation);
+      // Simulate transactions: 5-25 per day with some variation
+      const transactions = Math.floor(5 + Math.random() * 20 + (day / daysInMonth) * 10);
+      // Simulate bonuses: ~1% of revenue earned, ~0.5% used
+      const bonusEarned = Math.round(revenue * 0.01 * (0.8 + Math.random() * 0.4));
+      const bonusUsed = Math.round(revenue * 0.005 * Math.random());
+      // Convert revenue to Y coordinate (inverted, as SVG Y increases downward)
+      const y = svgHeight - padding - (revenue / 30000) * chartHeight;
+      points.push({ x, y, day, revenue, transactions, bonusEarned, bonusUsed });
+    }
+    
+    return points;
+  }
+
+  // Cache chart data to avoid recalculating on every hover
+  private _chartDataCache: Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> | null = null;
+  
+  getChartData(): Array<{ x: number; y: number; day: number; revenue: number; transactions: number; bonusEarned: number; bonusUsed: number }> {
+    if (!this._chartDataCache) {
+      this._chartDataCache = this.getChartDataPoints();
+    }
+    return this._chartDataCache;
+  }
+
+  getMonthName(): string {
+    const months = [
+      'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+    ];
+    return months[new Date().getMonth()];
+  }
+
+  getTransactionsText(count: number): string {
+    const lastDigit = count % 10;
+    const lastTwoDigits = count % 100;
+    
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+      return 'транзакций';
+    }
+    if (lastDigit === 1) {
+      return 'транзакция';
+    }
+    if (lastDigit >= 2 && lastDigit <= 4) {
+      return 'транзакции';
+    }
+    return 'транзакций';
+  }
+
+  getChartPath(): string {
+    const points = this.getChartData();
+    if (points.length === 0) return '';
+    
+    let path = `M${points[0].x},${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L${points[i].x},${points[i].y}`;
+    }
+    return path;
+  }
+
+  getAreaPath(): string {
+    const points = this.getChartData();
+    if (points.length === 0) return '';
+    
+    const svgHeight = 300;
+    const padding = 50;
+    
+    let path = `M${points[0].x},${svgHeight - padding}`;
+    path += ` L${points[0].x},${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L${points[i].x},${points[i].y}`;
+    }
+    path += ` L${points[points.length - 1].x},${svgHeight - padding} Z`;
+    return path;
+  }
+
+  getXAxisLabels(): string[] {
+    const daysInMonth = this.getDaysInCurrentMonth();
+    const labels: string[] = [];
+    
+    // Show labels at: 1, ~25%, ~50%, ~75%, and last day
+    const positions = [
+      1,
+      Math.ceil(daysInMonth * 0.25),
+      Math.ceil(daysInMonth * 0.5),
+      Math.ceil(daysInMonth * 0.75),
+      daysInMonth
+    ];
+    
+    // Remove duplicates and sort
+    const uniquePositions = [...new Set(positions)].sort((a, b) => a - b);
+    
+    return uniquePositions.map(day => day.toString());
+  }
+
+  getXAxisLabelPositions(): number[] {
+    const daysInMonth = this.getDaysInCurrentMonth();
+    const svgWidth = 600;
+    const padding = 50;
+    const chartWidth = svgWidth - padding * 2;
+    
+    const labels = this.getXAxisLabels();
+    return labels.map(label => {
+      const day = parseInt(label, 10);
+      const dayRatio = daysInMonth > 1 ? (day - 1) / (daysInMonth - 1) : 0;
+      return padding + dayRatio * chartWidth;
+    });
   }
 }

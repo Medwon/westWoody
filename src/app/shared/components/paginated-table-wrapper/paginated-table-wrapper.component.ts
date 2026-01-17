@@ -141,6 +141,7 @@ export class PaginatedTableWrapperComponent implements OnInit, OnChanges {
   @Input() paginationEnabled = true;
   @Input() data: any[] = [];
   @Input() defaultPageSize = 15;
+  @Input() paginationKey: string = 'default'; // Unique key for this pagination instance
   
   // Output для передачи пагинированных данных
   @Output() paginatedDataChange = new EventEmitter<any[]>();
@@ -173,14 +174,17 @@ export class PaginatedTableWrapperComponent implements OnInit, OnChanges {
 
     if (this.paginationEnabled) {
       // Initialize pagination from route
-      const paginationParams = this.paginationService.initFromRoute(this.route);
+      const paginationParams = this.paginationService.initFromRoute(this.route, this.paginationKey);
       this.currentPage = paginationParams.page;
       this.pageSize = paginationParams.pageSize;
       
       // Subscribe to route query params changes
       this.route.queryParams.subscribe(params => {
-        const page = params['page'] ? parseInt(params['page'], 10) : 1;
-        const pageSize = params['pageSize'] ? parseInt(params['pageSize'], 10) : this.paginationService.getDefaultPageSize();
+        const pageParam = this.paginationKey === 'default' ? 'page' : `${this.paginationKey}Page`;
+        const pageSizeParam = this.paginationKey === 'default' ? 'pageSize' : `${this.paginationKey}PageSize`;
+        
+        const page = params[pageParam] ? parseInt(params[pageParam], 10) : 1;
+        const pageSize = params[pageSizeParam] ? parseInt(params[pageSizeParam], 10) : this.paginationService.getDefaultPageSize();
         
         const newPage = isNaN(page) || page < 1 ? 1 : page;
         const newPageSize = this.pageSizeOptions.includes(pageSize) ? pageSize : this.paginationService.getDefaultPageSize();
@@ -236,7 +240,7 @@ export class PaginatedTableWrapperComponent implements OnInit, OnChanges {
   onPageChange(page: number): void {
     this.currentPage = page;
     if (this.paginationEnabled) {
-      this.paginationService.updateRoute(this.route, this.currentPage, this.pageSize);
+      this.paginationService.updateRoute(this.route, this.currentPage, this.pageSize, this.paginationKey);
     }
     this.updatePagination();
     // Scroll to top of table
@@ -249,7 +253,7 @@ export class PaginatedTableWrapperComponent implements OnInit, OnChanges {
   onPageSizeChange(): void {
     this.currentPage = 1; // Reset to first page when changing page size
     if (this.paginationEnabled) {
-      this.paginationService.updateRoute(this.route, this.currentPage, this.pageSize);
+      this.paginationService.updateRoute(this.route, this.currentPage, this.pageSize, this.paginationKey);
     }
     this.updatePagination();
   }

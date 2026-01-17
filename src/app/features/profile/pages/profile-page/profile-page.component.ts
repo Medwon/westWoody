@@ -210,161 +210,6 @@ interface PaymentItem {
           </div>
         </div>
 
-        <!-- Bonuses Details Card -->
-        <div class="bonuses-details-card">
-          <div class="card-header" (click)="toggleBonusesExpanded()">
-            <div class="card-header-left">
-              <div class="card-icon">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="card-title-section">
-                <h3 class="card-title">Детали бонусов</h3>
-                <div class="bonuses-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">Осталось:</span>
-                    <span class="stat-value active">{{ formatAmount(getActiveBonusesTotal()) }} ₸</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Использовано:</span>
-                    <span class="stat-value used">{{ formatAmount(getUsedBonusesTotal()) }} ₸</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Сгорело:</span>
-                    <span class="stat-value expired">{{ formatAmount(getExpiredBonusesTotal()) }} ₸</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button class="collapse-btn" [class.collapsed]="!isBonusesExpanded">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="bonuses-content" *ngIf="isBonusesExpanded">
-            <div class="table-container" *ngIf="bonusesDetails.length > 0">
-              <table class="bonuses-table">
-                <thead>
-                  <tr>
-                    <th>Тип бонуса</th>
-                    <th>Сумма</th>
-                    <th>Начислено</th>
-                    <th>Истекает</th>
-                    <th>Осталось</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <ng-container *ngFor="let bonus of bonusesDetails">
-                    <tr
-                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'"
-                        [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
-                        [class.used]="bonus.used"
-                        [class.refund]="bonus.type === 'refund'">
-                      <td>
-                        <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
-                          {{ getBonusTypeLabel(bonus.type) }}
-                        </span>
-                      </td>
-                      <td>
-                        <span class="bonus-amount" [class.expired-amount]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'">
-                          +{{ formatAmount(bonus.amount) }}
-                        </span>
-                      </td>
-                      <td>
-                        <span class="bonus-date">{{ formatDate(bonus.issuedAt) }}</span>
-                      </td>
-                      <td>
-                        <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
-                      </td>
-                      <td>
-                        <app-badge
-                          *ngIf="bonus.used"
-                          badgeType="bonusUsed"
-                          size="medium">
-                          Использовано
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type === 'refund'"
-                          badgeType="refund"
-                          size="medium"
-                          icon="refund">
-                          Возврат
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
-                          [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
-                          size="medium">
-                          {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
-                          badgeType="bonusExpired"
-                          size="medium">
-                          Истек
-                        </app-badge>
-                      </td>
-                      <td>
-                        <div class="actions-cell">
-                          <app-icon-button
-                            iconButtonType="ghost"
-                            size="medium"
-                            class = "view-svg-btn"
-                            [tooltip]="isBonusRowExpanded(bonus.id) ? 'Скрыть детали' : 'Показать детали'"
-                            (onClick)="toggleBonusRow(bonus.id)">
-                            <svg [class.rotated]="isBonusRowExpanded(bonus.id)" viewBox="0 0 24 24" fill="none">
-                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                          </app-icon-button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr *ngIf="isBonusRowExpanded(bonus.id)" class="bonus-details-row">
-                      <td colspan="6" class="bonus-details-cell">
-                        <div class="bonus-details-content">
-                          <div class="bonus-details-grid">
-                            <div class="refund-reason-section">
-                              <span class="refund-reason-label">Причина возврата:</span>
-                              <div class="refund-reason-text" *ngIf="bonus.refundReason">
-                                {{ bonus.refundReason }}
-                              </div>
-                              <div class="refund-reason-empty" *ngIf="!bonus.refundReason">
-                                Причина не указана
-                              </div>
-                            </div>
-                            <div class="bonus-initiated-by-section">
-                              <span class="refund-reason-label">Инициатор:</span>
-                              <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
-                                 [routerLink]="['/users', bonus.initiatedById]" 
-                                 class="bonus-initiated-by-link">
-                                {{ bonus.initiatedBy }}
-                              </a>
-                              <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
-                                {{ bonus.initiatedBy }}
-                              </div>
-                              <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
-                                Не указан
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </ng-container>
-                </tbody>
-              </table>
-            </div>
-            <div class="empty-state" *ngIf="bonusesDetails.length === 0">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Нет активных бонусов</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Profile Details -->
         <div class="details-grid">
           <!-- Personal Info Card -->
@@ -448,6 +293,201 @@ interface PaymentItem {
           </div>
         </div>
 
+        <!-- Bonuses Details Card -->
+        <div class="bonuses-details-card">
+          <div class="card-header" (click)="toggleBonusesExpanded()">
+            <div class="card-header-left">
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="card-title-section">
+                <h3 class="card-title">Детали бонусов</h3>
+                <div class="bonuses-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Осталось:</span>
+                    <span class="stat-value active">{{ formatAmount(getActiveBonusesTotal()) }} ₸</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Использовано:</span>
+                    <span class="stat-value used">{{ formatAmount(getUsedBonusesTotal()) }} ₸</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Сгорело:</span>
+                    <span class="stat-value expired">{{ formatAmount(getExpiredBonusesTotal()) }} ₸</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="collapse-btn" [class.collapsed]="!isBonusesExpanded">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="bonuses-content" *ngIf="isBonusesExpanded">
+            <app-paginated-table-wrapper
+              [paginationEnabled]="true"
+              [data]="bonusesDetails"
+              [defaultPageSize]="10"
+              paginationKey="bonuses"
+              #paginatedBonuses>
+              <div class="table-container" *ngIf="bonusesDetails.length > 0">
+                <table class="bonuses-table">
+                  <thead>
+                    <tr>
+                      <th>Тип бонуса</th>
+                      <th>Сумма</th>
+                      <th>Начислено</th>
+                      <th>Истекает</th>
+                      <th>Осталось</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <ng-container *ngFor="let bonus of paginatedBonuses.paginatedData">
+                    <tr
+                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'"
+                        [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                        [class.used]="bonus.used"
+                        [class.refund]="bonus.type === 'refund'">
+                      <td>
+                        <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
+                          {{ getBonusTypeLabel(bonus.type) }}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="bonus-info">
+                          <app-badge
+                            *ngIf="bonus.used"
+                            badgeType="bonusUsed"
+                            size="medium"
+                            icon="check"
+                            class="bonus-badge">
+                            -{{ formatAmount(bonus.amount) }}
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type === 'refund'"
+                            badgeType="refund"
+                            size="medium"
+                            icon="refund"
+                            class="bonus-badge">
+                            {{ formatAmount(bonus.amount) }}
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                            badgeType="bonusExpired"
+                            size="medium"
+                            icon="expired"
+                            class="bonus-badge">
+                            {{ formatAmount(bonus.amount) }}
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                            badgeType="bonusGranted"
+                            size="medium"
+                            icon="star"
+                            class="bonus-badge">
+                            +{{ formatAmount(bonus.amount) }}
+                          </app-badge>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="bonus-date">{{ formatDate(bonus.issuedAt) }}</span>
+                      </td>
+                      <td>
+                        <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
+                      </td>
+                      <td>
+                        <app-badge
+                          *ngIf="bonus.used"
+                          badgeType="bonusUsed"
+                          size="medium"
+                          icon="used">
+                          Использовано
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type === 'refund'"
+                          badgeType="refund"
+                          size="medium"
+                          icon="refund">
+                          Отозвано
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                          [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
+                          size="medium">
+                          {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
+                        </app-badge>
+                        <app-badge
+                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                          badgeType="bonusExpired"
+                          size="medium"
+                          icon="expired">
+                          Истек
+                        </app-badge>
+                      </td>
+                      <td>
+                        <div class="actions-cell">
+                          <app-icon-button
+                            iconButtonType="ghost"
+                            size="medium"
+                            class = "view-svg-btn"
+                            [tooltip]="isBonusRowExpanded(bonus.id) ? 'Скрыть детали' : 'Показать детали'"
+                            (onClick)="toggleBonusRow(bonus.id)">
+                            <svg [class.rotated]="isBonusRowExpanded(bonus.id)" viewBox="0 0 24 24" fill="none">
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </app-icon-button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr *ngIf="isBonusRowExpanded(bonus.id)" class="bonus-details-row">
+                      <td colspan="6" class="bonus-details-cell">
+                        <div class="bonus-details-content">
+                          <div class="bonus-details-grid">
+                            <div class="refund-reason-section">
+                              <span class="refund-reason-label">Причина возврата:</span>
+                              <div class="refund-reason-text" *ngIf="bonus.refundReason">
+                                {{ bonus.refundReason }}
+                              </div>
+                              <div class="refund-reason-empty" *ngIf="!bonus.refundReason">
+                                Причина не указана
+                              </div>
+                            </div>
+                            <div class="bonus-initiated-by-section">
+                              <span class="refund-reason-label">Инициатор:</span>
+                              <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
+                                 [routerLink]="['/users', bonus.initiatedById]" 
+                                 class="bonus-initiated-by-link">
+                                {{ bonus.initiatedBy }}
+                              </a>
+                              <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
+                                {{ bonus.initiatedBy }}
+                              </div>
+                              <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
+                                Не указан
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                  </tbody>
+                </table>
+              </div>
+              <div class="empty-state" *ngIf="bonusesDetails.length === 0">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Нет активных бонусов</span>
+              </div>
+            </app-paginated-table-wrapper>
+          </div>
+        </div>
+
         <!-- Payments Table Card (Full Width) -->
         <div class="payments-card">
           <div class="card-header">
@@ -467,6 +507,7 @@ interface PaymentItem {
             [paginationEnabled]="true"
             [data]="payments"
             [defaultPageSize]="15"
+            paginationKey="payments"
             #paginatedTable>
             
             <div class="table-container">
@@ -1180,19 +1221,6 @@ interface PaymentItem {
     .stat-value {
       font-size: 0.875rem;
       font-weight: 700;
-    }
-
-    .stat-value.active {
-      color: #16A34A;
-    }
-
-    .stat-value.used {
-      color: #3b82f6;
-      
-    }
-
-    .stat-value.expired {
-      color: #dc2626 ;
     }
 
     .collapse-btn {
@@ -2257,7 +2285,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       purchase: 'За покупку',
       promotion: 'Акция',
       loyalty: 'Лояльность',
-      refund: 'Возврат бонусов'
+      refund: 'Отозвано'
     };
     return labels[type] || type;
   }
