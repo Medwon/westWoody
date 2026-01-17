@@ -1,23 +1,25 @@
-import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IconButtonComponent } from '../icon-button/icon-button.component';
 
 @Component({
   selector: 'app-modal',
   standalone: true,
-  imports: [CommonModule, IconButtonComponent],
+  imports: [CommonModule],
   template: `
-    <div class="modal-overlay" *ngIf="visible" [class.show]="visible" (click)="onOverlayClick($event)">
-      <div class="modal-container" [class.small]="size === 'small'" [class.large]="size === 'large'" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" *ngIf="visible" [class.show]="visible">
+      <div class="modal-container" [class.small]="size === 'small'" [class.large]="size === 'large'">
         <div class="modal-header" *ngIf="title || showCloseButton">
           <h3 class="modal-title" *ngIf="title">{{ title }}</h3>
-          <app-icon-button
+          <button 
             *ngIf="showCloseButton"
-            icon="✕"
-            iconButtonType="ghost"
-            size="small"
-            (onClick)="onClose()">
-          </app-icon-button>
+            class="close-btn"
+            type="button"
+            (click)="onClose()"
+            aria-label="Закрыть">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <ng-content></ng-content>
@@ -89,6 +91,35 @@ import { IconButtonComponent } from '../icon-button/icon-button.component';
       color: #1a202c;
     }
 
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: #f3f4f6;
+      border-radius: 10px;
+      cursor: pointer;
+      color: #6b7280;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .close-btn:hover {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .close-btn:active {
+      transform: scale(0.95);
+    }
+
+    .close-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
     .modal-body {
       padding: 1.5rem;
       overflow-y: auto;
@@ -110,28 +141,18 @@ export class ModalComponent {
   @Input() showCloseButton = true;
   @Input() showFooter = false;
   @Input() size: 'small' | 'medium' | 'large' = 'medium';
-  @Input() closeOnOverlayClick = true;
+  /** @deprecated No longer used - modals only close via close button */
+  @Input() closeOnOverlayClick = false;
+  /** @deprecated No longer used - all modals are now "important" by default */
+  @Input() important = true;
 
   @Output() closed = new EventEmitter<void>();
   @Output() visibleChange = new EventEmitter<boolean>();
-
-  @HostListener('document:keydown.escape', ['$event'])
-  onEscapeKey(event: KeyboardEvent): void {
-    if (this.visible && this.showCloseButton) {
-      this.onClose();
-    }
-  }
 
   onClose(): void {
     this.visible = false;
     this.visibleChange.emit(false);
     this.closed.emit();
-  }
-
-  onOverlayClick(event: MouseEvent): void {
-    if (this.closeOnOverlayClick && event.target === event.currentTarget) {
-      this.onClose();
-    }
   }
 }
 
