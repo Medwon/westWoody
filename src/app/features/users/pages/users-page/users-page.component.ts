@@ -1,11 +1,15 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { UsersService } from '../../../../core/services/users.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { User as ApiUser, UserRole, InviteUserRequest } from '../../../../core/models/user.model';
+import { selectUserId } from '../../../../core/store/auth/auth.selectors';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -109,7 +113,7 @@ interface User {
                         </svg>
                       </app-button>
                     </a>
-                    <ng-container *ngIf="user.status !== 'closed'">
+                    <ng-container *ngIf="user.status !== 'closed' && user.id !== currentUserId">
                       <app-button
                         buttonType="ghost"
                         size="small"
@@ -707,16 +711,19 @@ interface User {
     }
   `]
 })
-export class UsersPageComponent implements OnInit {
+export class UsersPageComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private fb = inject(FormBuilder);
   private usersService = inject(UsersService);
   private toastService = inject(ToastService);
+  private store = inject(Store);
+  private destroy$ = new Subject<void>();
 
   showAddUserModal = false;
   addUserForm: FormGroup;
   isLoading = true;
   isInviting = false;
+  currentUserId: string | null = null;
 
   // Lock confirmation modal
   isLockConfirmModalOpen = false;
@@ -749,7 +756,19 @@ export class UsersPageComponent implements OnInit {
       { label: 'Пользователи' }
     ]);
     
+    // Get current user ID
+    this.store.select(selectUserId).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(userId => {
+      this.currentUserId = userId ? String(userId) : null;
+    });
+    
     this.loadUsers();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadUsers(): void {

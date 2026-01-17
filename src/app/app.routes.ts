@@ -33,11 +33,11 @@ export const routes: Routes = [
           {
             path: 'whatsapp',
             loadComponent: () => import('./features/invitation/pages/invitation-page/invitation-page.component').then(m => m.InvitationPageComponent)
-          },
-          {
-            path: 'email',
-            loadComponent: () => import('./features/invitation/pages/email-invitation-page/email-invitation-page.component').then(m => m.EmailInvitationPageComponent)
           }
+          // {
+          //   path: 'email',
+          //   loadComponent: () => import('./features/invitation/pages/email-invitation-page/email-invitation-page.component').then(m => m.EmailInvitationPageComponent)
+          // }
         ]
       },
       {
