@@ -82,10 +82,10 @@ interface User {
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let user of paginatedTable.paginatedData">
+                <tr *ngFor="let user of paginatedTable.paginatedData" [class.current-user-row]="isCurrentUser(user)">
                 <td>
                   <div class="user-name-cell">
-                    <a [routerLink]="['/users', user.id]" class="user-name-link">
+                    <a [routerLink]="getUserRoute(user)" class="user-name-link">
                       <span class="user-name">{{ user.firstName }} {{ user.lastName }}</span>
                     </a>
                   </div>
@@ -105,7 +105,7 @@ interface User {
                 </td>
                 <td>
                   <div class="actions-cell">
-                    <a [routerLink]="['/users', user.id]" title="Просмотреть" class="action-link">
+                    <a [routerLink]="getUserRoute(user)" title="Просмотреть" class="action-link">
                       <app-button buttonType="ghost" size="small">
                         <svg viewBox="0 0 24 24" fill="none">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
@@ -407,6 +407,15 @@ interface User {
 
     .users-table tbody tr:hover {
       background: #f8fafc;
+    }
+
+    .users-table tbody tr.current-user-row {
+      background: #f1f5f9;
+      border-left: 3px solid #64748b;
+    }
+
+    .users-table tbody tr.current-user-row:hover {
+      background: #e2e8f0;
     }
 
     .users-table tbody tr:last-child td {
@@ -761,6 +770,10 @@ export class UsersPageComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(userId => {
       this.currentUserId = userId ? String(userId) : null;
+      // Re-sort users when currentUserId changes
+      if (this.users.length > 0) {
+        this.sortUsersWithCurrentUserFirst();
+      }
     });
     
     this.loadUsers();
@@ -776,7 +789,7 @@ export class UsersPageComponent implements OnInit, OnDestroy {
     this.usersService.getUsers().subscribe({
       next: (apiUsers) => {
         this.users = apiUsers.map(user => this.mapApiUserToUser(user));
-        this.filteredUsers = [...this.users];
+        this.sortUsersWithCurrentUserFirst();
         this.isLoading = false;
       },
       error: (err) => {
@@ -785,6 +798,26 @@ export class UsersPageComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+  }
+
+  sortUsersWithCurrentUserFirst(): void {
+    if (!this.currentUserId) {
+      this.filteredUsers = [...this.users];
+      return;
+    }
+
+    const currentUser = this.users.find(u => u.id === this.currentUserId);
+    const otherUsers = this.users.filter(u => u.id !== this.currentUserId);
+
+    if (currentUser) {
+      this.filteredUsers = [currentUser, ...otherUsers];
+    } else {
+      this.filteredUsers = [...this.users];
+    }
+  }
+
+  isCurrentUser(user: User): boolean {
+    return this.currentUserId !== null && user.id === this.currentUserId;
   }
 
   mapApiUserToUser(apiUser: ApiUser): User {
@@ -921,7 +954,7 @@ export class UsersPageComponent implements OnInit, OnDestroy {
           const index = this.users.findIndex(u => u.id === this.pendingLockUser!.id);
           if (index !== -1) {
             this.users[index] = this.mapApiUserToUser(updatedUser);
-            this.filteredUsers = [...this.users];
+            this.sortUsersWithCurrentUserFirst();
           }
           this.toastService.success('Пользователь успешно заблокирован');
           this.isLockConfirmModalOpen = false;
@@ -975,7 +1008,7 @@ export class UsersPageComponent implements OnInit, OnDestroy {
         const index = this.users.findIndex(u => u.id === user.id);
         if (index !== -1) {
           this.users[index] = this.mapApiUserToUser(updatedUser);
-          this.filteredUsers = [...this.users];
+          this.sortUsersWithCurrentUserFirst();
         }
         this.toastService.success('Пользователь успешно разблокирован');
       },
@@ -984,6 +1017,14 @@ export class UsersPageComponent implements OnInit, OnDestroy {
         this.toastService.error(errorMessage);
       }
     });
+  }
+
+  getUserRoute(user: User): string[] {
+    // If user clicks on themselves, go to account page, otherwise to user details
+    if (this.currentUserId && user.id === this.currentUserId) {
+      return ['/profile'];
+    }
+    return ['/users', user.id];
   }
 }
 
