@@ -13,6 +13,10 @@ export const AUTH_ROUTES: Routes = [
   {
     path: 'register',
     loadComponent: () => import('./pages/register-page/register-page.component').then(m => m.RegisterPageComponent)
+  },
+  {
+    path: 'activation',
+    loadComponent: () => import('./pages/activation-page/activation-page.component').then(m => m.ActivationPageComponent)
   }
 ];
 

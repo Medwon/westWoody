@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BonusCalculatorComponent } from '../../../../shared/components/bonus-calculator/bonus-calculator.component';
 
 interface BonusRule {
   id: string;
@@ -24,7 +25,8 @@ interface BonusRule {
     CommonModule,
     FormsModule,
     ModalComponent,
-    ButtonComponent
+    ButtonComponent,
+    BonusCalculatorComponent
   ],
   template: `
     <div class="page-wrapper">
@@ -130,6 +132,12 @@ interface BonusRule {
             <span class="add-text">Добавить бонус</span>
           </div>
         </div>
+
+        <!-- Bonus Calculator -->
+        <app-bonus-calculator
+          [monthlyRevenue]="1245890"
+          [averageCheck]="17817">
+        </app-bonus-calculator>
       </div>
     </div>
 

@@ -1,0 +1,270 @@
+import { Component, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { Observable, Subject } from 'rxjs';
+import { AlertComponent } from '../../../../shared/components/alert/alert.component';
+import { InputComponent } from '../../../../shared/components/input/input.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
+
+@Component({
+  selector: 'app-activation-page',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterModule,
+    AlertComponent,
+    InputComponent,
+    ButtonComponent,
+    AuthPromoPanelComponent
+  ],
+  template: `
+    <div class="activation-page">
+      <!-- Left Promotional Panel -->
+      <app-auth-promo-panel></app-auth-promo-panel>
+
+      <!-- Right Activation Form Panel -->
+      <div class="form-panel">
+        <div class="form-content">
+          <div class="form-header">
+            <h2 class="brand-name">WestWood</h2>
+            <h3 class="welcome-title">Активация аккаунта</h3>
+          </div>
+
+          <app-alert
+            *ngIf="errorMessage"
+            type="error"
+            [title]="'Ошибка активации'"
+            [dismissible]="true"
+            (dismissed)="errorMessage = ''"
+            class="error-alert">
+            {{ errorMessage }}
+          </app-alert>
+
+          <app-alert
+            *ngIf="successMessage"
+            type="success"
+            [title]="'Успешно'"
+            [dismissible]="true"
+            (dismissed)="successMessage = ''"
+            class="success-alert">
+            {{ successMessage }}
+          </app-alert>
+
+          <form [formGroup]="activationForm" (ngSubmit)="onSubmit()" class="activation-form">
+            <app-input
+              id="password"
+              label="Пароль"
+              type="password"
+              placeholder="Введите пароль"
+              formControlName="password"
+              [errorMessage]="getErrorMessage('password')"
+              [required]="true"
+              [showPasswordToggle]="true">
+            </app-input>
+
+            <app-input
+              id="confirmPassword"
+              label="Подтвердите пароль"
+              type="password"
+              placeholder="Подтвердите пароль"
+              formControlName="confirmPassword"
+              [errorMessage]="getErrorMessage('confirmPassword')"
+              [required]="true"
+              [showPasswordToggle]="true">
+            </app-input>
+
+            <app-button
+              buttonType="primary"
+              type="submit"
+              [disabled]="activationForm.invalid"
+              [loading]="isLoading"
+              class="submit-button">
+              Активировать аккаунт
+            </app-button>
+          </form>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .activation-page {
+      display: flex;
+      min-height: 100vh;
+      height: 100vh;
+      background: #F5F6F8;
+    }
+
+    /* Right Form Panel */
+    .form-panel {
+      flex: 0 0 45%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      background: #ffffff;
+    }
+
+    .form-content {
+      width: 100%;
+      max-width: 360px;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-header {
+      margin-bottom: 2rem;
+    }
+
+    .brand-name {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0 0 0.75rem 0;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0;
+    }
+
+    .error-alert,
+    .success-alert {
+      margin-bottom: 1.5rem;
+      animation: shake 0.5s ease-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .activation-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .submit-button {
+      width: 100%;
+      margin-top: 0.25rem;
+    }
+
+    :host ::ng-deep .submit-button button {
+      width: 100%;
+      padding: 0.875rem 1.5rem !important;
+      font-size: 1rem !important;
+      font-weight: 600 !important;
+      border-radius: 4px !important;
+      background-color: #0F0F10 !important;
+      color: white !important;
+      transition: all 0.2s ease !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .activation-page {
+        flex-direction: column;
+      }
+
+      .form-panel {
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .form-panel {
+        padding: 1.5rem;
+      }
+
+      .form-content {
+        max-width: 100%;
+      }
+    }
+  `]
+})
+export class ActivationPageComponent implements OnDestroy {
+  private fb = inject(FormBuilder);
+  private destroy$ = new Subject<void>();
+
+  activationForm: FormGroup;
+  isLoading = false;
+  errorMessage = '';
+  successMessage = '';
+
+  constructor() {
+    this.activationForm = this.fb.group({
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', [Validators.required]]
+    }, { validators: this.passwordMatchValidator });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('password');
+    const confirmPassword = control.get('confirmPassword');
+    
+    if (password && confirmPassword && password.value !== confirmPassword.value) {
+      confirmPassword.setErrors({ passwordMismatch: true });
+      return { passwordMismatch: true };
+    }
+    
+    if (confirmPassword && confirmPassword.errors && confirmPassword.errors['passwordMismatch'] && password && password.value === confirmPassword.value) {
+      confirmPassword.setErrors(null);
+    }
+    
+    return null;
+  }
+
+  onSubmit(): void {
+    if (this.activationForm.valid) {
+      this.isLoading = true;
+      const formValue = this.activationForm.value;
+      
+      // TODO: Implement activation API call
+      // For now, just simulate success
+      setTimeout(() => {
+        this.isLoading = false;
+        this.successMessage = 'Аккаунт успешно активирован!';
+        // TODO: Navigate to login or dashboard
+      }, 1500);
+    }
+  }
+
+  getErrorMessage(controlName: string): string {
+    const control = this.activationForm.get(controlName);
+    if (control?.errors && control.touched) {
+      if (control.errors['required']) {
+        return 'Это поле обязательно для заполнения';
+      }
+      if (control.errors['minlength']) {
+        return `Минимальная длина: ${control.errors['minlength'].requiredLength} символов`;
+      }
+      if (control.errors['passwordMismatch']) {
+        return 'Пароли не совпадают';
+      }
+    }
+    return '';
+  }
+}
