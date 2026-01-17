@@ -315,7 +315,7 @@ export class RegisterPageComponent implements OnInit, OnDestroy {
         password: formValue.password,
         firstName: formValue.firstName,
         lastName: formValue.lastName,
-        roles: ['MANAGER']
+        roles: ['SUDO']
       };
       this.store.dispatch(register({ data: registerData }));
     }
