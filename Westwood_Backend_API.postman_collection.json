@@ -258,6 +258,171 @@
 					]
 				},
 				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"forgot-password"
+							]
+						},
+						"description": "Initiates password reset process. Sends a password reset token to the user's email. The token is valid for 24 hours.\n\n**Response:** Returns 200 OK if the email exists (for security, doesn't reveal if email doesn't exist). A password reset email with a token link is sent to the user."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"user@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "forgot-password"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": ""
+						},
+						{
+							"name": "Email Not Found",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"nonexistent@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "forgot-password"]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 404,\n  \"message\": \"User with email 'nonexistent@example.com' not found\",\n  \"timestamp\": \"2024-01-15T10:30:00\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"reset-password"
+							]
+						},
+						"description": "Resets the user's password using the reset token from the forgot password email. After successful password reset, automatically logs in the user and returns access/refresh tokens in HttpOnly cookies.\n\n**Response:** Returns user information (id, email, roles) in JSON body. Access and refresh tokens are automatically set in HttpOnly cookies.\n\n**Token Expiration:** Password reset tokens expire after 24 hours."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"valid-reset-token\",\n  \"password\": \"newpassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/reset-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "reset-password"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Access token cookie"
+								},
+								{
+									"key": "Set-Cookie",
+									"value": "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/",
+									"description": "Refresh token cookie"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"email\": \"user@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"roles\": [\"MANAGER\"]\n}"
+						},
+						{
+							"name": "Invalid/Expired Token",
+							"originalRequest": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"invalid-token\",\n  \"password\": \"newpassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/reset-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "reset-password"]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 400,\n  \"message\": \"Invalid or expired password reset token\",\n  \"timestamp\": \"2024-01-15T10:30:00\"\n}"
+						}
+					]
+				},
+				{
 					"name": "Refresh Token",
 					"request": {
 						"method": "POST",
@@ -744,7 +909,7 @@
 								"transactions"
 							]
 						},
-						"description": "Get current authenticated user's payment transactions (operations history). Returns all transactions entered by the current user.\n\n**Authorization:** Any authenticated user can view their own transactions, regardless of role (MANAGER, ADMIN, SUDO).\n\n**Response:** Returns a list of PaymentSearchResultDto with:\n- txId - Payment transaction ID (e.g., PTX-24-ABCDE)\n- clientId, clientName, clientPhone, clientEmail - Client information\n- amount - Payment amount\n- status - COMPLETED, REFUNDED, etc.\n- bonusGranted - Bonus points granted for this payment (+125)\n- bonusUsed - Bonus points used in this payment (-500)\n- enteredByUsername - User who created the payment\n- createdAt - Transaction date/time\n- refundReason - Reason if payment was refunded"
+						"description": "Get current authenticated user's payment transactions (operations history). Returns all transactions entered by the current user.\n\n**Authorization:** Any authenticated user can view their own transactions, regardless of role (MANAGER, ADMIN, SUDO).\n\n**Response:** Returns a list of PaymentSearchResultDto with:\n- txId - Payment transaction ID (e.g., PTX-24-ABCDE)\n- clientId, clientName, clientPhone, clientEmail - Client information\n- amount - Payment amount\n- status - COMPLETED, REFUNDED, etc.\n- bonusGranted - Bonus points granted for this payment (+125)\n- bonusUsed - Bonus points used in this payment (-500)\n- initiatedBy - Email of user who created the payment\n- createdAt - Transaction date/time\n- refundReason - Reason if payment was refunded"
 					},
 					"response": [
 						{
@@ -763,7 +928,7 @@
 							"_postman_previewlanguage": "json",
 							"header": [{"key": "Content-Type", "value": "application/json"}],
 							"cookie": [],
-							"body": "[\n  {\n    \"txId\": \"PTX-24-ABCDE\",\n    \"clientId\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"clientName\": \"Алексей Петров\",\n    \"clientPhone\": \"+7 (777) 123-45-67\",\n    \"clientEmail\": \"alexey@example.com\",\n    \"amount\": 12500.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"enteredByUsername\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T14:30:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 125.00,\n    \"bonusUsed\": 0.00,\n    \"refundReason\": null\n  },\n  {\n    \"txId\": \"PTX-24-FGHIJ\",\n    \"clientId\": \"8d0f7789-8536-51ef-055c-f18gc2g01bf8\",\n    \"clientName\": \"Мария Сидорова\",\n    \"clientPhone\": \"+7 (777) 234-56-78\",\n    \"clientEmail\": \"maria@example.com\",\n    \"amount\": 8750.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"enteredByUsername\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T15:45:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 0.00,\n    \"bonusUsed\": 500.00,\n    \"refundReason\": null\n  }\n]"
+							"body": "[\n  {\n    \"txId\": \"PTX-24-ABCDE\",\n    \"clientId\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"clientName\": \"Алексей Петров\",\n    \"clientPhone\": \"+7 (777) 123-45-67\",\n    \"clientEmail\": \"alexey@example.com\",\n    \"amount\": 12500.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"initiatedBy\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T14:30:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 125.00,\n    \"bonusUsed\": 0.00,\n    \"refundReason\": null\n  },\n  {\n    \"txId\": \"PTX-24-FGHIJ\",\n    \"clientId\": \"8d0f7789-8536-51ef-055c-f18gc2g01bf8\",\n    \"clientName\": \"Мария Сидорова\",\n    \"clientPhone\": \"+7 (777) 234-56-78\",\n    \"clientEmail\": \"maria@example.com\",\n    \"amount\": 8750.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"initiatedBy\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T15:45:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 0.00,\n    \"bonusUsed\": 500.00,\n    \"refundReason\": null\n  }\n]"
 						},
 						{
 							"name": "Unauthorized",
@@ -880,7 +1045,7 @@
 								"transactions"
 							]
 						},
-						"description": "Get all payment transactions entered by a specific user. Returns transaction history with client info, amounts, bonuses (granted/used), status, and dates.\n\n**Authorization:** Requires SUDO, ADMIN, or MANAGER role.\n\n**Response:** Returns a list of PaymentSearchResultDto with:\n- txId - Payment transaction ID\n- clientId, clientName, clientPhone, clientEmail - Client information\n- amount - Payment amount\n- status - COMPLETED, REFUNDED, etc.\n- bonusGranted - Bonus points granted for this payment\n- bonusUsed - Bonus points used in this payment\n- enteredByUsername - User who created the payment\n- createdAt - Transaction date/time\n- refundReason - Reason if payment was refunded"
+						"description": "Get all payment transactions entered by a specific user. Returns transaction history with client info, amounts, bonuses (granted/used), status, and dates.\n\n**Authorization:** Requires SUDO, ADMIN, or MANAGER role.\n\n**Response:** Returns a list of PaymentSearchResultDto with:\n- txId - Payment transaction ID\n- clientId, clientName, clientPhone, clientEmail - Client information\n- amount - Payment amount\n- status - COMPLETED, REFUNDED, etc.\n- bonusGranted - Bonus points granted for this payment\n- bonusUsed - Bonus points used in this payment\n- initiatedBy - Email of user who created the payment\n- createdAt - Transaction date/time\n- refundReason - Reason if payment was refunded"
 					},
 					"response": [
 						{
@@ -899,7 +1064,7 @@
 							"_postman_previewlanguage": "json",
 							"header": [{"key": "Content-Type", "value": "application/json"}],
 							"cookie": [],
-							"body": "[\n  {\n    \"txId\": \"PTX-24-ABCDE\",\n    \"clientId\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"clientName\": \"Алексей Петров\",\n    \"clientPhone\": \"+7 (777) 123-45-67\",\n    \"clientEmail\": \"alexey@example.com\",\n    \"amount\": 12500.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"enteredByUsername\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T14:30:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 125.00,\n    \"bonusUsed\": 0.00,\n    \"refundReason\": null\n  },\n  {\n    \"txId\": \"PTX-24-FGHIJ\",\n    \"clientId\": \"8d0f7789-8536-51ef-055c-f18gc2g01bf8\",\n    \"clientName\": \"Мария Сидорова\",\n    \"clientPhone\": \"+7 (777) 234-56-78\",\n    \"clientEmail\": \"maria@example.com\",\n    \"amount\": 8750.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"enteredByUsername\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T15:45:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 0.00,\n    \"bonusUsed\": 500.00,\n    \"refundReason\": null\n  }\n]"
+							"body": "[\n  {\n    \"txId\": \"PTX-24-ABCDE\",\n    \"clientId\": \"7c9e6679-7425-40de-944b-e07fc1f90ae7\",\n    \"clientName\": \"Алексей Петров\",\n    \"clientPhone\": \"+7 (777) 123-45-67\",\n    \"clientEmail\": \"alexey@example.com\",\n    \"amount\": 12500.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"initiatedBy\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T14:30:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 125.00,\n    \"bonusUsed\": 0.00,\n    \"refundReason\": null\n  },\n  {\n    \"txId\": \"PTX-24-FGHIJ\",\n    \"clientId\": \"8d0f7789-8536-51ef-055c-f18gc2g01bf8\",\n    \"clientName\": \"Мария Сидорова\",\n    \"clientPhone\": \"+7 (777) 234-56-78\",\n    \"clientEmail\": \"maria@example.com\",\n    \"amount\": 8750.00,\n    \"status\": \"COMPLETED\",\n    \"paymentMethod\": null,\n    \"initiatedBy\": \"manager@example.com\",\n    \"createdAt\": \"2025-01-15T15:45:00\",\n    \"refundedPaymentTxId\": null,\n    \"bonusGranted\": 0.00,\n    \"bonusUsed\": 500.00,\n    \"refundReason\": null\n  }\n]"
 						},
 						{
 							"name": "User Not Found",
@@ -2769,6 +2934,52 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Get Overall Totals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/totals/overall",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"totals",
+								"overall"
+							]
+						},
+						"description": "Returns overall totals for all time:\n- totalPayments: Total number of completed payments (all time)\n- totalRevenue: Total revenue from all completed payments (all time)\n- totalBonusesGranted: Total amount of bonuses granted (all time) in tenge\n\nThis endpoint is useful for dashboard metrics showing lifetime totals."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/analytics/totals/overall",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "analytics", "totals", "overall"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"totalPayments\": 30,\n  \"totalRevenue\": 1095600.00,\n  \"totalBonusesGranted\": 10867.00\n}"
+						}
+					]
 				}
 			]
 		},
@@ -3158,6 +3369,11 @@
 		},
 		{
 			"key": "bonusTypeId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "resetToken",
 			"value": "",
 			"type": "string"
 		}

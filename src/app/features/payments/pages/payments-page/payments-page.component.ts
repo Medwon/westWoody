@@ -2,12 +2,17 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 
 interface Payment {
   id: string;
@@ -34,7 +39,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, PaginatedTableWrapperComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
@@ -50,7 +55,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ payments.length }}</span>
+              <span class="card-value">{{ totalPayments }}</span>
               <span class="card-label">Всего платежей</span>
             </div>
           </div>
@@ -62,7 +67,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ getPaymentsToday() }}</span>
+              <span class="card-value">{{ paymentsToday }}</span>
               <span class="card-label">Платежей сегодня</span>
             </div>
           </div>
@@ -73,7 +78,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ formatAmount(getTotalRevenue()) }} ₸</span>
+              <span class="card-value">{{ formatAmount(totalRevenue) }} ₸</span>
               <span class="card-label">Общий доход</span>
             </div>
           </div>
@@ -84,7 +89,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ formatAmount(getTotalBonusesEarned()) }}</span>
+              <span class="card-value">{{ formatAmount(totalBonusesGranted) }}</span>
               <span class="card-label">Бонусов начислено</span>
             </div>
           </div>
@@ -103,7 +108,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchPaymentId" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по ID платежа..."
                   class="filter-input">
               </div>
@@ -119,7 +123,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchClientName" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по клиенту..."
                   class="filter-input">
               </div>
@@ -134,7 +137,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchPhone" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по телефону..."
                   class="filter-input">
               </div>
@@ -147,14 +149,12 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="date" 
                   [(ngModel)]="dateFrom" 
-                  (change)="applyFilters()"
                   placeholder="ДД ММ ГГГГ"
                   class="date-input">
                 <span class="date-separator">—</span>
                 <input 
                   type="date" 
                   [(ngModel)]="dateTo" 
-                  (change)="applyFilters()"
                   placeholder="ДД ММ ГГГГ"
                   class="date-input">
               </div>
@@ -169,19 +169,19 @@ type SortDirection = 'asc' | 'desc';
                 <button 
                   class="type-btn" 
                   [class.active]="filterPaymentMethod === 'all'"
-                  (click)="setPaymentMethodFilter('all')">Все</button>
+                  (click)="filterPaymentMethod = 'all'">Все</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterPaymentMethod === 'cash'"
-                  (click)="setPaymentMethodFilter('cash')">Наличные</button>
+                  (click)="filterPaymentMethod = 'cash'">Наличные</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterPaymentMethod === 'card'"
-                  (click)="setPaymentMethodFilter('card')">Карта</button>
+                  (click)="filterPaymentMethod = 'card'">Карта</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterPaymentMethod === 'online'"
-                  (click)="setPaymentMethodFilter('online')">Онлайн</button>
+                  (click)="filterPaymentMethod = 'online'">Онлайн</button>
               </div>
             </div>
 
@@ -192,28 +192,28 @@ type SortDirection = 'asc' | 'desc';
                 <button 
                   class="type-btn" 
                   [class.active]="filterRefund === 'all'"
-                  (click)="setRefundFilter('all')">Все</button>
+                  (click)="filterRefund = 'all'">Все</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterRefund === 'paid'"
-                  (click)="setRefundFilter('paid')">Оплачено</button>
+                  (click)="filterRefund = 'paid'">Оплачено</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterRefund === 'refund'"
-                  (click)="setRefundFilter('refund')">Возврат</button>
+                  (click)="filterRefund = 'refund'">Возврат</button>
               </div>
             </div>
 
             <!-- Sort -->
             <div class="filter-group sort-group">
               <label class="filter-label">Сортировка:</label>
-              <select [(ngModel)]="sortField" (change)="applyFilters()" class="sort-select">
+              <select [(ngModel)]="sortField" class="sort-select">
                 <option value="date">По дате</option>
                 <option value="clientName">По клиенту</option>
                 <option value="amount">По сумме</option>
                 <option value="paymentMethod">По способу оплаты</option>
               </select>
-              <button class="sort-direction-btn" (click)="toggleSortDirection()">
+              <button class="sort-direction-btn" (click)="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" [class.desc]="sortDirection === 'desc'">
                   <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -249,18 +249,18 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
 
+        <!-- Loading State -->
+        <div class="loading-container" *ngIf="isLoading">
+          <app-loader></app-loader>
+        </div>
+
         <!-- Results count -->
-        <div class="results-info">
-          <span class="results-count">Найдено: {{ filteredPayments.length }} платежей</span>
+        <div class="results-info" *ngIf="!isLoading">
+          <span class="results-count">Найдено: {{ totalPaymentsFound }} платежей</span>
         </div>
 
         <!-- Payments Table with Pagination -->
-        <app-paginated-table-wrapper
-          [paginationEnabled]="true"
-          [data]="filteredPayments"
-          [defaultPageSize]="15"
-          #paginatedTable>
-          
+        <div *ngIf="!isLoading">
           <div class="table-container">
             <table class="payments-table">
               <thead>
@@ -276,10 +276,10 @@ type SortDirection = 'asc' | 'desc';
                 </tr>
               </thead>
               <tbody>
-                <ng-container *ngFor="let payment of paginatedTable.paginatedData">
+                <ng-container *ngFor="let payment of payments">
                   <tr class="payment-row">
                     <td class="td-id">
-                      <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                      <span class="payment-id">{{ payment.id }}</span>
                     </td>
                     <td class="td-client">
                       <div class="client-cell">
@@ -339,17 +339,6 @@ type SortDirection = 'asc' | 'desc';
                     </td>
                     <td class="td-actions">
                       <div class="actions-cell">
-                        <a [routerLink]="['/clients', payment.clientId]" class="action-link">
-                          <app-icon-button
-                            iconButtonType="view"
-                            size="small"
-                            tooltip="Просмотр клиента">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
-                              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                            </svg>
-                          </app-icon-button>
-                        </a>
                         <app-icon-button
                           iconButtonType="refund"
                           size="small"
@@ -407,7 +396,7 @@ type SortDirection = 'asc' | 'desc';
             </tbody>
           </table>
 
-          <div class="empty-state" *ngIf="filteredPayments.length === 0">
+          <div class="empty-state" *ngIf="payments.length === 0">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
@@ -416,7 +405,32 @@ type SortDirection = 'asc' | 'desc';
             <button class="reset-btn" (click)="clearFilters()">Сбросить фильтры</button>
           </div>
         </div>
-        </app-paginated-table-wrapper>
+
+        <!-- Backend Pagination -->
+        <div class="pagination-container" *ngIf="!isLoading && totalPaymentsFound > 0">
+          <div class="pagination-left">
+            <div class="pagination-info">
+              <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalPaymentsFound) }} из {{ totalPaymentsFound }}</span>
+            </div>
+            <div class="page-size-filter-section">
+              <label class="page-size-label">Строк на странице:</label>
+              <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
+                <option [value]="15">15</option>
+                <option [value]="30">30</option>
+                <option [value]="50">50</option>
+                <option [value]="100">100</option>
+              </select>
+            </div>
+          </div>
+          <div class="pagination-right" *ngIf="getTotalPages() > 1">
+            <app-pagination
+              [currentPage]="currentPage + 1"
+              [totalPages]="getTotalPages()"
+              (pageChange)="onPageChange($event)">
+            </app-pagination>
+          </div>
+        </div>
+        </div>
 
       </div>
     </div>
@@ -1132,6 +1146,70 @@ type SortDirection = 'asc' | 'desc';
       background: #14532d;
     }
 
+    /* Pagination Container */
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .pagination-left {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .pagination-right {
+      display: flex;
+      align-items: center;
+    }
+
+    .pagination-info {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .page-size-filter-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .page-size-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .page-size-select {
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: white;
+      color: #1f2937;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .page-size-select:hover {
+      border-color: #94a3b8;
+    }
+
+    .page-size-select:focus {
+      border-color: #16A34A;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
       .dashboard-grid {
@@ -1170,6 +1248,16 @@ type SortDirection = 'asc' | 'desc';
 })
 export class PaymentsPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
+  private analyticsService = inject(AnalyticsService);
+  private paymentsService = inject(PaymentsService);
+  private toastService = inject(ToastService);
+
+  // Dashboard data
+  totalPayments = 0;
+  paymentsToday = 0;
+  totalRevenue = 0;
+  totalBonusesGranted = 0;
+  isLoadingDashboard = true;
 
   // Filters
   searchPaymentId = '';
@@ -1186,417 +1274,12 @@ export class PaymentsPageComponent implements OnInit {
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
 
-  // Mock payments data
-  payments: Payment[] = [
-    {
-      id: '1',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 12500,
-      bonusEarned: 125,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '14:30',
-      initiatedBy: 'Иванов Иван Иванович',
-      initiatedById: '1'
-    },
-    {
-      id: '2',
-      clientId: '2',
-      clientName: 'ТОО «ТехноПлюс»',
-      clientPhone: '+7 (701) 555-12-34',
-      amount: 45000,
-      bonusEarned: 450,
-      bonusUsed: 200,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '12:15',
-      initiatedBy: 'Петрова Мария Сергеевна',
-      initiatedById: '2'
-    },
-    {
-      id: '3',
-      clientId: '3',
-      clientName: 'Мария Иванова',
-      clientPhone: '+7 (707) 987-65-43',
-      amount: 5600,
-      bonusEarned: 56,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '18:45',
-      initiatedBy: 'Сидоров Дмитрий Алексеевич',
-      initiatedById: '3'
-    },
-    {
-      id: '4',
-      clientId: '4',
-      clientName: 'Дмитрий Сидоров',
-      clientPhone: '+7 (702) 111-22-33',
-      amount: 8900,
-      bonusEarned: 0,
-      bonusUsed: 89,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '16:20',
-      initiatedBy: 'Козлова Анна Викторовна'
-    },
-    {
-      id: '5',
-      clientId: '5',
-      clientName: 'ИП «Строй-Мастер»',
-      clientPhone: '+7 (700) 333-44-55',
-      amount: 125000,
-      bonusEarned: 1250,
-      bonusUsed: 500,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '10:00',
-      initiatedBy: 'Иванов Иван Иванович'
-    },
-    {
-      id: '6',
-      clientId: '6',
-      clientName: 'Анна Козлова',
-      clientPhone: '+7 (778) 444-55-66',
-      amount: 23400,
-      bonusEarned: 234,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '13.01.2025',
-      time: '15:30',
-      initiatedBy: 'Петрова Мария Сергеевна'
-    },
-    {
-      id: '7',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 15600,
-      bonusEarned: 156,
-      bonusUsed: 50,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '13.01.2025',
-      time: '11:20'
-    },
-    {
-      id: '8',
-      clientId: '8',
-      clientName: 'ТОО «АльфаТрейд»',
-      clientPhone: '+7 (727) 999-88-77',
-      amount: 78000,
-      bonusEarned: 780,
-      bonusUsed: 0,
-      paymentMethod: 'online',
-      isRefund: true,
-      date: '12.01.2025',
-      time: '09:15',
-      refundReason: 'Возврат товара ненадлежащего качества',
-      refundBy: 'Иванов Иван Иванович'
-    },
-    {
-      id: '9',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 18900,
-      bonusEarned: 189,
-      bonusUsed: 100,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '12.01.2025',
-      time: '16:45'
-    },
-    {
-      id: '10',
-      clientId: '4',
-      clientName: 'Дмитрий Сидоров',
-      clientPhone: '+7 (702) 111-22-33',
-      amount: 12300,
-      bonusEarned: 123,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '12.01.2025',
-      time: '13:20'
-    },
-    {
-      id: '11',
-      clientId: '6',
-      clientName: 'Анна Козлова',
-      clientPhone: '+7 (778) 444-55-66',
-      amount: 45600,
-      bonusEarned: 456,
-      bonusUsed: 200,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '11.01.2025',
-      time: '17:30'
-    },
-    {
-      id: '12',
-      clientId: '2',
-      clientName: 'ТОО «ТехноПлюс»',
-      clientPhone: '+7 (701) 555-12-34',
-      amount: 98000,
-      bonusEarned: 980,
-      bonusUsed: 0,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '11.01.2025',
-      time: '10:00'
-    },
-    {
-      id: '13',
-      clientId: '3',
-      clientName: 'Мария Иванова',
-      clientPhone: '+7 (707) 987-65-43',
-      amount: 7800,
-      bonusEarned: 78,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '11.01.2025',
-      time: '19:15'
-    },
-    {
-      id: '14',
-      clientId: '5',
-      clientName: 'ИП «Строй-Мастер»',
-      clientPhone: '+7 (700) 333-44-55',
-      amount: 156000,
-      bonusEarned: 1560,
-      bonusUsed: 800,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '10.01.2025',
-      time: '14:00'
-    },
-    {
-      id: '15',
-      clientId: '7',
-      clientName: 'Сергей Николаев',
-      clientPhone: '+7 (705) 666-77-88',
-      amount: 11200,
-      bonusEarned: 112,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '10.01.2025',
-      time: '11:30'
-    },
-    {
-      id: '16',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 23400,
-      bonusEarned: 234,
-      bonusUsed: 150,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '10.01.2025',
-      time: '15:45'
-    },
-    {
-      id: '17',
-      clientId: '6',
-      clientName: 'Анна Козлова',
-      clientPhone: '+7 (778) 444-55-66',
-      amount: 34500,
-      bonusEarned: 345,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '09.01.2025',
-      time: '12:20'
-    },
-    {
-      id: '18',
-      clientId: '8',
-      clientName: 'ТОО «АльфаТрейд»',
-      clientPhone: '+7 (727) 999-88-77',
-      amount: 89000,
-      bonusEarned: 890,
-      bonusUsed: 400,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '09.01.2025',
-      time: '09:30'
-    },
-    {
-      id: '19',
-      clientId: '4',
-      clientName: 'Дмитрий Сидоров',
-      clientPhone: '+7 (702) 111-22-33',
-      amount: 16700,
-      bonusEarned: 167,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '09.01.2025',
-      time: '18:00'
-    },
-    {
-      id: '20',
-      clientId: '2',
-      clientName: 'ТОО «ТехноПлюс»',
-      clientPhone: '+7 (701) 555-12-34',
-      amount: 67000,
-      bonusEarned: 670,
-      bonusUsed: 300,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '08.01.2025',
-      time: '11:15'
-    },
-    {
-      id: '21',
-      clientId: '3',
-      clientName: 'Мария Иванова',
-      clientPhone: '+7 (707) 987-65-43',
-      amount: 9900,
-      bonusEarned: 99,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '08.01.2025',
-      time: '16:40'
-    },
-    {
-      id: '22',
-      clientId: '5',
-      clientName: 'ИП «Строй-Мастер»',
-      clientPhone: '+7 (700) 333-44-55',
-      amount: 145000,
-      bonusEarned: 1450,
-      bonusUsed: 600,
-      paymentMethod: 'online',
-      isRefund: true,
-      date: '08.01.2025',
-      time: '08:00',
-      refundReason: 'Отмена заказа по инициативе клиента',
-      refundBy: 'Петрова Мария Сергеевна'
-    },
-    {
-      id: '29',
-      clientId: '3',
-      clientName: 'Мария Иванова',
-      clientPhone: '+7 (707) 987-65-43',
-      amount: 5600,
-      bonusEarned: 0,
-      bonusUsed: 56,
-      paymentMethod: 'card',
-      isRefund: true,
-      date: '06.01.2025',
-      time: '14:30',
-      refundReason: 'Двойная оплата',
-      refundBy: 'Сидоров Дмитрий Алексеевич'
-    },
-    {
-      id: '30',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 8900,
-      bonusEarned: 0,
-      bonusUsed: 89,
-      paymentMethod: 'card',
-      isRefund: true,
-      date: '05.01.2025',
-      time: '16:15',
-      refundBy: 'Козлова Анна Викторовна'
-    },
-    {
-      id: '23',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 27800,
-      bonusEarned: 278,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '07.01.2025',
-      time: '14:25'
-    },
-    {
-      id: '24',
-      clientId: '6',
-      clientName: 'Анна Козлова',
-      clientPhone: '+7 (778) 444-55-66',
-      amount: 38900,
-      bonusEarned: 389,
-      bonusUsed: 250,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '07.01.2025',
-      time: '13:10'
-    },
-    {
-      id: '25',
-      clientId: '7',
-      clientName: 'Сергей Николаев',
-      clientPhone: '+7 (705) 666-77-88',
-      amount: 14500,
-      bonusEarned: 145,
-      bonusUsed: 0,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '07.01.2025',
-      time: '10:50'
-    },
-    {
-      id: '26',
-      clientId: '8',
-      clientName: 'ТОО «АльфаТрейд»',
-      clientPhone: '+7 (727) 999-88-77',
-      amount: 112000,
-      bonusEarned: 1120,
-      bonusUsed: 500,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '06.01.2025',
-      time: '15:00'
-    },
-    {
-      id: '27',
-      clientId: '4',
-      clientName: 'Дмитрий Сидоров',
-      clientPhone: '+7 (702) 111-22-33',
-      amount: 20100,
-      bonusEarned: 201,
-      bonusUsed: 100,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '06.01.2025',
-      time: '17:20'
-    },
-    {
-      id: '28',
-      clientId: '2',
-      clientName: 'ТОО «ТехноПлюс»',
-      clientPhone: '+7 (701) 555-12-34',
-      amount: 56000,
-      bonusEarned: 560,
-      bonusUsed: 0,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '05.01.2025',
-      time: '12:45'
-    }
-  ];
-
-  filteredPayments: Payment[] = [];
+  // Payments data
+  isLoading = false;
+  payments: Payment[] = [];
+  totalPaymentsFound = 0;
+  currentPage = 0;
+  pageSize = 15;
 
   // Раскрытые строки платежей
   expandedPaymentRows = new Set<string>();
@@ -1607,7 +1290,110 @@ export class PaymentsPageComponent implements OnInit {
       { label: 'Платежи' }
     ]);
     
-    this.applyFilters();
+    this.loadDashboardData();
+    this.loadPayments();
+  }
+
+  loadDashboardData(): void {
+    this.isLoadingDashboard = true;
+    forkJoin({
+      totals: this.analyticsService.getOverallTotals(),
+      daily: this.analyticsService.getDailyTransactions()
+    }).subscribe({
+      next: ({ totals, daily }) => {
+        this.totalPayments = totals.totalPayments;
+        this.totalRevenue = totals.totalRevenue;
+        this.totalBonusesGranted = totals.totalBonusesGranted;
+        this.paymentsToday = daily.count;
+        this.isLoadingDashboard = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки данных';
+        this.toastService.error(errorMessage);
+        this.isLoadingDashboard = false;
+      }
+    });
+  }
+
+  loadPayments(): void {
+    this.isLoading = true;
+    const searchRequest = this.buildSearchRequest();
+    
+    this.paymentsService.searchPayments(searchRequest).subscribe({
+      next: (response) => {
+        this.payments = response.content.map(result => this.mapSearchResultToPayment(result));
+        this.totalPaymentsFound = response.totalElements;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки платежей';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  buildSearchRequest() {
+    const request: any = {
+      paymentId: this.searchPaymentId.trim() || '',
+      clientName: this.searchClientName.trim() || '',
+      phone: this.searchPhone.trim() || '',
+      periodFrom: this.dateFrom ? `${this.dateFrom}T00:00:00` : null,
+      periodTo: this.dateTo ? `${this.dateTo}T23:59:59` : null,
+      paymentMethod: this.filterPaymentMethod !== 'all' ? this.filterPaymentMethod.toUpperCase() : null,
+      paymentType: this.filterRefund === 'all' ? 'ALL' : (this.filterRefund === 'paid' ? 'PAID' : 'REFUND'),
+      sortBy: this.mapSortField(this.sortField),
+      sortDirection: this.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      page: this.currentPage,
+      size: this.pageSize
+    };
+    return request;
+  }
+
+  mapSortField(field: SortField): 'date' | 'amount' | 'clientName' {
+    switch (field) {
+      case 'date':
+        return 'date';
+      case 'amount':
+        return 'amount';
+      case 'clientName':
+        return 'clientName';
+      default:
+        return 'date';
+    }
+  }
+
+  mapSearchResultToPayment(result: PaymentSearchResult): Payment {
+    const createdAt = new Date(result.createdAt);
+    const dateStr = this.formatDate(createdAt);
+    const timeStr = this.formatTime(createdAt);
+    
+    return {
+      id: result.txId,
+      clientId: result.clientId,
+      clientName: result.clientName,
+      clientPhone: result.clientPhone,
+      amount: result.amount,
+      bonusEarned: result.bonusGranted,
+      bonusUsed: result.bonusUsed,
+      paymentMethod: (result.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+      isRefund: result.status === 'REFUNDED' || !!result.refundedPaymentTxId,
+      date: dateStr,
+      time: timeStr,
+      refundReason: result.refundReason || undefined,
+      initiatedBy: result.initiatedBy || undefined
+    };
+  }
+
+  formatTime(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  formatPaymentId(id: string): string {
+    // Remove PTX- prefix if present
+    return id.replace(/^PTX-/, '');
   }
 
   togglePaymentRow(paymentId: string): void {
@@ -1629,12 +1415,6 @@ export class PaymentsPageComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
-  getPaymentsToday(): number {
-    const today = new Date();
-    const todayStr = this.formatDate(today);
-    return this.payments.filter(p => p.date === todayStr && !p.isRefund).length;
-  }
-
   formatDate(date: Date): string {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1642,25 +1422,8 @@ export class PaymentsPageComponent implements OnInit {
     return `${day}.${month}.${year}`;
   }
 
-  getTotalRevenue(): number {
-    return this.payments
-      .filter(p => !p.isRefund)
-      .reduce((sum, p) => sum + p.amount, 0);
-  }
-
-  getTotalBonusesEarned(): number {
-    return this.payments
-      .filter(p => !p.isRefund)
-      .reduce((sum, p) => sum + p.bonusEarned, 0);
-  }
-
   formatAmount(amount: number): string {
     return amount.toLocaleString('ru-RU');
-  }
-
-  formatPaymentId(id: string): string {
-    const numId = parseInt(id, 10);
-    return `PAY-${String(numId).padStart(3, '0')}`;
   }
 
   getInitials(name: string): string {
@@ -1680,122 +1443,32 @@ export class PaymentsPageComponent implements OnInit {
     return labels[method] || method;
   }
 
-
-  parseDate(dateStr: string): Date | null {
-    const parts = dateStr.split('.');
-    if (parts.length !== 3) return null;
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    return new Date(year, month, day);
-  }
-
   applyFilters(): void {
-    let result = [...this.payments];
-
-    // Filter by payment ID
-    if (this.searchPaymentId.trim()) {
-      const search = this.searchPaymentId.toLowerCase().replace(/\s/g, '');
-      result = result.filter(p => {
-        const paymentId = this.formatPaymentId(p.id).toLowerCase().replace(/\s/g, '');
-        return paymentId.includes(search);
-      });
-    }
-
-    // Filter by client name
-    if (this.searchClientName.trim()) {
-      const search = this.searchClientName.toLowerCase();
-      result = result.filter(p => 
-        p.clientName.toLowerCase().includes(search)
-      );
-    }
-
-    // Filter by phone
-    if (this.searchPhone.trim()) {
-      const search = this.searchPhone.replace(/\D/g, '');
-      result = result.filter(p => p.clientPhone.replace(/\D/g, '').includes(search));
-    }
-
-    // Filter by payment method
-    if (this.filterPaymentMethod !== 'all') {
-      result = result.filter(p => p.paymentMethod === this.filterPaymentMethod);
-    }
-
-    // Filter by refund
-    if (this.filterRefund !== 'all') {
-      if (this.filterRefund === 'paid') {
-        result = result.filter(p => !p.isRefund);
-      } else if (this.filterRefund === 'refund') {
-        result = result.filter(p => p.isRefund);
-      }
-    }
-
-    // Filter by date
-    if (this.dateFrom || this.dateTo) {
-      result = result.filter(p => {
-        const paymentDate = this.parseDate(p.date);
-        if (!paymentDate) return false;
-        
-        if (this.dateFrom) {
-          const fromDate = new Date(this.dateFrom);
-          fromDate.setHours(0, 0, 0, 0);
-          if (paymentDate < fromDate) return false;
-        }
-        
-        if (this.dateTo) {
-          const toDate = new Date(this.dateTo);
-          toDate.setHours(23, 59, 59, 999);
-          if (paymentDate > toDate) return false;
-        }
-        
-        return true;
-      });
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      let compareValue = 0;
-      
-      switch (this.sortField) {
-        case 'clientName':
-          compareValue = a.clientName.localeCompare(b.clientName);
-          break;
-        case 'amount':
-          compareValue = a.amount - b.amount;
-          break;
-        case 'date':
-          const dateA = this.parseDate(a.date);
-          const dateB = this.parseDate(b.date);
-          if (!dateA || !dateB) compareValue = 0;
-          else compareValue = dateA.getTime() - dateB.getTime();
-          if (compareValue === 0) {
-            compareValue = a.time.localeCompare(b.time);
-          }
-          break;
-        case 'paymentMethod':
-          compareValue = a.paymentMethod.localeCompare(b.paymentMethod);
-          break;
-      }
-
-      return this.sortDirection === 'asc' ? compareValue : -compareValue;
-    });
-
-    this.filteredPayments = result;
+    this.currentPage = 0; // Reset to first page when filters change
+    this.loadPayments();
   }
 
-  toggleSortDirection(): void {
-    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-    this.applyFilters();
+  onPageChange(page: number): void {
+    this.currentPage = page - 1; // Pagination component uses 1-based, API uses 0-based
+    this.loadPayments();
+    // Scroll to top of table
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+      tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
-  setPaymentMethodFilter(method: 'all' | 'cash' | 'card' | 'online'): void {
-    this.filterPaymentMethod = method;
-    this.applyFilters();
+  onPageSizeChange(): void {
+    this.currentPage = 0; // Reset to first page when changing page size
+    this.loadPayments();
   }
 
-  setRefundFilter(refund: 'all' | 'paid' | 'refund'): void {
-    this.filterRefund = refund;
-    this.applyFilters();
+  getTotalPages(): number {
+    return Math.ceil(this.totalPaymentsFound / this.pageSize);
+  }
+
+  get Math() {
+    return Math;
   }
 
   hasActiveFilters(): boolean {
@@ -1816,7 +1489,10 @@ export class PaymentsPageComponent implements OnInit {
     this.dateTo = '';
     this.filterPaymentMethod = 'all';
     this.filterRefund = 'all';
-    this.applyFilters();
+    this.sortField = 'date';
+    this.sortDirection = 'desc';
+    this.currentPage = 0;
+    this.loadPayments();
   }
 
   openRefundModal(payment: Payment): void {
@@ -1837,17 +1513,21 @@ export class PaymentsPageComponent implements OnInit {
       return;
     }
     
-    // Update payment to refund
-    const paymentToUpdate = this.payments.find(p => p.id === payment.id);
-    if (paymentToUpdate) {
-      paymentToUpdate.isRefund = true;
-    }
-    
-    // Apply filters to refresh the list
-    this.applyFilters();
-    
-    // Close modal
-    this.closeRefundModal();
+    const refundRequest = {
+      notes: payment.refundReason || 'Возврат платежа'
+    };
+
+    this.paymentsService.refundPayment(payment.id, refundRequest).subscribe({
+      next: () => {
+        this.toastService.success('Платеж успешно возвращен');
+        this.closeRefundModal();
+        this.loadPayments();
+        this.loadDashboardData();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при возврате платежа';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 }
-

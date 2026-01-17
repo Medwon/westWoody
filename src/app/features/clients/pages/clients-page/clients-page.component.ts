@@ -2,18 +2,23 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { ClientsService, ClientSearchResult } from '../../../../core/services/clients.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
-import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
+import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
 interface Client {
   id: string;
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
+  email: string | null;
   tags: string[];
   type: 'individual' | 'business';
   totalTransactions: number;
@@ -22,7 +27,6 @@ interface Client {
   bonusUsed: number;
   lastVisit: string;
   createdAt: string;
-  active: boolean;
 }
 
 type SortField = 'name' | 'phone' | 'totalAmount' | 'bonusBalance' | 'lastVisit' | 'createdAt' | 'totalTransactions';
@@ -31,7 +35,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginatedTableWrapperComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
@@ -47,7 +51,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ clients.length }}</span>
+              <span class="card-value">{{ totalClients }}</span>
               <span class="card-label">Всего клиентов</span>
             </div>
           </div>
@@ -60,8 +64,8 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ getClientsThisMonth() }}</span>
-              <span class="card-label">Клиентов за месяц</span>
+              <span class="card-value">{{ activeClientsThisMonth }}</span>
+              <span class="card-label">Активных клиентов за месяц</span>
             </div>
           </div>
           <div class="dashboard-card">
@@ -71,7 +75,7 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ formatAmount(getTotalRevenue()) }} ₸</span>
+              <span class="card-value">{{ formatAmount(totalRevenue) }} ₸</span>
               <span class="card-label">Общий доход</span>
             </div>
           </div>
@@ -82,10 +86,13 @@ type SortDirection = 'asc' | 'desc';
               </svg>
             </div>
             <div class="card-info">
-              <span class="card-value">{{ formatAmount(getTotalBonuses()) }}</span>
+              <span class="card-value">{{ formatAmount(totalBonusesGranted) }}</span>
               <span class="card-label">Бонусов в обороте</span>
             </div>
           </div>
+        </div>
+        <div class="loading-container" *ngIf="isLoadingDashboard">
+          <app-loader></app-loader>
         </div>
 
         <!-- Filters Section -->
@@ -101,7 +108,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchName" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по имени..."
                   class="filter-input">
               </div>
@@ -116,7 +122,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchPhone" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по телефону..."
                   class="filter-input">
               </div>
@@ -132,7 +137,6 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchEmail" 
-                  (input)="applyFilters()"
                   placeholder="Поиск по email..."
                   class="filter-input">
               </div>
@@ -145,14 +149,12 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="date" 
                   [(ngModel)]="dateFrom" 
-                  (change)="applyFilters()"
                   placeholder="ДД ММ ГГГГ"
                   class="date-input">
                 <span class="date-separator">—</span>
                 <input 
                   type="date" 
                   [(ngModel)]="dateTo" 
-                  (change)="applyFilters()"
                   placeholder="ДД ММ ГГГГ"
                   class="date-input">
               </div>
@@ -191,16 +193,12 @@ type SortDirection = 'asc' | 'desc';
             <!-- Sort -->
             <div class="filter-group sort-group">
               <label class="filter-label">Сортировка:</label>
-              <select [(ngModel)]="sortField" (change)="applyFilters()" class="sort-select">
+              <select [(ngModel)]="sortField" class="sort-select">
                 <option value="name">По имени</option>
-                <option value="phone">По телефону</option>
-                <option value="totalAmount">По сумме покупок</option>
-                <option value="bonusBalance">По бонусам</option>
-                <option value="totalTransactions">По кол-ву транзакций</option>
                 <option value="lastVisit">По последнему визиту</option>
                 <option value="createdAt">По дате регистрации</option>
               </select>
-              <button class="sort-direction-btn" (click)="toggleSortDirection()">
+              <button class="sort-direction-btn" (click)="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">
                 <svg viewBox="0 0 24 24" fill="none" [class.desc]="sortDirection === 'desc'">
                   <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -214,15 +212,15 @@ type SortDirection = 'asc' | 'desc';
                 <button 
                   class="type-btn" 
                   [class.active]="filterType === 'all'"
-                  (click)="setTypeFilter('all')">Все</button>
+                  (click)="filterType = 'all'">Все</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterType === 'individual'"
-                  (click)="setTypeFilter('individual')">Физ. лица</button>
+                  (click)="filterType = 'individual'">Физ. лица</button>
                 <button 
                   class="type-btn" 
                   [class.active]="filterType === 'business'"
-                  (click)="setTypeFilter('business')">Бизнес</button>
+                  (click)="filterType = 'business'">Бизнес</button>
               </div>
             </div>
 
@@ -255,18 +253,18 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
 
+        <!-- Loading State -->
+        <div class="loading-container" *ngIf="isLoading">
+          <app-loader></app-loader>
+        </div>
+
         <!-- Results count -->
-        <div class="results-info">
-          <span class="results-count">Найдено: {{ filteredClients.length }} клиентов</span>
+        <div class="results-info" *ngIf="!isLoading">
+          <span class="results-count">Найдено: {{ totalClientsFound }} клиентов</span>
         </div>
 
         <!-- Clients Table with Pagination -->
-        <app-paginated-table-wrapper
-          [paginationEnabled]="true"
-          [data]="filteredClients"
-          [defaultPageSize]="15"
-          #paginatedTable>
-          
+        <div *ngIf="!isLoading">
           <div class="table-container">
             <table class="clients-table">
               <thead>
@@ -281,7 +279,7 @@ type SortDirection = 'asc' | 'desc';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let client of paginatedTable.paginatedData" class="client-row" [class.inactive]="!client.active">
+                <tr *ngFor="let client of clients" class="client-row">
                 <td class="td-client">
                   <div class="client-cell">
                     <div class="client-avatar" [class.business]="client.type === 'business'">
@@ -345,22 +343,13 @@ type SortDirection = 'asc' | 'desc';
                         </svg>
                       </app-icon-button>
                     </a>
-                    <app-icon-button
-                      iconButtonType="edit"
-                      size="small"
-                      tooltip="Редактировать">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </app-icon-button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <div class="empty-state" *ngIf="filteredClients.length === 0">
+          <div class="empty-state" *ngIf="clients.length === 0">
             <svg viewBox="0 0 24 24" fill="none">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
@@ -371,7 +360,32 @@ type SortDirection = 'asc' | 'desc';
             </app-button>
           </div>
         </div>
-        </app-paginated-table-wrapper>
+
+        <!-- Backend Pagination -->
+        <div class="pagination-container" *ngIf="!isLoading && totalClientsFound > 0">
+          <div class="pagination-left">
+            <div class="pagination-info">
+              <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalClientsFound) }} из {{ totalClientsFound }}</span>
+            </div>
+            <div class="page-size-filter-section">
+              <label class="page-size-label">Строк на странице:</label>
+              <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
+                <option [value]="15">15</option>
+                <option [value]="30">30</option>
+                <option [value]="50">50</option>
+                <option [value]="100">100</option>
+              </select>
+            </div>
+          </div>
+          <div class="pagination-right" *ngIf="getTotalPages() > 1">
+            <app-pagination
+              [currentPage]="currentPage + 1"
+              [totalPages]="getTotalPages()"
+              (pageChange)="onPageChange($event)">
+            </app-pagination>
+          </div>
+        </div>
+        </div>
       </div>
     </div>
   `,
@@ -1081,10 +1095,91 @@ type SortDirection = 'asc' | 'desc';
         min-width: 900px;
       }
     }
+
+    /* Pagination Container */
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .pagination-left {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .pagination-right {
+      display: flex;
+      align-items: center;
+    }
+
+    .pagination-info {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .page-size-filter-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .page-size-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .page-size-select {
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: white;
+      color: #1f2937;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .page-size-select:hover {
+      border-color: #94a3b8;
+    }
+
+    .page-size-select:focus {
+      border-color: #16A34A;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+
+    .loading-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 3rem;
+    }
   `]
 })
 export class ClientsPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
+  private analyticsService = inject(AnalyticsService);
+  private clientsService = inject(ClientsService);
+  private toastService = inject(ToastService);
+
+  // Dashboard data
+  totalClients = 0;
+  activeClientsThisMonth = 0;
+  totalRevenue = 0;
+  totalBonusesGranted = 0;
+  isLoadingDashboard = true;
 
   // Filters
   searchName = '';
@@ -1095,149 +1190,19 @@ export class ClientsPageComponent implements OnInit {
   selectedTags: string[] = [];
   tagSearchInput = '';
   showTagDropdown = false;
-  sortField: SortField = 'lastVisit';
+  sortField: 'name' | 'createdAt' | 'lastVisit' = 'lastVisit';
   sortDirection: SortDirection = 'desc';
   filterType: 'all' | 'individual' | 'business' = 'all';
 
-  // All available tags
-  allTags: string[] = [
-    'VIP', 'Постоянный', 'Новый', 'Премиум', 'Скидка 5%', 'Скидка 10%',
-    'Скидка 15%', 'Скидка 20%', 'Бизнес', 'Корпоративный', 'Партнёр', 'Оптовик', 'Лояльный'
-  ];
+  // Available tags from API
+  allTags: string[] = [];
 
-  // Mock clients data
-  clients: Client[] = [
-    {
-      id: '1',
-      firstName: 'Алексей',
-      lastName: 'Петров',
-      phone: '+7 (777) 123-45-67',
-      email: 'alexey.petrov@mail.kz',
-      tags: ['VIP', 'Постоянный', 'Скидка 10%'],
-      type: 'individual',
-      totalTransactions: 156,
-      totalAmount: 485200,
-      bonusBalance: 2450,
-      bonusUsed: 1820,
-      lastVisit: '2 часа назад',
-      createdAt: '15.03.2024',
-      active: true
-    },
-    {
-      id: '2',
-      firstName: 'ТОО «ТехноПлюс»',
-      lastName: '',
-      phone: '+7 (701) 555-12-34',
-      email: 'info@technoplus.kz',
-      tags: ['Бизнес', 'Корпоративный', 'Оптовик'],
-      type: 'business',
-      totalTransactions: 89,
-      totalAmount: 1250000,
-      bonusBalance: 12500,
-      bonusUsed: 8200,
-      lastVisit: '1 день назад',
-      createdAt: '10.01.2024',
-      active: true
-    },
-    {
-      id: '3',
-      firstName: 'Мария',
-      lastName: 'Иванова',
-      phone: '+7 (707) 987-65-43',
-      email: 'maria.ivanova@gmail.com',
-      tags: ['Новый'],
-      type: 'individual',
-      totalTransactions: 3,
-      totalAmount: 15600,
-      bonusBalance: 156,
-      bonusUsed: 0,
-      lastVisit: '5 дней назад',
-      createdAt: '28.12.2025',
-      active: true
-    },
-    {
-      id: '4',
-      firstName: 'Дмитрий',
-      lastName: 'Сидоров',
-      phone: '+7 (702) 111-22-33',
-      email: 'dmitry.s@yandex.ru',
-      tags: ['Постоянный', 'Лояльный'],
-      type: 'individual',
-      totalTransactions: 45,
-      totalAmount: 128900,
-      bonusBalance: 890,
-      bonusUsed: 2100,
-      lastVisit: '3 дня назад',
-      createdAt: '05.06.2024',
-      active: true
-    },
-    {
-      id: '5',
-      firstName: 'ИП «Строй-Мастер»',
-      lastName: '',
-      phone: '+7 (700) 333-44-55',
-      email: 'stroymaster@mail.ru',
-      tags: ['Бизнес', 'Партнёр', 'Скидка 15%'],
-      type: 'business',
-      totalTransactions: 67,
-      totalAmount: 890000,
-      bonusBalance: 8900,
-      bonusUsed: 5600,
-      lastVisit: '1 неделю назад',
-      createdAt: '20.02.2024',
-      active: true
-    },
-    {
-      id: '6',
-      firstName: 'Анна',
-      lastName: 'Козлова',
-      phone: '+7 (778) 444-55-66',
-      email: 'anna.k@inbox.ru',
-      tags: ['VIP', 'Премиум', 'Скидка 20%'],
-      type: 'individual',
-      totalTransactions: 98,
-      totalAmount: 567000,
-      bonusBalance: 5670,
-      bonusUsed: 3200,
-      lastVisit: 'Сегодня',
-      createdAt: '12.11.2023',
-      active: true
-    },
-    {
-      id: '7',
-      firstName: 'Сергей',
-      lastName: 'Николаев',
-      phone: '+7 (705) 666-77-88',
-      email: '',
-      tags: ['Постоянный'],
-      type: 'individual',
-      totalTransactions: 28,
-      totalAmount: 78500,
-      bonusBalance: 450,
-      bonusUsed: 800,
-      lastVisit: '2 недели назад',
-      createdAt: '08.08.2024',
-      active: false
-    },
-    {
-      id: '8',
-      firstName: 'ТОО «АльфаТрейд»',
-      lastName: '',
-      phone: '+7 (727) 999-88-77',
-      email: 'sales@alphatrade.kz',
-      tags: ['Бизнес', 'Оптовик', 'Скидка 10%'],
-      type: 'business',
-      totalTransactions: 134,
-      totalAmount: 2340000,
-      bonusBalance: 23400,
-      bonusUsed: 15600,
-      lastVisit: 'Вчера',
-      createdAt: '03.04.2023',
-      active: true
-    }
-  ];
-
-  filteredClients: Client[] = [];
+  // Clients data
+  isLoading = false;
+  clients: Client[] = [];
+  totalClientsFound = 0;
+  currentPage = 0;
+  pageSize = 15;
 
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Клиенты', [
@@ -1245,40 +1210,165 @@ export class ClientsPageComponent implements OnInit {
       { label: 'Клиенты' }
     ]);
     
-    this.applyFilters();
+    this.loadDashboardData();
+    this.loadClients();
+    this.loadTags();
   }
 
+  loadTags(): void {
+    this.clientsService.getTags().subscribe({
+      next: (tags) => {
+        this.allTags = tags;
+      },
+      error: (err) => {
+        // Silently fail - tags are optional
+        console.error('Failed to load tags:', err);
+      }
+    });
+  }
+
+  loadDashboardData(): void {
+    this.isLoadingDashboard = true;
+    forkJoin({
+      totals: this.analyticsService.getOverallTotals(),
+      active: this.analyticsService.getActiveClients()
+    }).subscribe({
+      next: ({ totals, active }) => {
+        this.totalClients = totals.totalClients;
+        this.totalRevenue = totals.totalRevenue;
+        this.totalBonusesGranted = totals.totalBonusesGranted;
+        this.activeClientsThisMonth = active.count;
+        this.isLoadingDashboard = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки данных';
+        this.toastService.error(errorMessage);
+        this.isLoadingDashboard = false;
+      }
+    });
+  }
+
+  loadClients(): void {
+    this.isLoading = true;
+    const searchRequest = this.buildSearchRequest();
+    
+    this.clientsService.searchClients(searchRequest).subscribe({
+      next: (response) => {
+        this.clients = response.content.map(result => this.mapSearchResultToClient(result));
+        this.totalClientsFound = response.totalElements;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки клиентов';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  buildSearchRequest() {
+    const request: any = {
+      name: this.searchName.trim() || '',
+      phone: this.searchPhone.trim() || '',
+      email: this.searchEmail.trim() || '',
+      lastVisitFrom: this.dateFrom ? `${this.dateFrom}T00:00:00` : null,
+      lastVisitTo: this.dateTo ? `${this.dateTo}T23:59:59` : null,
+      tags: this.selectedTags.length > 0 ? this.selectedTags : [],
+      clientType: this.filterType !== 'all' ? (this.filterType === 'individual' ? 'INDIVIDUAL' : 'BUSINESS') : null,
+      sortBy: this.mapSortField(this.sortField),
+      sortDirection: this.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      page: this.currentPage,
+      size: this.pageSize
+    };
+    return request;
+  }
+
+  mapSortField(field: 'name' | 'createdAt' | 'lastVisit'): 'name' | 'createdAt' | 'lastVisit' {
+    return field;
+  }
+
+  mapSearchResultToClient(result: ClientSearchResult): Client {
+    const lastVisitDate = result.lastVisit ? new Date(result.lastVisit) : null;
+    const createdAtDate = result.createdAt ? new Date(result.createdAt) : null;
+    
+    return {
+      id: result.id,
+      firstName: result.name,
+      lastName: result.surname || '',
+      phone: result.phone,
+      email: result.email,
+      tags: result.tags || [],
+      type: result.clientType === 'BUSINESS' ? 'business' : 'individual',
+      totalTransactions: result.transactionCount,
+      totalAmount: result.totalSpent,
+      bonusBalance: result.bonusBalance,
+      bonusUsed: result.bonusUsed,
+      lastVisit: lastVisitDate ? this.formatLastVisit(lastVisitDate) : '—',
+      createdAt: createdAtDate ? this.formatDate(createdAtDate) : '—'
+    };
+  }
+
+  formatLastVisit(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) {
+      return `${diffMins} мин. назад`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ч. назад`;
+    } else if (diffDays === 1) {
+      return 'Вчера';
+    } else if (diffDays < 7) {
+      return `${diffDays} дн. назад`;
+    } else {
+      return this.formatDate(date);
+    }
+  }
+
+  formatDate(date: Date): string {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  applyFilters(): void {
+    this.currentPage = 0; // Reset to first page when filters change
+    this.loadClients();
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = page - 1; // Pagination component uses 1-based, API uses 0-based
+    this.loadClients();
+    // Scroll to top of table
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+      tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  onPageSizeChange(): void {
+    this.currentPage = 0; // Reset to first page when changing page size
+    this.loadClients();
+  }
+
+  getTotalPages(): number {
+    return Math.ceil(this.totalClientsFound / this.pageSize);
+  }
+
+  get Math() {
+    return Math;
+  }
+
+  // Legacy methods kept for compatibility but not used
   formatDateForInput(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }
-
-  getClientsThisMonth(): number {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    return this.clients.filter(c => {
-      // Парсим дату из формата DD.MM.YYYY
-      const dateParts = c.createdAt.split('.');
-      if (dateParts.length !== 3) return false;
-      
-      const day = parseInt(dateParts[0], 10);
-      const month = parseInt(dateParts[1], 10) - 1; // месяцы в JS начинаются с 0
-      const year = parseInt(dateParts[2], 10);
-      
-      return month === currentMonth && year === currentYear;
-    }).length;
-  }
-
-  getTotalRevenue(): number {
-    return this.clients.reduce((sum, c) => sum + c.totalAmount, 0);
-  }
-
-  getTotalBonuses(): number {
-    return this.clients.reduce((sum, c) => sum + c.bonusBalance, 0);
   }
 
   formatAmount(amount: number): string {
@@ -1294,169 +1384,9 @@ export class ClientsPageComponent implements OnInit {
     return `${firstInitial}${lastInitial}`.toUpperCase();
   }
 
-  parseLastVisitDate(lastVisit: string): Date | null {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    lastVisit = lastVisit.toLowerCase().trim();
-    
-    if (lastVisit === 'сегодня') {
-      return today;
-    }
-    
-    if (lastVisit === 'вчера') {
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      return yesterday;
-    }
-    
-    // Парсим "X часа/часов назад"
-    const hoursMatch = lastVisit.match(/(\d+)\s*(час|часа|часов)\s*назад/);
-    if (hoursMatch) {
-      const hours = parseInt(hoursMatch[1], 10);
-      const visitDate = new Date(now);
-      visitDate.setHours(visitDate.getHours() - hours);
-      return visitDate;
-    }
-    
-    // Парсим "X день/дня/дней назад"
-    const daysMatch = lastVisit.match(/(\d+)\s*(день|дня|дней)\s*назад/);
-    if (daysMatch) {
-      const days = parseInt(daysMatch[1], 10);
-      const visitDate = new Date(today);
-      visitDate.setDate(visitDate.getDate() - days);
-      return visitDate;
-    }
-    
-    // Парсим "X неделю/недели/недель назад"
-    const weeksMatch = lastVisit.match(/(\d+)\s*(неделю|недели|недель)\s*назад/);
-    if (weeksMatch) {
-      const weeks = parseInt(weeksMatch[1], 10);
-      const visitDate = new Date(today);
-      visitDate.setDate(visitDate.getDate() - (weeks * 7));
-      return visitDate;
-    }
-    
-    // Парсим "X месяц/месяца/месяцев назад"
-    const monthsMatch = lastVisit.match(/(\d+)\s*(месяц|месяца|месяцев)\s*назад/);
-    if (monthsMatch) {
-      const months = parseInt(monthsMatch[1], 10);
-      const visitDate = new Date(today);
-      visitDate.setMonth(visitDate.getMonth() - months);
-      return visitDate;
-    }
-    
-    return null;
-  }
-
-  applyFilters(): void {
-    let result = [...this.clients];
-
-    // Filter by name
-    if (this.searchName.trim()) {
-      const search = this.searchName.toLowerCase();
-      result = result.filter(c => 
-        c.firstName.toLowerCase().includes(search) || 
-        (c.lastName && c.lastName.toLowerCase().includes(search))
-      );
-    }
-
-    // Filter by phone
-    if (this.searchPhone.trim()) {
-      const search = this.searchPhone.replace(/\D/g, '');
-      result = result.filter(c => c.phone.replace(/\D/g, '').includes(search));
-    }
-
-    // Filter by email
-    if (this.searchEmail.trim()) {
-      const search = this.searchEmail.toLowerCase();
-      result = result.filter(c => c.email && c.email.toLowerCase().includes(search));
-    }
-
-    // Filter by tags
-    if (this.selectedTags.length > 0) {
-      result = result.filter(c => 
-        this.selectedTags.every(tag => c.tags.includes(tag))
-      );
-    }
-
-    // Filter by type
-    if (this.filterType !== 'all') {
-      result = result.filter(c => c.type === this.filterType);
-    }
-
-    // Filter by date (last visit)
-    if (this.dateFrom || this.dateTo) {
-      result = result.filter(c => {
-        const visitDate = this.parseLastVisitDate(c.lastVisit);
-        if (!visitDate) return false;
-        
-        if (this.dateFrom) {
-          const fromDate = new Date(this.dateFrom);
-          fromDate.setHours(0, 0, 0, 0);
-          if (visitDate < fromDate) return false;
-        }
-        
-        if (this.dateTo) {
-          const toDate = new Date(this.dateTo);
-          toDate.setHours(23, 59, 59, 999);
-          if (visitDate > toDate) return false;
-        }
-        
-        return true;
-      });
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      let compareValue = 0;
-      
-      switch (this.sortField) {
-        case 'name':
-          const nameA = `${a.firstName} ${a.lastName || ''}`.trim();
-          const nameB = `${b.firstName} ${b.lastName || ''}`.trim();
-          compareValue = nameA.localeCompare(nameB);
-          break;
-        case 'phone':
-          compareValue = a.phone.localeCompare(b.phone);
-          break;
-        case 'totalAmount':
-          compareValue = a.totalAmount - b.totalAmount;
-          break;
-        case 'bonusBalance':
-          compareValue = a.bonusBalance - b.bonusBalance;
-          break;
-        case 'totalTransactions':
-          compareValue = a.totalTransactions - b.totalTransactions;
-          break;
-        case 'lastVisit':
-          compareValue = a.lastVisit.localeCompare(b.lastVisit);
-          break;
-        case 'createdAt':
-          compareValue = a.createdAt.localeCompare(b.createdAt);
-          break;
-      }
-
-      return this.sortDirection === 'asc' ? compareValue : -compareValue;
-    });
-
-    this.filteredClients = result;
-  }
-
-  toggleSortDirection(): void {
-    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-    this.applyFilters();
-  }
-
-  setTypeFilter(type: 'all' | 'individual' | 'business'): void {
-    this.filterType = type;
-    this.applyFilters();
-  }
-
   addTagFilter(tag: string): void {
     if (!this.selectedTags.includes(tag)) {
       this.selectedTags.push(tag);
-      this.applyFilters();
     }
     this.tagSearchInput = '';
     this.showTagDropdown = false;
@@ -1464,7 +1394,6 @@ export class ClientsPageComponent implements OnInit {
 
   removeTagFilter(index: number): void {
     this.selectedTags.splice(index, 1);
-    this.applyFilters();
   }
 
   filterAvailableTags(): void {
@@ -1498,6 +1427,9 @@ export class ClientsPageComponent implements OnInit {
     this.selectedTags = [];
     this.tagSearchInput = '';
     this.filterType = 'all';
-    this.applyFilters();
+    this.sortField = 'lastVisit';
+    this.sortDirection = 'desc';
+    this.currentPage = 0;
+    this.loadClients();
   }
 }
