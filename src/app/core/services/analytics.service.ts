@@ -30,6 +30,13 @@ export interface ActiveClientsResponse {
   period?: string;
 }
 
+export interface ClientTotalsResponse {
+  totalPayments: number;
+  totalRevenue: number;
+  totalBonusesGranted: number;
+  totalBonusesUsed: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -78,5 +85,14 @@ export class AnalyticsService {
    */
   getActiveClients(): Observable<ActiveClientsResponse> {
     return this.http.get<ActiveClientsResponse>(`${this.apiUrl}/clients/active`);
+  }
+
+  /**
+   * Get client totals for dashboard
+   * @param clientId - Client ID
+   * @returns Observable with client totals data
+   */
+  getClientTotals(clientId: string): Observable<ClientTotalsResponse> {
+    return this.http.get<ClientTotalsResponse>(`${this.apiUrl}/clients/${clientId}/totals`);
   }
 }
