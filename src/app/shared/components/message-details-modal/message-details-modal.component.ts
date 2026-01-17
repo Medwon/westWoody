@@ -14,6 +14,7 @@ export interface MessageDetails {
   sentAt: Date;
   status: 'sent' | 'pending' | 'failed';
   templateName?: string;
+  initiatedByUsername?: string;
 }
 
 @Component({
@@ -82,6 +83,20 @@ export interface MessageDetails {
           <div class="detail-label">Шаблон</div>
           <div class="detail-value">
             <span class="template-badge">{{ message.templateName }}</span>
+          </div>
+        </div>
+
+        <!-- Initiated By -->
+        <div class="detail-section" *ngIf="message.initiatedByUsername">
+          <div class="detail-label">Отправил</div>
+          <div class="detail-value">
+            <div class="sender-info">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ message.initiatedByUsername }}</span>
+            </div>
           </div>
         </div>
 
@@ -174,6 +189,19 @@ export interface MessageDetails {
       border-radius: 8px;
       font-size: 0.875rem;
       font-weight: 500;
+    }
+
+    .sender-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sender-info svg {
+      width: 18px;
+      height: 18px;
+      color: #64748b;
+      flex-shrink: 0;
     }
 
     .message-section {

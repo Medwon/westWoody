@@ -7,6 +7,9 @@ import { AppState } from '../../../../core/store/app.state';
 import { selectUser } from '../../../../core/store/auth/auth.selectors';
 import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { MessageTemplatesService, MessageTemplate as ApiMessageTemplate } from '../../../../core/services/message-templates.service';
+import { MessagesService, MessageRecord } from '../../../../core/services/messages.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 // Shared Components
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -18,13 +21,16 @@ import { PaginatedTableWrapperComponent } from '../../../../shared/components/pa
 interface InvitationHistory {
   id: string;
   phone: string;
+  clientName?: string;
   message: string;
   sentAt: Date;
+  createdAt?: Date;
   status: 'sent' | 'pending' | 'failed';
   templateId?: string;
   templateName?: string;
-  templateType?: 'bonus_accrued' | 'bonus_expiration';
+  templateType?: string; // Can be any string from API
   type: 'whatsapp';
+  initiatedByUsername?: string;
 }
 
 @Component({
@@ -54,6 +60,8 @@ interface InvitationHistory {
         [successMessage]="successMessage"
         [errorMessage]="errorMessage"
         [hideForm]="true"
+        [templateTypes]="templateTypes"
+        [templateVariables]="templateVariables"
         (formSubmit)="onSubmit()"
         (templateSelected)="onTemplateSelected($event)"
         (templateCreated)="onTemplateCreated($event)"
@@ -99,6 +107,7 @@ interface InvitationHistory {
                   <th>Получатель</th>
                   <th>Время отправки</th>
                   <th>Шаблон</th>
+                  <th>Отправил</th>
                   <th>Статус</th>
                   <th>Действия</th>
                 </tr>
@@ -110,17 +119,20 @@ interface InvitationHistory {
                       <svg viewBox="0 0 24 24" fill="none">
                         <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                      <span class="recipient-value">{{ formatPhone(item.phone) }}</span>
+                      <span class="recipient-value">{{ item.clientName || formatPhone(item.phone) }}</span>
                     </div>
                   </td>
                   <td>
-                    <span class="time-value">{{ formatDate(item.sentAt) }}</span>
+                    <span class="time-value">{{ formatDate(item.createdAt || item.sentAt) }}</span>
                   </td>
                   <td>
                     <span class="template-name" *ngIf="item.templateName">
                       {{ item.templateName }}
                     </span>
                     <span class="no-template" *ngIf="!item.templateName">—</span>
+                  </td>
+                  <td>
+                    <span class="sender-value">{{ item.initiatedByUsername || '—' }}</span>
                   </td>
                   <td>
                     <app-badge 
@@ -315,6 +327,12 @@ interface InvitationHistory {
       font-style: italic;
     }
 
+    .sender-value {
+      font-size: 0.875rem;
+      color: #475569;
+      font-weight: 500;
+    }
+
     .actions-cell {
       display: flex;
       align-items: center;
@@ -348,9 +366,17 @@ export class InvitationPageComponent implements OnInit {
   showMessageDetailsModal = false;
   selectedMessage: MessageDetails | null = null;
 
+  isLoading = false;
+  isLoadingTemplates = false;
+  templateTypes: Array<{ type: string; displayName: string }> = [];
+  templateVariables: Array<{ name: string; description: string }> = [];
+
   whatsappIconSvg: string;
 
   private pageHeaderService = inject(PageHeaderService);
+  private messageTemplatesService = inject(MessageTemplatesService);
+  private messagesService = inject(MessagesService);
+  private toastService = inject(ToastService);
 
   private defaultMessage = `Привет! 👋
 
@@ -375,9 +401,6 @@ https://westwood.app/register`;
         <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/>
       </svg>
     `;
-
-    this.loadHistory();
-    this.loadTemplates();
   }
 
   ngOnInit(): void {
@@ -386,6 +409,10 @@ https://westwood.app/register`;
       { label: 'Коммуникация' },
       { label: 'WhatsApp' }
     ]);
+    this.loadHistory();
+    this.loadTemplates();
+    this.loadTemplateTypes();
+    this.loadTemplateVariables();
   }
 
   onSubmit(): void {
@@ -404,22 +431,12 @@ https://westwood.app/register`;
             ? this.messageTemplates.find(t => t.id === this.selectedTemplateId)
             : null;
           
-          const invitation: InvitationHistory = {
-            id: Date.now().toString(),
-            phone: '', // Будет заполнено из другого источника
-            message: message,
-            sentAt: new Date(),
-            status: 'sent',
-            templateId: selectedTemplate?.id,
-            templateName: selectedTemplate?.name,
-            templateType: selectedTemplate?.type,
-            type: 'whatsapp'
-          };
-          
-          this.invitationHistory.unshift(invitation);
-          this.saveHistory();
-          
+          // Note: Actual message sending should be handled by the /send endpoint in another part of the app
+          // Here we just show success message
           this.successMessage = 'Сообщение готово к отправке';
+          
+          // Reload history to get latest messages from backend
+          this.loadHistory();
           this.invitationForm.patchValue({ message: this.defaultMessage });
           this.selectedTemplateId = null;
         } catch (error) {
@@ -435,21 +452,72 @@ https://westwood.app/register`;
   }
 
   onTemplateCreated(template: MessageTemplate): void {
-    this.messageTemplates.push(template);
-    this.saveTemplates();
+    // Map frontend template to API format
+    const apiTemplate: ApiMessageTemplate = {
+      id: template.id,
+      name: template.name,
+      type: template.type,
+      content: template.content,
+      createdAt: template.createdAt?.toISOString()
+    };
+
+    this.messageTemplatesService.createTemplate({
+      name: apiTemplate.name,
+      type: apiTemplate.type,
+      content: apiTemplate.content
+    }).subscribe({
+      next: (createdTemplate) => {
+        const frontendTemplate = this.mapApiTemplateToFrontend(createdTemplate);
+        this.messageTemplates.push(frontendTemplate);
+        this.toastService.success('Шаблон успешно создан');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка создания шаблона';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 
   onTemplateUpdated(template: MessageTemplate): void {
-    const index = this.messageTemplates.findIndex(t => t.id === template.id);
-    if (index !== -1) {
-      this.messageTemplates[index] = template;
-      this.saveTemplates();
-    }
+    // Map frontend template to API format
+    const apiTemplate: ApiMessageTemplate = {
+      id: template.id,
+      name: template.name,
+      type: template.type,
+      content: template.content
+    };
+
+    this.messageTemplatesService.updateTemplate(template.id, {
+      name: apiTemplate.name,
+      type: apiTemplate.type,
+      content: apiTemplate.content
+    }).subscribe({
+      next: (updatedTemplate) => {
+        const frontendTemplate = this.mapApiTemplateToFrontend(updatedTemplate);
+        const index = this.messageTemplates.findIndex(t => t.id === template.id);
+        if (index !== -1) {
+          this.messageTemplates[index] = frontendTemplate;
+        }
+        this.toastService.success('Шаблон успешно обновлен');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка обновления шаблона';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 
   onTemplateDeleted(templateId: string): void {
-    this.messageTemplates = this.messageTemplates.filter(t => t.id !== templateId);
-    this.saveTemplates();
+    this.messageTemplatesService.deleteTemplate(templateId).subscribe({
+      next: () => {
+        this.messageTemplates = this.messageTemplates.filter(t => t.id !== templateId);
+        this.toastService.success('Шаблон успешно удален');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка удаления шаблона';
+        this.toastService.error(errorMessage);
+      }
+    });
   }
 
   formatPhone(phone: string): string {
@@ -461,8 +529,11 @@ https://westwood.app/register`;
     return phone;
   }
 
-  formatDate(date: Date): string {
-    const d = new Date(date);
+  formatDate(date: Date | undefined | null): string {
+    if (!date) return '—';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '—';
+    
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -472,7 +543,7 @@ https://westwood.app/register`;
     if (diffMins < 60) return `${diffMins} мин назад`;
     if (diffHours < 24) return `${diffHours} ч назад`;
     
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   getStatusBadgeType(status: string): 'success' | 'warning' | 'danger' {
@@ -505,11 +576,12 @@ https://westwood.app/register`;
     this.selectedMessage = {
       id: item.id,
       type: 'whatsapp',
-      recipient: item.phone,
+      recipient: item.clientName || item.phone,
       message: item.message,
-      sentAt: item.sentAt,
+      sentAt: item.createdAt || item.sentAt,
       status: item.status,
-      templateName: item.templateName
+      templateName: item.templateName,
+      initiatedByUsername: item.initiatedByUsername
     };
     this.showMessageDetailsModal = true;
   }
@@ -525,56 +597,105 @@ https://westwood.app/register`;
   }
 
   private loadHistory(): void {
-    try {
-      const saved = localStorage.getItem('invitation_history');
-      if (saved) {
-        const history = JSON.parse(saved);
-        // Добавляем type для старых записей
-        this.invitationHistory = history.map((item: any) => ({
-          ...item,
-          type: item.type || 'whatsapp'
-        }));
+    this.isLoading = true;
+    this.messagesService.getMessagesByChannel('WHATSAPP').subscribe({
+      next: (messages) => {
+        this.invitationHistory = messages.map(msg => this.mapMessageRecordToHistory(msg));
+        this.isLoading = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки истории сообщений';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+        this.invitationHistory = [];
       }
-    } catch (e) {
-      this.invitationHistory = [];
-    }
-  }
-
-  private saveHistory(): void {
-    try {
-      const toSave = this.invitationHistory.slice(0, 50);
-      localStorage.setItem('invitation_history', JSON.stringify(toSave));
-    } catch (e) {
-      console.error('Failed to save history', e);
-    }
+    });
   }
 
   private loadTemplates(): void {
-    try {
-      const saved = localStorage.getItem('whatsapp_message_templates');
-      if (saved) {
-        this.messageTemplates = JSON.parse(saved);
-      } else {
-        // Default template
-        this.messageTemplates = [{
-          id: '1',
-          name: 'Приветственное сообщение',
-          type: 'bonus_accrued',
-          content: this.defaultMessage,
-          createdAt: new Date()
-        }];
-        this.saveTemplates();
+    this.isLoadingTemplates = true;
+    this.messageTemplatesService.getAllTemplates().subscribe({
+      next: (templates) => {
+        this.messageTemplates = templates.map(t => this.mapApiTemplateToFrontend(t));
+        this.isLoadingTemplates = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки шаблонов';
+        this.toastService.error(errorMessage);
+        this.isLoadingTemplates = false;
+        this.messageTemplates = [];
       }
-    } catch (e) {
-      this.messageTemplates = [];
-    }
+    });
   }
 
-  private saveTemplates(): void {
-    try {
-      localStorage.setItem('whatsapp_message_templates', JSON.stringify(this.messageTemplates));
-    } catch (e) {
-      console.error('Failed to save templates', e);
+  private mapMessageRecordToHistory(record: MessageRecord): InvitationHistory {
+    return {
+      id: record.id,
+      phone: '', // Phone number might need to be fetched from client data
+      clientName: record.clientName,
+      message: record.messageContent,
+      sentAt: record.sentAt ? new Date(record.sentAt) : new Date(),
+      createdAt: record.createdAt ? new Date(record.createdAt) : undefined,
+      status: this.mapMessageStatus(record.status),
+      templateId: undefined, // May need to extract from message content or add to API response
+      templateName: undefined,
+      templateType: undefined,
+      type: 'whatsapp',
+      initiatedByUsername: record.initiatedByUsername
+    };
+  }
+
+  private mapApiTemplateToFrontend(template: ApiMessageTemplate): MessageTemplate {
+    return {
+      id: template.id,
+      name: template.name,
+      type: template.type, // Use API type directly
+      content: template.content,
+      createdAt: template.createdAt ? new Date(template.createdAt) : new Date()
+    };
+  }
+
+  private mapMessageStatus(status: string): 'sent' | 'pending' | 'failed' {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'sent' || statusLower === 'delivered') {
+      return 'sent';
     }
+    if (statusLower === 'pending' || statusLower === 'sending') {
+      return 'pending';
+    }
+    if (statusLower === 'failed' || statusLower === 'error') {
+      return 'failed';
+    }
+    return 'sent'; // Default
+  }
+
+  private loadTemplateTypes(): void {
+    this.messageTemplatesService.getTemplateTypes().subscribe({
+      next: (types) => {
+        this.templateTypes = types;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки типов шаблонов';
+        this.toastService.error(errorMessage);
+        this.templateTypes = [];
+      }
+    });
+  }
+
+  private loadTemplateVariables(): void {
+    this.messageTemplatesService.getTemplateVariables().subscribe({
+      next: (variables) => {
+        // Map API variables to format expected by form component
+        this.templateVariables = variables.map(v => ({
+          name: `{{${v.name}}}`,
+          description: v.description
+        }));
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка загрузки переменных шаблонов';
+        this.toastService.error(errorMessage);
+        this.templateVariables = [];
+      }
+    });
   }
 }

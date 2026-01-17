@@ -24,7 +24,7 @@ interface EmailInvitationHistory {
   status: 'sent' | 'pending' | 'failed';
   templateId?: string;
   templateName?: string;
-  templateType?: 'bonus_accrued' | 'bonus_expiration';
+  templateType?: string; // Can be any string from API
   type: 'email';
 }
 

@@ -17,7 +17,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 export interface MessageTemplate {
   id: string;
   name: string;
-  type: 'bonus_accrued' | 'bonus_expiration';
+  type: string; // Can be any string from API (e.g., 'BASIC_CASHBACK_BONUS_GRANT', etc.)
   content: string;
   subject?: string; // For email
   createdAt: Date;
@@ -285,6 +285,7 @@ export interface MessageTemplate {
       [showCloseButton]="true"
       [showFooter]="true"
       (closed)="closeCreateTemplateModal()"
+      (visibleChange)="showCreateTemplateModal = $event"
       size="large">
       
       <div class="template-form">
@@ -304,9 +305,12 @@ export interface MessageTemplate {
             <select 
               [(ngModel)]="newTemplate.type"
               class="type-dropdown"
-              [attr.data-type]="invitationType">
-              <option value="bonus_accrued">Начисленные бонусы</option>
-              <option value="bonus_expiration">Срок истечения бонусов</option>
+              [attr.data-type]="invitationType"
+              [disabled]="templateTypes.length === 0">
+              <option *ngIf="templateTypes.length === 0" value="">Загрузка типов...</option>
+              <option *ngFor="let templateType of templateTypes" [value]="templateType.type">
+                {{ templateType.displayName }}
+              </option>
             </select>
             <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none">
               <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1332,6 +1336,8 @@ export class InvitationFormComponent implements AfterViewInit {
   @Input() successMessage = '';
   @Input() errorMessage = '';
   @Input() hideForm = false;
+  @Input() templateTypes: Array<{ type: string; displayName: string }> = [];
+  @Input() templateVariables: Array<{ name: string; description: string }> = [];
   @Output() formSubmit = new EventEmitter<void>();
   @Output() templateSelected = new EventEmitter<MessageTemplate>();
   @Output() templateCreated = new EventEmitter<MessageTemplate>();
@@ -1364,19 +1370,13 @@ export class InvitationFormComponent implements AfterViewInit {
   messageDropdownPosition = { top: 0, left: 0 };
   currentMessageBracePosition = -1;
 
-  availableVariables = [
-    { name: 'clientName', description: 'Имя клиента' },
-    { name: 'clientBonus', description: 'Бонусы клиента' },
-    { name: 'clientPhone', description: 'Телефон клиента' },
-    { name: 'clientBonusExp', description: 'Срок истечения бонусов' },
-    { name: 'clientEmail', description: 'Email клиента' },
-    { name: 'clientTotalAmount', description: 'Общая сумма покупок' },
-    { name: 'clientTotalTransactions', description: 'Количество транзакций' },
-    { name: 'clientLastVisit', description: 'Последний визит' }
-  ];
+  // Use API-provided variables, fallback to empty array if not provided
+  get availableVariables(): Array<{ name: string; description: string }> {
+    return this.templateVariables.length > 0 ? this.templateVariables : [];
+  }
 
-  filteredVariables: typeof this.availableVariables = [];
-  filteredMessageVariables: typeof this.availableVariables = [];
+  filteredVariables: Array<{ name: string; description: string }> = [];
+  filteredMessageVariables: Array<{ name: string; description: string }> = [];
 
   constructor(private sanitizer: DomSanitizer) {}
 
@@ -1414,6 +1414,18 @@ export class InvitationFormComponent implements AfterViewInit {
     return variableName.replace(/[{}]/g, '');
   }
 
+  getTemplateTypeLabel(type: string): string {
+    // Convert API type format to readable label
+    // Example: BASIC_CASHBACK_BONUS_GRANT -> "Basic Cashback Bonus Grant"
+    if (!type || typeof type !== 'string') {
+      return type || '';
+    }
+    return type
+      .split('_')
+      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   getTemplatePreview(content: string): string {
     const words = content.split(/\s+/).slice(0, 10).join(' ');
     return words + (content.split(/\s+/).length > 10 ? '...' : '');
@@ -1438,22 +1450,28 @@ export class InvitationFormComponent implements AfterViewInit {
   }
 
   openCreateTemplateModal(): void {
+    // Use first available template type from API, or empty string if none available
+    const defaultType = this.templateTypes.length > 0 ? this.templateTypes[0].type : '';
+    
     this.newTemplate = {
       id: '',
       name: '',
-      type: 'bonus_accrued',
+      type: defaultType,
       content: '',
       subject: this.invitationType === 'email' ? '' : undefined,
       createdAt: new Date()
     };
     this.editingTemplateId = null;
-    this.showCreateTemplateModal = true;
     this.closeVariablesDropdown();
     
-    // Update contenteditable after modal opens
+    // Set modal visibility - use setTimeout to ensure change detection runs
     setTimeout(() => {
-      this.updateContentEditable();
-    }, 100);
+      this.showCreateTemplateModal = true;
+      // Update contenteditable after modal opens
+      setTimeout(() => {
+        this.updateContentEditable();
+      }, 100);
+    }, 0);
   }
 
   closeCreateTemplateModal(): void {
@@ -1739,9 +1757,11 @@ export class InvitationFormComponent implements AfterViewInit {
     const textAfterBrace = textBeforeCursor.substring(lastDoubleBraceIndex + 2);
     
     // Build new content: everything before '{{' + '{{' + variable name + '}}' + everything after cursor
+    // Extract variable name without braces (variable.name might already include {{}})
+    const variableName = variable.name.replace(/[{}]/g, '');
     const beforeBrace = text.substring(0, lastDoubleBraceIndex + 2);
     const afterCursor = text.substring(cursorPos);
-    const newContent = beforeBrace + variable.name + '}}' + afterCursor;
+    const newContent = beforeBrace + variableName + '}}' + afterCursor;
     
     // Update content model
     this.newTemplate.content = newContent;
@@ -2190,9 +2210,11 @@ export class InvitationFormComponent implements AfterViewInit {
     const cursorPos = this.getCursorPosition(target, range);
     
     // Build new content: everything before '{{' + '{{' + variable name + '}}' + everything after cursor
+    // Extract variable name without braces (variable.name might already include {{}})
+    const variableName = variable.name.replace(/[{}]/g, '');
     const beforeBrace = text.substring(0, lastDoubleBraceIndex + 2);
     const afterCursor = text.substring(cursorPos);
-    const newContent = beforeBrace + variable.name + '}}' + afterCursor;
+    const newContent = beforeBrace + variableName + '}}' + afterCursor;
     
     // Update form
     this.form.patchValue({ message: newContent });
