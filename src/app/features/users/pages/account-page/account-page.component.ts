@@ -3,20 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { ProfileService } from '../../../../core/services/profile.service';
+import { UserProfile, UpdateProfileRequest, ChangePasswordRequest } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  role: string;
-  status: 'invited' | 'active' | 'closed';
-  createdAt: string;
-}
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { ToastService } from '../../../../core/services/toast.service';
 
 interface UserPayment {
   id: string;
@@ -35,10 +28,16 @@ interface UserPayment {
 @Component({
   selector: 'app-account-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
-      <div class="profile-container">
+      <!-- Loading State -->
+      <div class="loading-container" *ngIf="isLoading">
+        <app-loader></app-loader>
+      </div>
+
+
+      <div class="profile-container" *ngIf="profile && !isLoading">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -47,26 +46,26 @@ interface UserPayment {
               <div class="avatar-large">
                 {{ getInitials() }}
               </div>
-              <div class="status-indicator" [class.active]="currentUser.status === 'active'"></div>
+              <div class="status-indicator" [class.active]="profile.active"></div>
             </div>
             <div class="profile-main-info">
               <div class="name-row">
                 <h1 class="profile-name">{{ getFullName() }}</h1>
                 <app-badge 
-                  [badgeType]="getStatusBadgeType(currentUser.status)" 
+                  [badgeType]="getStatusBadgeType(profile.active)" 
                   size="medium">
-                  {{ getStatusLabel(currentUser.status) }}
+                  {{ getStatusLabel(profile.active) }}
                 </app-badge>
               </div>
-              <p class="profile-email">{{ currentUser.email }}</p>
-              <p class="profile-phone">{{ currentUser.phoneNumber }}</p>
+              <p class="profile-email">{{ profile.email }}</p>
+              <p class="profile-phone" *ngIf="profile.phone">{{ profile.phone }}</p>
               <div class="role-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>{{ currentUser.role }}</span>
+                <span>{{ getRoleLabel(profile.roles) }}</span>
               </div>
             </div>
           </div>
@@ -96,10 +95,10 @@ interface UserPayment {
               </svg>
             </app-icon-button>
             <div class="card-actions" *ngIf="isEditingPersonal">
-              <app-button buttonType="ghost" size="medium" (onClick)="cancelEditPersonal()">
+              <app-button buttonType="ghost" size="medium" (onClick)="cancelEditPersonal()" [disabled]="isSavingPersonal">
                 Отмена
               </app-button>
-              <app-button buttonType="primary" size="medium" (onClick)="savePersonal()">
+              <app-button buttonType="primary" size="medium" (onClick)="savePersonal()" [loading]="isSavingPersonal">
                 Сохранить
               </app-button>
             </div>
@@ -107,31 +106,31 @@ interface UserPayment {
           <div class="info-content">
             <div class="info-row">
               <span class="info-label">Имя:</span>
-              <span class="info-value" *ngIf="!isEditingPersonal">{{ currentUser.firstName }}</span>
+              <span class="info-value" *ngIf="!isEditingPersonal">{{ profile.firstName }}</span>
               <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.firstName" placeholder="Введите имя">
             </div>
             <div class="info-row">
               <span class="info-label">Фамилия:</span>
-              <span class="info-value" *ngIf="!isEditingPersonal">{{ currentUser.lastName }}</span>
+              <span class="info-value" *ngIf="!isEditingPersonal">{{ profile.lastName }}</span>
               <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.lastName" placeholder="Введите фамилию">
             </div>
             <div class="info-row">
               <span class="info-label">Email:</span>
-              <span class="info-value" *ngIf="!isEditingPersonal">{{ currentUser.email }}</span>
+              <span class="info-value" *ngIf="!isEditingPersonal">{{ profile.email }}</span>
               <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.email" type="email" placeholder="Введите email">
             </div>
             <div class="info-row">
               <span class="info-label">Телефон:</span>
-              <span class="info-value" *ngIf="!isEditingPersonal">{{ currentUser.phoneNumber }}</span>
-              <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.phoneNumber" type="tel" placeholder="Введите телефон">
+              <span class="info-value" *ngIf="!isEditingPersonal">{{ profile.phone || '—' }}</span>
+              <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.phone" type="tel" placeholder="Введите телефон">
             </div>
             <div class="info-row">
               <span class="info-label">Роль:</span>
-              <span class="info-value">{{ currentUser.role }}</span>
+              <span class="info-value">{{ getRoleLabel(profile.roles) }}</span>
             </div>
             <div class="info-row readonly">
               <span class="info-label">Дата регистрации:</span>
-              <span class="info-value">{{ formatDate(currentUser.createdAt) }}</span>
+              <span class="info-value">{{ formatDate(profile.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -160,10 +159,10 @@ interface UserPayment {
               </svg>
             </app-icon-button>
             <div class="card-actions" *ngIf="isEditingPassword">
-              <app-button buttonType="ghost" size="medium" (onClick)="cancelEditPassword()">
+              <app-button buttonType="ghost" size="medium" (onClick)="cancelEditPassword()" [disabled]="isSavingPassword">
                 Отмена
               </app-button>
-              <app-button buttonType="primary" size="medium" (onClick)="savePassword()" [disabled]="!isPasswordFormValid()">
+              <app-button buttonType="primary" size="medium" (onClick)="savePassword()" [disabled]="!isPasswordFormValid()" [loading]="isSavingPassword">
                 Сохранить
               </app-button>
             </div>
@@ -175,6 +174,9 @@ interface UserPayment {
             </div>
           </div>
           <div class="password-form" *ngIf="isEditingPassword">
+            <div class="error-message server-error" *ngIf="passwordError">
+              {{ passwordError }}
+            </div>
             <div class="form-group">
               <label class="form-label">Текущий пароль</label>
               <input 
@@ -189,7 +191,7 @@ interface UserPayment {
                 type="password" 
                 class="form-input" 
                 [(ngModel)]="passwordData.newPassword"
-                placeholder="Введите новый пароль">
+                placeholder="Введите новый пароль (минимум 6 символов)">
             </div>
             <div class="form-group">
               <label class="form-label">Подтвердите новый пароль</label>
@@ -314,6 +316,13 @@ interface UserPayment {
       margin: -2rem;
       padding: 2rem;
       background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
+    }
+
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
     }
 
     .profile-container {
@@ -592,6 +601,14 @@ interface UserPayment {
       margin-top: 0.25rem;
     }
 
+    .error-message.server-error {
+      padding: 0.75rem 1rem;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
     /* Activity Card */
     .activity-card {
       background: white;
@@ -804,97 +821,67 @@ interface UserPayment {
 })
 export class AccountPageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
+  private profileService = inject(ProfileService);
+  private toastService = inject(ToastService);
 
-  currentUser: User = {
-    id: '1',
-    firstName: 'Иван',
-    lastName: 'Иванов',
-    email: 'ivan@example.com',
-    phoneNumber: '+7 (777) 123-45-67',
-    role: 'Администратор',
-    status: 'active',
-    createdAt: '2024-01-15'
-  };
+  // Profile data
+  profile: UserProfile | null = null;
+  isLoading = true;
 
-  userPayments: UserPayment[] = [
-    {
-      id: 'PAY-001',
-      clientId: '1',
-      clientName: 'Алексей Петров',
-      clientPhone: '+7 (777) 123-45-67',
-      amount: 12500,
-      bonusEarned: 125,
-      bonusUsed: 0,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '14:30'
-    },
-    {
-      id: 'PAY-002',
-      clientId: '2',
-      clientName: 'Мария Сидорова',
-      clientPhone: '+7 (777) 234-56-78',
-      amount: 8750,
-      bonusEarned: 0,
-      bonusUsed: 500,
-      paymentMethod: 'cash',
-      isRefund: false,
-      date: '15.01.2025',
-      time: '15:45'
-    },
-    {
-      id: 'PAY-003',
-      clientId: '3',
-      clientName: 'Дмитрий Козлов',
-      clientPhone: '+7 (777) 345-67-89',
-      amount: 25000,
-      bonusEarned: 250,
-      bonusUsed: 0,
-      paymentMethod: 'online',
-      isRefund: false,
-      date: '14.01.2025',
-      time: '10:20'
-    },
-    {
-      id: 'PAY-004',
-      clientId: '4',
-      clientName: 'Елена Новикова',
-      clientPhone: '+7 (777) 456-78-90',
-      amount: 15300,
-      bonusEarned: 0,
-      bonusUsed: 2800,
-      paymentMethod: 'card',
-      isRefund: false,
-      date: '13.01.2025',
-      time: '16:10'
-    }
-  ];
+  // User payments (mock data for now)
+  userPayments: UserPayment[] = [];
 
+  // Edit states
   isEditingPersonal = false;
+  isSavingPersonal = false;
   editedPersonal = {
     firstName: '',
     lastName: '',
     email: '',
-    phoneNumber: ''
+    phone: ''
   };
 
   isEditingPassword = false;
+  isSavingPassword = false;
   passwordData = {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   };
+  passwordError: string | null = null;
 
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Личный кабинет', [
       { label: 'Главная', route: '/home' },
-      { label: 'Личный кабинет' }
+      { label: 'Профиль' }
     ]);
+    this.loadProfile();
+  }
+
+  loadProfile(): void {
+    this.isLoading = true;
+    
+    this.profileService.getProfile().subscribe({
+      next: (profile) => {
+        console.log('[AccountPage] Profile loaded:', profile);
+        console.log('[AccountPage] Profile firstName:', profile.firstName);
+        console.log('[AccountPage] Profile lastName:', profile.lastName);
+        console.log('[AccountPage] Profile email:', profile.email);
+        this.profile = profile;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('[AccountPage] Error loading profile:', err);
+        const errorMessage = err.error?.message || 'Ошибка загрузки профиля';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
   }
 
   getFullName(): string {
-    return `${this.currentUser.firstName} ${this.currentUser.lastName}`;
+    if (!this.profile) return '';
+    return `${this.profile.firstName} ${this.profile.lastName}`;
   }
 
   getInitials(name?: string): string {
@@ -902,33 +889,22 @@ export class AccountPageComponent implements OnInit {
       const parts = name.split(' ');
       return parts.map(p => p.charAt(0)).join('').toUpperCase().slice(0, 2);
     }
-    return `${this.currentUser.firstName.charAt(0)}${this.currentUser.lastName.charAt(0)}`.toUpperCase();
+    if (!this.profile) return '';
+    return `${this.profile.firstName.charAt(0)}${this.profile.lastName.charAt(0)}`.toUpperCase();
   }
 
-  getStatusBadgeType(status: string): 'primary' | 'secondary' | 'success' | 'warning' | 'danger' {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'invited':
-        return 'warning';
-      case 'closed':
-        return 'danger';
-      default:
-        return 'secondary';
-    }
+  getStatusBadgeType(active: boolean): 'primary' | 'secondary' | 'success' | 'warning' | 'danger' {
+    return active ? 'success' : 'danger';
   }
 
-  getStatusLabel(status: string): string {
-    switch (status) {
-      case 'invited':
-        return 'Приглашен';
-      case 'active':
-        return 'Активный';
-      case 'closed':
-        return 'Закрытый';
-      default:
-        return status;
-    }
+  getStatusLabel(active: boolean): string {
+    return active ? 'Активный' : 'Неактивный';
+  }
+
+  getRoleLabel(roles: string[]): string {
+    if (roles.includes('ADMIN')) return 'Администратор';
+    if (roles.includes('MANAGER')) return 'Менеджер';
+    return 'Пользователь';
   }
 
   formatDate(date: string): string {
@@ -955,22 +931,41 @@ export class AccountPageComponent implements OnInit {
 
   // Personal Data Editing
   startEditPersonal(): void {
+    if (!this.profile) return;
     this.editedPersonal = {
-      firstName: this.currentUser.firstName,
-      lastName: this.currentUser.lastName,
-      email: this.currentUser.email,
-      phoneNumber: this.currentUser.phoneNumber
+      firstName: this.profile.firstName,
+      lastName: this.profile.lastName,
+      email: this.profile.email,
+      phone: this.profile.phone || ''
     };
     this.isEditingPersonal = true;
   }
 
   savePersonal(): void {
-    this.currentUser.firstName = this.editedPersonal.firstName;
-    this.currentUser.lastName = this.editedPersonal.lastName;
-    this.currentUser.email = this.editedPersonal.email;
-    this.currentUser.phoneNumber = this.editedPersonal.phoneNumber;
-    this.isEditingPersonal = false;
-    // TODO: Save to backend
+    if (!this.profile) return;
+    
+    this.isSavingPersonal = true;
+    
+    const updateData: UpdateProfileRequest = {
+      email: this.editedPersonal.email,
+      firstName: this.editedPersonal.firstName,
+      lastName: this.editedPersonal.lastName,
+      phone: this.editedPersonal.phone || undefined
+    };
+
+    this.profileService.updateProfile(updateData).subscribe({
+      next: (updatedProfile) => {
+        this.profile = updatedProfile;
+        this.isEditingPersonal = false;
+        this.isSavingPersonal = false;
+        this.toastService.success('Профиль успешно обновлен');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка сохранения профиля';
+        this.toastService.error(errorMessage);
+        this.isSavingPersonal = false;
+      }
+    });
   }
 
   cancelEditPersonal(): void {
@@ -979,7 +974,7 @@ export class AccountPageComponent implements OnInit {
       firstName: '',
       lastName: '',
       email: '',
-      phoneNumber: ''
+      phone: ''
     };
   }
 
@@ -991,25 +986,44 @@ export class AccountPageComponent implements OnInit {
       confirmPassword: ''
     };
     this.isEditingPassword = true;
+    this.passwordError = null;
   }
 
   savePassword(): void {
-    if (this.isPasswordFormValid()) {
-      // TODO: Save password to backend
-      console.log('Changing password...');
-      this.isEditingPassword = false;
-      this.passwordData = {
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      };
-      // Show success message
-      alert('Пароль успешно изменен');
-    }
+    if (!this.isPasswordFormValid()) return;
+    
+    this.isSavingPassword = true;
+    this.passwordError = null;
+    
+    const passwordRequest: ChangePasswordRequest = {
+      currentPassword: this.passwordData.currentPassword,
+      newPassword: this.passwordData.newPassword,
+      confirmPassword: this.passwordData.confirmPassword
+    };
+
+    this.profileService.changePassword(passwordRequest).subscribe({
+      next: () => {
+        this.isEditingPassword = false;
+        this.isSavingPassword = false;
+        this.passwordData = {
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        };
+        this.toastService.success('Пароль успешно изменен');
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка смены пароля';
+        this.passwordError = errorMessage;
+        this.toastService.error(errorMessage);
+        this.isSavingPassword = false;
+      }
+    });
   }
 
   cancelEditPassword(): void {
     this.isEditingPassword = false;
+    this.passwordError = null;
     this.passwordData = {
       currentPassword: '',
       newPassword: '',

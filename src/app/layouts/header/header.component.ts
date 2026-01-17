@@ -2,8 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { selectUser } from '../../core/store/auth/auth.selectors';
-import { AuthUser } from '../../core/models/user.model';
+import { selectUser, selectUserFullName } from '../../core/store/auth/auth.selectors';
 import { logout } from '../../core/store/auth/auth.actions';
 import { AppBarComponent } from '../../shared/components/app-bar/app-bar.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -18,8 +17,8 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
     <app-app-bar [fixed]="true">
       <div appBarStart></div>
       <div appBarEnd *ngIf="user$ | async as user">
-        <app-avatar [name]="user.email" size="small"></app-avatar>
-        <app-typography variant="body2" class="user-name">{{ user.email }}</app-typography>
+        <app-avatar [name]="(userFullName$ | async) || user.email" size="small"></app-avatar>
+        <app-typography variant="body2" class="user-name">{{ userFullName$ | async }}</app-typography>
         <app-button buttonType="outline" size="small" (onClick)="onLogout()">
           Выйти
         </app-button>
@@ -35,6 +34,7 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
 export class HeaderComponent {
   private store = inject(Store);
   user$ = this.store.select(selectUser);
+  userFullName$ = this.store.select(selectUserFullName);
 
   onLogout(): void {
     this.store.dispatch(logout());

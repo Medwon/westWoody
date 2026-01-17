@@ -31,7 +31,7 @@ export class AuthService {
   /**
    * Login with email and password
    * Sets HttpOnly cookies on success
-   * @returns AuthUser { id, email, roles }
+   * @returns AuthUser { id, email, firstName, lastName, roles }
    */
   login(credentials: LoginRequest): Observable<AuthUser> {
     console.log('[AuthService] POST /auth/login', credentials);
@@ -41,7 +41,7 @@ export class AuthService {
   /**
    * Register new user
    * Sets HttpOnly cookies on success (auto-login)
-   * @returns AuthUser { id, email, roles }
+   * @returns AuthUser { id, email, firstName, lastName, roles }
    */
   register(data: RegisterRequest): Observable<AuthUser> {
     console.log('[AuthService] POST /auth/register', data);
@@ -51,7 +51,7 @@ export class AuthService {
   /**
    * Activate account with invitation token
    * Sets HttpOnly cookies on success (auto-login)
-   * @returns AuthUser { id, email, roles }
+   * @returns AuthUser { id, email, roles } (firstName/lastName not included)
    */
   activate(data: ActivateAccountRequest): Observable<AuthUser> {
     return this.http.post<AuthUser>(`${this.apiUrl}/activate`, data);
@@ -60,7 +60,7 @@ export class AuthService {
   /**
    * Get current authenticated user
    * Used on app init to check if session is valid
-   * @returns AuthUser { id, email, roles }
+   * @returns AuthUser { id, email, firstName, lastName, roles }
    */
   me(): Observable<AuthUser> {
     return this.http.get<AuthUser>(`${this.apiUrl}/me`);
@@ -69,7 +69,7 @@ export class AuthService {
   /**
    * Refresh access token using refresh token cookie
    * Sets new HttpOnly cookies
-   * @returns AuthUser { id, email, roles }
+   * @returns AuthUser { id, email, firstName, lastName, roles }
    */
   refresh(): Observable<AuthUser> {
     return this.http.post<AuthUser>(`${this.apiUrl}/refresh`, {});

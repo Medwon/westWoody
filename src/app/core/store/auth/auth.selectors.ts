@@ -44,6 +44,17 @@ export const selectUserId = createSelector(
   (user) => user?.id ?? null
 );
 
+export const selectUserFullName = createSelector(
+  selectUser,
+  (user) => {
+    if (!user) return '';
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user.email;
+  }
+);
+
 export const selectIsAdmin = createSelector(
   selectUserRoles,
   (roles) => roles.includes('ADMIN')

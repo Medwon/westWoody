@@ -2,9 +2,12 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'USER';
 
 // Auth User - returned from auth endpoints
+// Note: id can be UUID string or number, firstName/lastName are optional (not returned by activate endpoint)
 export interface AuthUser {
-  id: number;
+  id: string | number;
   email: string;
+  firstName?: string;
+  lastName?: string;
   roles: UserRole[];
 }
 
@@ -19,6 +22,35 @@ export interface User {
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// User Profile - returned from /user/profile endpoint
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  roles: UserRole[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Update Profile Request
+export interface UpdateProfileRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+// Change Password Request
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 // Auth state for NgRx (stored ONLY in memory)
