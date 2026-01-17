@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../../shared/components/alert/alert.compon
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
+import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
 
 @Component({
   selector: 'app-reset-password-page',
@@ -25,9 +26,9 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     AuthPromoPanelComponent
   ],
   template: `
-    <div class="reset-password-page">
+    <div class="reset-password-page auth-page">
       <!-- Left Promotional Panel -->
-      <app-auth-promo-panel></app-auth-promo-panel>
+      <app-auth-promo-panel class="promo-panel-desktop"></app-auth-promo-panel>
 
       <!-- Right Reset Password Form Panel -->
       <div class="form-panel">
@@ -57,7 +58,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
             {{ successMessage }}
           </app-alert>
 
-          <form [formGroup]="resetPasswordForm" (ngSubmit)="onSubmit()" class="reset-password-form">
+          <form [formGroup]="resetPasswordForm" (ngSubmit)="onSubmit()" class="reset-password-form auth-form">
             <app-input
               id="password"
               label="Новый пароль"
@@ -89,6 +90,10 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
               Сменить пароль
             </app-button>
           </form>
+
+          <div class="form-footer">
+            <span>© 2026 WestWood. Все права защищены.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -181,26 +186,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
       transition: all 0.2s ease !important;
     }
 
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .reset-password-page {
-        flex-direction: column;
-      }
-
-      .form-panel {
-        padding: 2rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .form-panel {
-        padding: 1.5rem;
-      }
-
-      .form-content {
-        max-width: 100%;
-      }
-    }
+    ${authMobileStyles}
   `]
 })
 export class ResetPasswordPageComponent implements OnInit, OnDestroy {

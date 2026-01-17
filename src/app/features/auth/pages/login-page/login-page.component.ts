@@ -13,6 +13,7 @@ import { InputComponent } from '../../../../shared/components/input/input.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LinkComponent } from '../../../../shared/components/link/link.component';
 import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
+import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
 
 @Component({
   selector: 'app-login-page',
@@ -28,9 +29,9 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     AuthPromoPanelComponent
   ],
   template: `
-    <div class="login-page">
+    <div class="login-page auth-page">
       <!-- Left Promotional Panel -->
-      <app-auth-promo-panel></app-auth-promo-panel>
+      <app-auth-promo-panel class="promo-panel-desktop"></app-auth-promo-panel>
 
       <!-- Right Login Form Panel -->
       <div class="form-panel">
@@ -67,7 +68,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
           {{ error }}
         </app-alert>
 
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form auth-form">
           <app-input
             id="email"
             label="Email"
@@ -104,6 +105,10 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
             </app-link>
           </div>
         </form>
+
+        <div class="form-footer">
+          <span>© 2026 WestWood. Все права защищены.</span>
+        </div>
         </div>
       </div>
     </div>
@@ -112,7 +117,6 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     .login-page {
       display: flex;
       min-height: 100vh;
-      height: 100vh;
       background: #F5F6F8;
     }
 
@@ -232,26 +236,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
       font-weight: 600;
     }
 
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .login-page {
-        flex-direction: column;
-      }
-
-      .form-panel {
-        padding: 2rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .form-panel {
-        padding: 1.5rem;
-      }
-
-      .form-content {
-        max-width: 100%;
-      }
-    }
+    ${authMobileStyles}
   `]
 })
 export class LoginPageComponent implements OnInit, OnDestroy {

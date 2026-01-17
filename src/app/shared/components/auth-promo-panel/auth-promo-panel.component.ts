@@ -141,8 +141,35 @@ import { CommonModule } from '@angular/common';
       }
 
       .promo-panel {
-        min-height: 300px;
-        padding: 2rem;
+        min-height: 400px;
+        padding: 3rem 2.5rem;
+        overflow: visible;
+        position: relative;
+        z-index: 1;
+      }
+
+      .promo-content {
+        margin-top: 0;
+        max-width: 100%;
+        text-align: left;
+      }
+
+      .promo-logo {
+        display: inline-block;
+        margin-right: 1.5rem;
+        margin-bottom: 0;
+        vertical-align: middle;
+      }
+
+      .promo-logo .logo-icon {
+        width: 80px;
+        height: 80px;
+      }
+
+      .promo-title {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0 0 1.5rem 0;
       }
 
       .title-greeting,
@@ -153,22 +180,58 @@ import { CommonModule } from '@angular/common';
       .promo-text {
         font-size: 1.1rem;
         margin-bottom: 2rem;
+        line-height: 1.4;
+      }
+
+      .promo-footer {
+        display: block;
+        margin-top: 2rem;
+        font-size: 0.875rem;
+        opacity: 0.8;
       }
     }
 
     @media (max-width: 640px) {
-      .promo-panel {
-        padding: 1.5rem;
-        min-height: 250px;
+      :host {
+        flex: 0 0 auto;
       }
 
-      .title-greeting,
-      .title-brand {
-        font-size: 2rem;
+      .promo-panel {
+        padding: 2rem 1.5rem;
+        height: 180px;
+        min-height: 180px;
+        max-height: 180px;
+        overflow: visible;
+        position: relative;
+        z-index: 1;
+      }
+
+      .promo-content {
+        margin-top: 0;
+        max-width: 100%;
+        text-align: center;
+      }
+
+      .promo-logo {
+        display: block;
+        margin-bottom: 1rem;
+      }
+
+      .promo-logo .logo-icon {
+        width: 64px;
+        height: 64px;
+      }
+
+      .promo-title {
+        display: none;
       }
 
       .promo-text {
-        font-size: 1rem;
+        display: none;
+      }
+
+      .promo-footer {
+        display: none;
       }
     }
   `]

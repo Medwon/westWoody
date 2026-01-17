@@ -12,6 +12,7 @@ import { AlertComponent } from '../../../../shared/components/alert/alert.compon
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
+import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
 
 @Component({
   selector: 'app-activation-page',
@@ -26,9 +27,9 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     AuthPromoPanelComponent
   ],
   template: `
-    <div class="activation-page">
+    <div class="activation-page auth-page">
       <!-- Left Promotional Panel -->
-      <app-auth-promo-panel></app-auth-promo-panel>
+      <app-auth-promo-panel class="promo-panel-desktop"></app-auth-promo-panel>
 
       <!-- Right Activation Form Panel -->
       <div class="form-panel">
@@ -58,7 +59,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
             {{ successMessage }}
           </app-alert>
 
-          <form [formGroup]="activationForm" (ngSubmit)="onSubmit()" class="activation-form">
+          <form [formGroup]="activationForm" (ngSubmit)="onSubmit()" class="activation-form auth-form">
             <app-input
               id="password"
               label="Пароль"
@@ -90,6 +91,10 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
               Активировать аккаунт
             </app-button>
           </form>
+
+          <div class="form-footer">
+            <span>© 2026 WestWood. Все права защищены.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -182,26 +187,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
       transition: all 0.2s ease !important;
     }
 
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .activation-page {
-        flex-direction: column;
-      }
-
-      .form-panel {
-        padding: 2rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .form-panel {
-        padding: 1.5rem;
-      }
-
-      .form-content {
-        max-width: 100%;
-      }
-    }
+    ${authMobileStyles}
   `]
 })
 export class ActivationPageComponent implements OnInit, OnDestroy {

@@ -12,6 +12,7 @@ import { InputComponent } from '../../../../shared/components/input/input.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LinkComponent } from '../../../../shared/components/link/link.component';
 import { AuthPromoPanelComponent } from '../../../../shared/components/auth-promo-panel/auth-promo-panel.component';
+import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
 
 @Component({
   selector: 'app-register-page',
@@ -27,9 +28,9 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     AuthPromoPanelComponent
   ],
   template: `
-    <div class="register-page">
+    <div class="register-page auth-page">
       <!-- Left Promotional Panel -->
-      <app-auth-promo-panel></app-auth-promo-panel>
+      <app-auth-promo-panel class="promo-panel-desktop"></app-auth-promo-panel>
 
       <!-- Right Register Form Panel -->
       <div class="form-panel">
@@ -55,7 +56,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
           {{ error }}
         </app-alert>
 
-        <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
+        <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form auth-form">
           <div class="form-row">
             <app-input
               id="firstName"
@@ -119,6 +120,10 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
             Зарегистрироваться
           </app-button>
         </form>
+
+        <div class="form-footer">
+          <span>© 2026 WestWood. Все права защищены.</span>
+        </div>
         </div>
       </div>
     </div>
@@ -241,26 +246,7 @@ import { AuthPromoPanelComponent } from '../../../../shared/components/auth-prom
     }
 
 
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .register-page {
-        flex-direction: column;
-      }
-
-      .form-panel {
-        padding: 2rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .form-panel {
-        padding: 1.5rem;
-      }
-
-      .form-content {
-        max-width: 100%;
-      }
-    }
+    ${authMobileStyles}
   `]
 })
 export class RegisterPageComponent implements OnInit, OnDestroy {
