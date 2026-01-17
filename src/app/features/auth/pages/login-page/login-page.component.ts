@@ -276,6 +276,10 @@ export class LoginPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Clear any existing errors when entering the page
+    this.store.dispatch(clearError());
+    this.sessionExpired = false;
+
     // Check for query params
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['sessionExpired'] || params['expired']) {

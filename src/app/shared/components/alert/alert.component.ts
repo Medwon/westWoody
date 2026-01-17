@@ -22,6 +22,7 @@ export type AlertType = 'success' | 'info' | 'warning' | 'error';
       <app-icon-button
         *ngIf="dismissible"
         icon="✕"
+        class="alert-dismiss-button"
         iconButtonType="ghost"
         size="small"
         (onClick)="onDismiss()">
@@ -36,7 +37,10 @@ export type AlertType = 'success' | 'info' | 'warning' | 'error';
       padding: 1rem;
       border-radius: 8px;
       border: 1px solid;
+      margin-bottom: 1rem;
     }
+
+
 
     .alert.success {
       background-color: #f0fdf4;
@@ -82,6 +86,52 @@ export type AlertType = 'success' | 'info' | 'warning' | 'error';
     .alert-message {
       font-size: 0.875rem;
       line-height: 1.5;
+    }
+
+    .alert-dismiss-button {
+      flex-shrink: 0;
+      margin-top: -0.25rem;
+      margin-right: -0.25rem;
+    }
+
+    /* Success alert dismiss button */
+    .alert.success .alert-dismiss-button ::ng-deep .icon-button {
+      color: #15803d;
+    }
+
+    .alert.success .alert-dismiss-button ::ng-deep .icon-button:hover:not(:disabled) {
+      background-color: rgba(22, 163, 74, 0.1);
+      color: #15803d;
+    }
+
+    /* Info alert dismiss button */
+    .alert.info .alert-dismiss-button ::ng-deep .icon-button {
+      color: #1e40af;
+    }
+
+    .alert.info .alert-dismiss-button ::ng-deep .icon-button:hover:not(:disabled) {
+      background-color: rgba(30, 64, 175, 0.1);
+      color: #1e40af;
+    }
+
+    /* Warning alert dismiss button */
+    .alert.warning .alert-dismiss-button ::ng-deep .icon-button {
+      color: #854d0e;
+    }
+
+    .alert.warning .alert-dismiss-button ::ng-deep .icon-button:hover:not(:disabled) {
+      background-color: rgba(133, 77, 14, 0.1);
+      color: #854d0e;
+    }
+
+    /* Error alert dismiss button */
+    .alert.error .alert-dismiss-button ::ng-deep .icon-button {
+      color: #991b1b;
+    }
+
+    .alert.error .alert-dismiss-button ::ng-deep .icon-button:hover:not(:disabled) {
+      background-color: rgba(153, 27, 27, 0.1);
+      color: #991b1b;
     }
   `]
 })
