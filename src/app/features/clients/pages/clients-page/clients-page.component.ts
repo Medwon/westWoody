@@ -12,6 +12,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { CreateClientModalComponent } from '../../../../shared/components/create-client-modal/create-client-modal.component';
 
 interface Client {
   id: string;
@@ -35,11 +36,24 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
         
+        <!-- Header with Create Button -->
+        <div class="page-header-actions">
+          <app-button 
+            buttonType="primary" 
+            size="medium" 
+            (onClick)="openCreateClientModal()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Новый клиент
+          </app-button>
+        </div>
+
         <!-- Dashboard Cards -->
         <div class="dashboard-grid">
           <div class="dashboard-card">
@@ -388,8 +402,25 @@ type SortDirection = 'asc' | 'desc';
         </div>
       </div>
     </div>
+
+    <!-- Create Client Modal -->
+    <app-create-client-modal
+      [(visible)]="showCreateClientModal"
+      (clientCreated)="onClientCreated($event)">
+    </app-create-client-modal>
   `,
   styles: [`
+    .page-header-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .page-header-actions app-button svg {
+      width: 16px;
+      height: 16px;
+    }
+
     .page-wrapper {
       min-height: 100%;
       margin: -2rem;
@@ -1204,6 +1235,9 @@ export class ClientsPageComponent implements OnInit {
   currentPage = 0;
   pageSize = 15;
 
+  // Create client modal
+  showCreateClientModal = false;
+
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Клиенты', [
       { label: 'Главная', route: '/home' },
@@ -1430,6 +1464,18 @@ export class ClientsPageComponent implements OnInit {
     this.sortField = 'lastVisit';
     this.sortDirection = 'desc';
     this.currentPage = 0;
+    this.loadClients();
+  }
+
+  // Create client modal methods
+  openCreateClientModal(): void {
+    this.showCreateClientModal = true;
+  }
+
+  onClientCreated(client: any): void {
+    this.toastService.success(`Клиент ${client.name} успешно создан!`);
+    // Reload dashboard and clients list
+    this.loadDashboardData();
     this.loadClients();
   }
 }

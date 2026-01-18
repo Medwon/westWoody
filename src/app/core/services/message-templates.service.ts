@@ -98,7 +98,7 @@ export class MessageTemplatesService {
     type: string,
     clientId: string,
     paymentTxId?: string
-  ): Observable<{ content: string }> {
+  ): Observable<{ id: number; name: string; type: string; populatedContent: string }> {
     let params = new HttpParams()
       .set('type', type)
       .set('clientId', clientId);
@@ -107,7 +107,7 @@ export class MessageTemplatesService {
       params = params.set('paymentTxId', paymentTxId);
     }
     
-    return this.http.get<{ content: string }>(`${this.apiUrl}/populated`, { params });
+    return this.http.get<{ id: number; name: string; type: string; populatedContent: string }>(`${this.apiUrl}/populated`, { params });
   }
 
   /**

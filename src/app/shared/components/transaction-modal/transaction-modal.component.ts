@@ -210,6 +210,17 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
           </svg>
           Клиент не найден. Создание нового профиля.
         </div>
+        
+        <!-- Welcome Bonus Hint -->
+        <div class="bonus-hint-box" *ngIf="welcomeBonusAmount > 0">
+          <svg viewBox="0 0 24 24" fill="none" class="bonus-icon">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+          </svg>
+          <div class="bonus-text">
+            <span class="bonus-label">Приветственный бонус</span>
+            <span class="bonus-value">Клиент получит <strong>{{ welcomeBonusAmount }}</strong> бонусов после создания</span>
+          </div>
+        </div>
 
         <div class="form-group">
           <label class="input-label">Телефон</label>
@@ -351,6 +362,18 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             </div>
           </div>
 
+          <!-- Template Not Found -->
+          <div class="template-not-found" *ngIf="!selectedWelcomeTemplate">
+            <svg viewBox="0 0 24 24" fill="none" class="not-found-icon">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="not-found-text">
+              <span class="not-found-title">Шаблон не найден</span>
+              <span class="not-found-subtitle">Создайте шаблон сообщения типа "BASIC_CASHBACK_BONUS_GRANT" в настройках</span>
+            </div>
+          </div>
+
           <!-- Phone Number -->
           <div class="phone-section">
             <label class="phone-label">Номер телефона получателя</label>
@@ -363,7 +386,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
           </div>
 
           <!-- Message Content -->
-          <div class="message-content-section">
+          <div class="message-content-section" *ngIf="selectedWelcomeTemplate">
             <label class="message-content-label">Содержимое сообщения</label>
             <div class="message-content-box">
               <p class="message-text">{{ getFormattedMessage() }}</p>
@@ -373,6 +396,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
 
         <div class="notify-actions">
           <app-button 
+            *ngIf="selectedWelcomeTemplate"
             buttonType="primary"  
             size="large"
             class="send-message-btn"
@@ -636,6 +660,49 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       width: 20px;
       height: 20px;
       flex-shrink: 0;
+    }
+
+    .bonus-hint-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 1rem;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #fcd34d;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      animation: slideDown 0.3s ease;
+    }
+
+    .bonus-icon {
+      width: 32px;
+      height: 32px;
+      color: #d97706;
+      flex-shrink: 0;
+    }
+
+    .bonus-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .bonus-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .bonus-value {
+      font-size: 0.9rem;
+      color: #78350f;
+    }
+
+    .bonus-value strong {
+      color: #d97706;
+      font-weight: 700;
     }
 
     /* Form */
@@ -1148,6 +1215,41 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       word-wrap: break-word;
     }
 
+    .template-not-found {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    .not-found-icon {
+      width: 40px;
+      height: 40px;
+      color: #d97706;
+      flex-shrink: 0;
+    }
+
+    .not-found-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .not-found-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #92400e;
+    }
+
+    .not-found-subtitle {
+      font-size: 0.875rem;
+      color: #b45309;
+    }
+
     .phone-section {
       display: flex;
       flex-direction: column;
@@ -1332,14 +1434,39 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
 
   // Cancel confirmation
   showCancelConfirmation = false;
+  
+  // Welcome bonus amount for new clients
+  welcomeBonusAmount: number = 0;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
       this.toggleBodyScroll(changes['visible'].currentValue);
       if (changes['visible'].currentValue) {
         this.loadAvailableTags();
+        this.loadWelcomeBonusAmount();
       }
     }
+  }
+  
+  loadWelcomeBonusAmount(): void {
+    this.bonusTypesService.getBonusTypesByFlow('create_client')
+      .pipe(
+        timeout(5000),
+        catchError((err) => {
+          console.warn('Error loading welcome bonus amount:', err);
+          return of(null as BonusTypeResponse | null);
+        })
+      )
+      .subscribe({
+        next: (bonusType) => {
+          if (bonusType && bonusType.enabled && bonusType.bonusAmount !== null && bonusType.bonusAmount !== undefined) {
+            this.welcomeBonusAmount = bonusType.bonusAmount;
+            console.log('Welcome bonus amount loaded:', this.welcomeBonusAmount);
+          } else {
+            this.welcomeBonusAmount = 0;
+          }
+        }
+      });
   }
 
   loadAvailableTags(): void {
@@ -1702,21 +1829,41 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
 
     this.clientsService.createClient(createRequest).subscribe({
       next: (createdClient) => {
-        // Map created client to Client interface
-        this.foundClient = {
-          id: createdClient.id,
-          name: createdClient.name,
-          surname: createdClient.surname || '',
-          phone: createdClient.phone,
-          balance: 0, // Will be loaded from bonus balance endpoint (should be 0 for new client)
-          type: createdClient.clientType === 'BUSINESS' ? 'business' : 'individual',
-          tags: createdClient.tags || [],
-          comment: createdClient.notes || undefined
-        };
-        this.isNewlyCreatedClient = true;
-        // Keep isLoading = true, createDraftPayment will handle it
-        // Create draft payment directly (new client has 0 balance)
-        this.createDraftPayment();
+        // After creation, fetch client by phone to get the updated bonus balance (includes welcome bonus)
+        this.clientsService.getClientByPhone(this.searchPhone.trim()).subscribe({
+          next: (response) => {
+            // Map client with actual bonus balance from API
+            this.foundClient = {
+              id: response.clientId,
+              name: response.name,
+              surname: response.surname || '',
+              phone: this.searchPhone.trim(),
+              balance: response.currentBonusBalance || 0, // Use actual bonus balance (includes welcome bonus)
+              type: response.clientType === 'BUSINESS' ? 'business' : 'individual',
+              tags: response.tags || [],
+              comment: response.comment || undefined
+            };
+            this.isNewlyCreatedClient = true;
+            // Keep isLoading = true, createDraftPayment will handle it
+            this.createDraftPayment();
+          },
+          error: (err) => {
+            // Fallback to created client data if fetch fails
+            console.warn('Failed to fetch client after creation, using created client data:', err);
+            this.foundClient = {
+              id: createdClient.id,
+              name: createdClient.name,
+              surname: createdClient.surname || '',
+              phone: this.searchPhone.trim(),
+              balance: 0,
+              type: createdClient.clientType === 'BUSINESS' ? 'business' : 'individual',
+              tags: createdClient.tags || [],
+              comment: createdClient.notes || undefined
+            };
+            this.isNewlyCreatedClient = true;
+            this.createDraftPayment();
+          }
+        });
       },
       error: (err) => {
         const errorMessage = err.error?.message || 'Ошибка при создании клиента';
@@ -1751,7 +1898,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
             this.draftPayment.txId
           ).subscribe({
             next: (populated) => {
-              this.populatedMessageContent = populated.content;
+              this.populatedMessageContent = populated.populatedContent;
               this.isLoading = false;
               this.currentStep = 'notify';
             },
@@ -1764,28 +1911,18 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
             }
           });
         } else {
-          // No template found, use default
-          this.selectedWelcomeTemplate = {
-            id: 'default',
-            name: 'Приветственное сообщение',
-            type: templateType,
-            content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.'
-          };
-          this.populatedMessageContent = this.getFormattedMessage();
+          // No template found
+          this.selectedWelcomeTemplate = null;
+          this.populatedMessageContent = '';
           this.isLoading = false;
           this.currentStep = 'notify';
         }
       },
       error: (err) => {
         console.error('Error loading template:', err);
-        // Use default template
-        this.selectedWelcomeTemplate = {
-          id: 'default',
-          name: 'Приветственное сообщение',
-          type: templateType,
-          content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.'
-        };
-        this.populatedMessageContent = this.getFormattedMessage();
+        // No template found
+        this.selectedWelcomeTemplate = null;
+        this.populatedMessageContent = '';
         this.isLoading = false;
         this.currentStep = 'notify';
       }
