@@ -1,7 +1,9 @@
-import { Component, Input, signal, computed, OnChanges, SimpleChanges, OnInit, inject } from '@angular/core';
+import { Component, Input, signal, computed, OnChanges, SimpleChanges, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
+import { forkJoin, Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { SliderComponent } from '../slider/slider.component';
 import { ModalComponent } from '../modal/modal.component';
 import { AnalyticsService } from '../../../core/services/analytics.service';
@@ -1231,7 +1233,7 @@ interface CalculatorStatus {
     }
   `]
 })
-export class BonusCalculatorComponent implements OnInit {
+export class BonusCalculatorComponent implements OnInit, OnDestroy {
   // Inputs are optional - if not provided, will fetch from API
   @Input() monthlyRevenue?: number;
   @Input() averageCheck?: number;
@@ -1243,6 +1245,9 @@ export class BonusCalculatorComponent implements OnInit {
   
   private analyticsService = inject(AnalyticsService);
   private toastService = inject(ToastService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private navigationSubscription?: Subscription;
 
   ngOnInit(): void {
     // If inputs are provided, use them; otherwise fetch from API
@@ -1251,6 +1256,22 @@ export class BonusCalculatorComponent implements OnInit {
       this.averageCheckSignal.set(this.averageCheck);
     } else {
       this.loadAnalyticsData();
+      
+      // Subscribe to navigation events to refresh data when returning to the page
+      this.navigationSubscription = this.router.events
+        .pipe(filter(event => event instanceof NavigationEnd))
+        .subscribe((event: any) => {
+          // Only reload if we're on the bonus-program page
+          if (event.urlAfterRedirects?.includes('/bonus-program')) {
+            this.loadAnalyticsData();
+          }
+        });
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.navigationSubscription) {
+      this.navigationSubscription.unsubscribe();
     }
   }
 
@@ -1263,11 +1284,17 @@ export class BonusCalculatorComponent implements OnInit {
       averageCheck: this.analyticsService.getAverageCheck('MONTHLY')
     }).subscribe({
       next: (responses) => {
-        if (responses.revenue.revenue !== undefined && responses.revenue.revenue !== null) {
-          this.monthlyRevenueSignal.set(responses.revenue.revenue);
+        // Use 'amount' field from API response, with fallback to 'revenue' for backward compatibility
+        if (responses.revenue.amount !== undefined && responses.revenue.amount !== null) {
+          this.monthlyRevenueSignal.set(responses.revenue.amount);
+        } else if (responses.revenue.revenue !== undefined && responses.revenue.revenue !== null) {
+          this.monthlyRevenueSignal.set(responses.revenue.revenue); // Fallback
         }
-        if (responses.averageCheck.averageCheck !== undefined && responses.averageCheck.averageCheck !== null) {
-          this.averageCheckSignal.set(responses.averageCheck.averageCheck);
+        // Use 'amount' field from API response, with fallback to 'averageCheck' for backward compatibility
+        if (responses.averageCheck.amount !== undefined && responses.averageCheck.amount !== null) {
+          this.averageCheckSignal.set(responses.averageCheck.amount);
+        } else if (responses.averageCheck.averageCheck !== undefined && responses.averageCheck.averageCheck !== null) {
+          this.averageCheckSignal.set(responses.averageCheck.averageCheck); // Fallback
         }
         this.isLoading.set(false);
       },

@@ -72,7 +72,6 @@ export interface ActiveClientsResponse {
   period?: string;
 }
 
-<<<<<<< HEAD
 export interface ChartDataPoint {
   day: number;
   revenue: number;
@@ -91,13 +90,13 @@ export interface MonthlyRevenueChartResponse {
   month: number;
   // Fallback for backward compatibility
   data?: ChartDataPoint[];
-=======
+}
+
 export interface ClientTotalsResponse {
   totalPayments: number;
   totalRevenue: number;
   totalBonusesGranted: number;
   totalBonusesUsed: number;
->>>>>>> 27ee93332772d44310bd59b4ebe2d55402c83959
 }
 
 @Injectable({
@@ -187,7 +186,6 @@ export class AnalyticsService {
   }
 
   /**
-<<<<<<< HEAD
    * Get monthly revenue chart data
    * @param year - Year (optional, defaults to current year)
    * @param month - Month 1-12 (optional, defaults to current month)
@@ -203,13 +201,13 @@ export class AnalyticsService {
       .set('month', currentMonth.toString());
     
     return this.http.get<MonthlyRevenueChartResponse>(`${this.apiUrl}/revenue/monthly/chart`, { params });
-=======
+  }
+  /**
    * Get client totals for dashboard
    * @param clientId - Client ID
    * @returns Observable with client totals data
-   */
+  */
   getClientTotals(clientId: string): Observable<ClientTotalsResponse> {
     return this.http.get<ClientTotalsResponse>(`${this.apiUrl}/clients/${clientId}/totals`);
->>>>>>> 27ee93332772d44310bd59b4ebe2d55402c83959
   }
 }

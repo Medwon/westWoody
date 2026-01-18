@@ -250,17 +250,7 @@ export class RefundConfirmationModalComponent {
   }
 
   formatPaymentId(id: string): string {
-    if (!id) return '—';
-    // If id is already in format like "PTX-26-APQTM", return it as is
-    if (id.includes('-')) {
-      return `#${id}`;
-    }
-    // Otherwise, try to parse as number
-    const numId = parseInt(id, 10);
-    if (isNaN(numId)) {
-      return `#${id}`;
-    }
-    return `#PAY-${String(numId).padStart(3, '0')}`;
+    return `#PAY-${id.padStart(3, '0')}`;
   }
 }
 
