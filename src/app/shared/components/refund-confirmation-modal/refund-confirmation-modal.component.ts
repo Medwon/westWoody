@@ -77,6 +77,8 @@ export interface Payment {
           </app-button>
           <app-button
             buttonType="danger"
+            [disabled]="isProcessing"
+            [loading]="isProcessing"
             (onClick)="onConfirm()">
             Подтвердить возврат
           </app-button>
@@ -219,24 +221,27 @@ export interface Payment {
 export class RefundConfirmationModalComponent {
   @Input() visible = false;
   @Input() payment: Payment | null = null;
+  @Input() isProcessing = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() confirm = new EventEmitter<Payment>();
 
   refundReason = '';
 
   onClose(): void {
-    this.refundReason = '';
-    this.visibleChange.emit(false);
+    if (!this.isProcessing) {
+      this.refundReason = '';
+      this.visibleChange.emit(false);
+    }
   }
 
   onConfirm(): void {
-    if (this.payment) {
+    if (this.payment && !this.isProcessing) {
       const paymentWithReason = {
         ...this.payment,
         refundReason: this.refundReason.trim() || undefined
       };
       this.confirm.emit(paymentWithReason);
-      this.refundReason = '';
+      // Don't clear refundReason here - let parent handle it after successful refund
     }
   }
 

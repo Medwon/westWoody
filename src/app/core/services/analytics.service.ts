@@ -4,13 +4,31 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface MonthlyRevenueResponse {
-  revenue: number;
+  amount: number;
+  changePercentage?: number;
   period?: string;
+  // Fallback for backward compatibility
+  revenue?: number;
+  changePercent?: number;
+}
+
+export interface DailyRevenueResponse {
+  amount: number;
+  changePercentage?: number;
+  period?: string;
+  date?: string;
+  // Fallback for backward compatibility
+  revenue?: number;
+  changePercent?: number;
 }
 
 export interface AverageCheckResponse {
-  averageCheck: number;
+  amount: number;
+  changePercentage?: number;
   period?: string;
+  // Fallback for backward compatibility
+  averageCheck?: number;
+  changePercent?: number;
 }
 
 export interface OverallTotalsResponse {
@@ -22,12 +40,56 @@ export interface OverallTotalsResponse {
 
 export interface DailyTransactionsResponse {
   count: number;
+  changeAbsolute?: number;
+  date?: string;
+}
+
+export interface NewClientsResponse {
+  count: number;
+  changeAbsolute: number;
+  type: 'NEW';
+  period: 'DAILY' | 'MONTHLY';
+}
+
+export interface BonusesAccruedResponse {
+  amount: number;
+  changePercentage?: number;
+  period?: string;
+  // Fallback for backward compatibility
+  count?: number;
+  changePercent?: number;
+}
+
+export interface DailyRefundsResponse {
+  count: number;
+  changeAbsolute?: number;
   date?: string;
 }
 
 export interface ActiveClientsResponse {
   count: number;
+  changeAbsolute?: number;
   period?: string;
+}
+
+export interface ChartDataPoint {
+  day: number;
+  revenue: number;
+  transactionCount: number;
+  bonusesGranted: number;
+  bonusesUsed: number;
+  // Fallback fields for backward compatibility
+  transactions?: number;
+  bonusEarned?: number;
+  bonusUsed?: number;
+}
+
+export interface MonthlyRevenueChartResponse {
+  dailyData: ChartDataPoint[];
+  year: number;
+  month: number;
+  // Fallback for backward compatibility
+  data?: ChartDataPoint[];
 }
 
 export interface ClientTotalsResponse {
@@ -51,6 +113,14 @@ export class AnalyticsService {
    */
   getMonthlyRevenue(): Observable<MonthlyRevenueResponse> {
     return this.http.get<MonthlyRevenueResponse>(`${this.apiUrl}/revenue/monthly`);
+  }
+
+  /**
+   * Get daily revenue
+   * @returns Observable with daily revenue data
+   */
+  getDailyRevenue(): Observable<DailyRevenueResponse> {
+    return this.http.get<DailyRevenueResponse>(`${this.apiUrl}/revenue/daily`);
   }
 
   /**
@@ -80,7 +150,35 @@ export class AnalyticsService {
   }
 
   /**
-   * Get active clients count (monthly)
+   * Get new clients count
+   * @param period - Period type: 'DAILY' or 'MONTHLY'
+   * @returns Observable with new clients data
+   */
+  getNewClients(period: 'DAILY' | 'MONTHLY' = 'DAILY'): Observable<NewClientsResponse> {
+    const params = new HttpParams().set('period', period);
+    return this.http.get<NewClientsResponse>(`${this.apiUrl}/clients/new/daily`, { params });
+  }
+
+  /**
+   * Get bonuses accrued
+   * @param period - Period type: 'DAILY' or 'MONTHLY'
+   * @returns Observable with bonuses accrued data
+   */
+  getBonusesAccrued(period: 'DAILY' | 'MONTHLY' = 'MONTHLY'): Observable<BonusesAccruedResponse> {
+    const params = new HttpParams().set('period', period);
+    return this.http.get<BonusesAccruedResponse>(`${this.apiUrl}/bonuses/accrued`, { params });
+  }
+
+  /**
+   * Get daily refunds count
+   * @returns Observable with daily refunds data
+   */
+  getDailyRefunds(): Observable<DailyRefundsResponse> {
+    return this.http.get<DailyRefundsResponse>(`${this.apiUrl}/refunds/daily`);
+  }
+
+  /**
+   * Get active clients count
    * @returns Observable with active clients data
    */
   getActiveClients(): Observable<ActiveClientsResponse> {
@@ -88,10 +186,27 @@ export class AnalyticsService {
   }
 
   /**
+   * Get monthly revenue chart data
+   * @param year - Year (optional, defaults to current year)
+   * @param month - Month 1-12 (optional, defaults to current month)
+   * @returns Observable with chart data
+   */
+  getMonthlyRevenueChart(year?: number, month?: number): Observable<MonthlyRevenueChartResponse> {
+    const now = new Date();
+    const currentYear = year ?? now.getFullYear();
+    const currentMonth = month ?? now.getMonth() + 1;
+    
+    const params = new HttpParams()
+      .set('year', currentYear.toString())
+      .set('month', currentMonth.toString());
+    
+    return this.http.get<MonthlyRevenueChartResponse>(`${this.apiUrl}/revenue/monthly/chart`, { params });
+  }
+  /**
    * Get client totals for dashboard
    * @param clientId - Client ID
    * @returns Observable with client totals data
-   */
+  */
   getClientTotals(clientId: string): Observable<ClientTotalsResponse> {
     return this.http.get<ClientTotalsResponse>(`${this.apiUrl}/clients/${clientId}/totals`);
   }
