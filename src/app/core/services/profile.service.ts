@@ -52,4 +52,29 @@ export class ProfileService {
   changePassword(data: ChangePasswordRequest): Observable<void> {
     return this.http.put<void>(`${this.apiUrl}/password`, data);
   }
+
+  /**
+   * Get current user's payment transactions (operations history)
+   * @returns Array of user's payment transactions
+   */
+  getUserTransactions(): Observable<UserTransaction[]> {
+    return this.http.get<UserTransaction[]>(`${this.apiUrl}/transactions`);
+  }
+}
+
+export interface UserTransaction {
+  txId: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string | null;
+  amount: number;
+  status: string;
+  paymentMethod: string | null;
+  initiatedBy: string | null;
+  createdAt: string;
+  refundedPaymentTxId: string | null;
+  bonusGranted: number;
+  bonusUsed: number;
+  refundReason: string | null;
 }

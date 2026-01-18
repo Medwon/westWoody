@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
-import { ProfileService } from '../../../../core/services/profile.service';
+import { ProfileService, UserTransaction } from '../../../../core/services/profile.service';
 import { UserProfile, UpdateProfileRequest, ChangePasswordRequest } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -869,6 +869,8 @@ export class AccountPageComponent implements OnInit {
         console.log('[AccountPage] Profile email:', profile.email);
         this.profile = profile;
         this.isLoading = false;
+        // Load user transactions after profile is loaded
+        this.loadUserTransactions();
       },
       error: (err) => {
         console.error('[AccountPage] Error loading profile:', err);
@@ -1039,5 +1041,50 @@ export class AccountPageComponent implements OnInit {
       this.passwordData.newPassword === this.passwordData.confirmPassword &&
       this.passwordData.newPassword.length >= 6
     );
+  }
+
+  loadUserTransactions(): void {
+    this.profileService.getUserTransactions().subscribe({
+      next: (transactions) => {
+        console.log('[AccountPage] User transactions loaded:', transactions);
+        this.userPayments = transactions.map(t => this.mapTransactionToPayment(t));
+      },
+      error: (err) => {
+        console.error('[AccountPage] Error loading user transactions:', err);
+        // Don't show error toast, just log it - transactions are not critical
+        this.userPayments = [];
+      }
+    });
+  }
+
+  mapTransactionToPayment(transaction: UserTransaction): UserPayment {
+    const date = new Date(transaction.createdAt);
+    const dateStr = date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+    // Parse payment method
+    let paymentMethod: 'cash' | 'card' | 'online' = 'cash';
+    if (transaction.paymentMethod) {
+      const method = transaction.paymentMethod.toLowerCase();
+      if (method.includes('card') || method.includes('карт')) {
+        paymentMethod = 'card';
+      } else if (method.includes('online') || method.includes('онлайн')) {
+        paymentMethod = 'online';
+      }
+    }
+
+    return {
+      id: transaction.txId.replace(/^PTX-/, ''), // Remove PTX- prefix for display
+      clientId: transaction.clientId,
+      clientName: transaction.clientName,
+      clientPhone: transaction.clientPhone,
+      amount: transaction.amount,
+      bonusEarned: transaction.bonusGranted,
+      bonusUsed: transaction.bonusUsed,
+      paymentMethod: paymentMethod,
+      isRefund: transaction.status === 'REFUNDED' || transaction.refundedPaymentTxId !== null,
+      date: dateStr,
+      time: timeStr
+    };
   }
 }
