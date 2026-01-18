@@ -25,6 +25,11 @@ export const authInterceptor: HttpInterceptorFn = (
     ? req.clone({ withCredentials: true })
     : req;
 
+  // Log for debugging (only in development)
+  if (!environment.production && isApiRequest) {
+    console.log('[AuthInterceptor] Adding withCredentials to API request:', req.url);
+  }
+
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       // Handle 401 Unauthorized - session expired or invalid
