@@ -18,17 +18,48 @@ export const authInterceptor: HttpInterceptorFn = (
 ) => {
   const store = inject(Store);
 
-  // Only add credentials to requests to our API
-  const isApiRequest = req.url.startsWith(environment.apiUrl);
+  // Check if request is to our API using multiple methods for robustness
+  let isApiRequest = false;
   
+  try {
+    // Method 1: Check if URL starts with configured API URL
+    if (req.url.startsWith(environment.apiUrl)) {
+      isApiRequest = true;
+    }
+    
+    // Method 2: Check if URL contains our API path pattern
+    if (req.url.includes('/api/v1/')) {
+      isApiRequest = true;
+    }
+    
+    // Method 3: Check by domain (if URL is absolute)
+    if (req.url.startsWith('http')) {
+      const requestDomain = new URL(req.url).origin;
+      const apiDomain = new URL(environment.apiUrl).origin;
+      if (requestDomain === apiDomain) {
+        isApiRequest = true;
+      }
+    }
+  } catch (e) {
+    // If URL parsing fails, check by string matching
+    if (req.url.includes('herokuapp.com') || req.url.includes('westwood')) {
+      isApiRequest = true;
+    }
+  }
+  
+  // ALWAYS add withCredentials for API requests (required for cross-domain cookies)
   const authReq = isApiRequest
     ? req.clone({ withCredentials: true })
     : req;
 
-  // Log for debugging (only in development)
-  if (!environment.production && isApiRequest) {
-    console.log('[AuthInterceptor] Adding withCredentials to API request:', req.url);
-  }
+  // Log for debugging (always log in production to troubleshoot cookie issues)
+  console.log('[AuthInterceptor]', {
+    url: req.url,
+    isApiRequest,
+    withCredentials: authReq.withCredentials,
+    apiUrl: environment.apiUrl,
+    production: environment.production
+  });
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
