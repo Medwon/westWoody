@@ -57,4 +57,9 @@ export class BonusTypesService {
   getPreconfiguredBonusTypes(): Observable<PreconfiguredBonusType[]> {
     return this.http.get<PreconfiguredBonusType[]>(`${this.apiUrl}/preconfigured`);
   }
+
+  // Get bonus types by flow (returns a single object, not an array)
+  getBonusTypesByFlow(flow: string): Observable<BonusTypeResponse> {
+    return this.http.get<BonusTypeResponse>(`${this.apiUrl}/flow/${flow}`);
+  }
 }

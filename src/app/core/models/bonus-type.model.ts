@@ -27,8 +27,9 @@ export interface BonusTypeResponse {
   name: string;
   type: BonusTypeType;
   enabled: boolean;
-  bonusPercentage?: number;
-  bonusAmount?: number;
+  bonusPercentage?: number | null;
+  bonusAmount?: number | null;
+  milestoneThreshold?: number | null;
   expirationDays: number;
   description: string;
   iconType?: BonusIconType | null;

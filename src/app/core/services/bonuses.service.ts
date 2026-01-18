@@ -32,7 +32,11 @@ export interface BonusHistoryResponse {
 }
 
 export interface BonusBalance {
-  balance: number;
+  clientId: string;
+  clientName: string;
+  totalAccumulated: number;
+  totalUsed: number;
+  currentBalance: number;
 }
 
 @Injectable({

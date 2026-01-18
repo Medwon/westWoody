@@ -76,6 +76,42 @@ export interface UpdateClientTagsRequest {
   tags: string[];
 }
 
+export interface ClientByPhoneResponse {
+  clientId: string;
+  name: string;
+  surname: string;
+  comment: string | null;
+  tags: string[];
+  currentBonusBalance: number;
+  clientType: 'INDIVIDUAL' | 'BUSINESS';
+}
+
+export interface CreateClientRequest {
+  phone: string;
+  name: string;
+  surname?: string;
+  dateOfBirth?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  clientType: 'INDIVIDUAL' | 'BUSINESS';
+  referrerId?: string | null;
+  email?: string | null;
+}
+
+export interface CreateClientResponse {
+  id: string;
+  name: string;
+  surname: string;
+  phone: string;
+  email: string | null;
+  clientType: 'INDIVIDUAL' | 'BUSINESS';
+  tags: string[];
+  notes: string | null;
+  dateOfBirth: string | null;
+  referrerId: string | null;
+  createdAt: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -148,5 +184,25 @@ export class ClientsService {
     console.log('Request Payload (object):', request);
     console.log('==================================');
     return this.http.put<void>(url, request);
+  }
+
+  /**
+   * Get client by phone number
+   */
+  getClientByPhone(phoneNumber: string): Observable<ClientByPhoneResponse> {
+    return this.http.get<ClientByPhoneResponse>(`${this.apiUrl}/phone/${encodeURIComponent(phoneNumber)}`);
+  }
+
+  /**
+   * Create a new client
+   */
+  createClient(request: CreateClientRequest): Observable<CreateClientResponse> {
+    console.log('=== CREATE CLIENT REQUEST ===');
+    console.log('URL:', `${this.apiUrl}`);
+    console.log('Method: POST');
+    console.log('Full Request Payload:', JSON.stringify(request, null, 2));
+    console.log('Request Payload (object):', request);
+    console.log('============================');
+    return this.http.post<CreateClientResponse>(this.apiUrl, request);
   }
 }

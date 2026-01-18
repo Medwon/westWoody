@@ -1,8 +1,17 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { timeout, catchError, of } from 'rxjs';
 import { ModalComponent } from '../modal/modal.component';
 import { ButtonComponent } from '../button/button.component';
+import { DialogComponent } from '../dialog/dialog.component';
+import { ClientsService, ClientByPhoneResponse, CreateClientRequest } from '../../../core/services/clients.service';
+import { PaymentsService, DraftPaymentResponse } from '../../../core/services/payments.service';
+import { MessageTemplatesService } from '../../../core/services/message-templates.service';
+import { MessagesService } from '../../../core/services/messages.service';
+import { BonusTypesService } from '../../../core/services/bonus-types.service';
+import { BonusTypeResponse } from '../../../core/models/bonus-type.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 interface Client {
   id: string;
@@ -13,6 +22,7 @@ interface Client {
   type: 'individual' | 'business';
   tags?: string[];
   comment?: string;
+  surname?: string;
 }
 
 interface TransactionResult {
@@ -32,7 +42,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
     CommonModule,
     FormsModule,
     ModalComponent,
-    ButtonComponent
+    ButtonComponent,
+    DialogComponent
   ],
   template: `
     <app-modal
@@ -50,26 +61,30 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             class="search-input"
             [(ngModel)]="searchPhone"
             placeholder="8 900 000 00 00"
+            [disabled]="isLoading"
             (keypress)="onSearchKeypress($event)">
-          <button class="search-btn" (click)="handleSearch()">
+          <button class="search-btn" (click)="handleSearch()" [disabled]="isLoading">
             <svg viewBox="0 0 24 24" fill="none" class="search-icon">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
         </div>
-        <div class="search-hint">
+        <div class="search-hint" *ngIf="!isLoading">
           <svg viewBox="0 0 24 24" fill="none" class="hint-icon">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
           Введите номер для поиска или создания клиента
         </div>
+        <div class="loading-indicator" *ngIf="isLoading && currentStep === 'search'">
+          <span>Поиск клиента...</span>
+        </div>
       </div>
 
       <!-- Step 2: Client Found -->
       <div class="step-found" *ngIf="currentStep === 'found' && foundClient">
-        <div class="client-card">
+        <div class="client-card" [class.business-client]="foundClient.type === 'business'">
           <div class="client-card-header">
             <div class="client-avatar">
               {{ getInitials(foundClient.name) }}
@@ -179,8 +194,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
           </div>
         </div>
 
-        <button class="submit-btn" (click)="completeTransaction()" [disabled]="!purchaseAmount || purchaseAmount <= 0">
-          Провести транзакцию
+        <button class="submit-btn" (click)="completeTransaction()" [disabled]="!purchaseAmount || purchaseAmount <= 0 || isLoading">
+          {{ isLoading ? 'Обработка...' : 'Провести транзакцию' }}
         </button>
 
         <button class="back-btn" (click)="goBack()">← Назад к поиску</button>
@@ -202,12 +217,21 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
         </div>
 
         <div class="form-group">
-          <label class="input-label">{{ newClientType === 'business' ? 'Название клиента' : 'ФИО Клиента' }}</label>
+          <label class="input-label">{{ newClientType === 'business' ? 'Название клиента' : 'Имя' }}</label>
           <input
             type="text"
             class="form-input"
             [(ngModel)]="newClientName"
-            [placeholder]="newClientType === 'business' ? 'ТОО «Клиент»' : 'Иван Иванов'">
+            [placeholder]="newClientType === 'business' ? 'ТОО «Клиент»' : 'Иван'">
+        </div>
+
+        <div class="form-group" *ngIf="newClientType === 'individual'">
+          <label class="input-label">Фамилия (необязательно)</label>
+          <input
+            type="text"
+            class="form-input"
+            [(ngModel)]="newClientSurname"
+            placeholder="Иванов">
         </div>
 
         <div class="form-group" *ngIf="newClientType === 'individual'">
@@ -295,8 +319,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             rows="3"></textarea>
         </div>
 
-        <button class="submit-btn" (click)="createClient()" [disabled]="!newClientName">
-          Создать клиента
+        <button class="submit-btn" (click)="createClient()" [disabled]="!newClientName || isLoading">
+          {{ isLoading ? 'Создание...' : 'Создать клиента' }}
         </button>
 
         <button class="back-btn" (click)="goBack()">← Назад к поиску</button>
@@ -360,10 +384,21 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             </svg>
             {{ isSendingMessage ? 'Отправка...' : 'Отправить в WhatsApp' }}
           </app-button>
-          <button class="back-btn" (click)="goBackFromNotify()">← Назад</button>
         </div>
       </div>
     </app-modal>
+
+    <!-- Confirmation Dialog - Outside main modal for proper z-index -->
+    <app-dialog
+      [visible]="showCancelConfirmation"
+      title="Подтверждение"
+      message="Вы уверены, что хотите отменить создание платежа? Черновик платежа будет удален."
+      confirmLabel="Да, отменить"
+      cancelLabel="Нет"
+      [dismissible]="false"
+      (confirmed)="confirmCancel()"
+      (cancelled)="showCancelConfirmation = false">
+    </app-dialog>
   `,
   styles: [`
     /* Search Step */
@@ -442,6 +477,10 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       gap: 12px;
       margin: 1rem 0 2.5rem 0 ;
       animation: slideDown 0.3s ease;
+    }
+
+    .client-card.business-client {
+      background: #2563eb;
     }
 
     .client-card-header {
@@ -527,6 +566,11 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       border-radius: 12px;
     }
 
+    .client-card.business-client .client-tag {
+      background: rgba(219, 234, 254, 0.9);
+      color: #1e40af;
+    }
+
     /* Client Comment */
     .client-comment {
       background: rgba(220, 252, 231, 0.9);
@@ -541,6 +585,15 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
 
     .client-comment:hover {
       background: rgba(220, 252, 231, 1);
+    }
+
+    .client-card.business-client .client-comment {
+      background: rgba(219, 234, 254, 0.9);
+      color: #1e40af;
+    }
+
+    .client-card.business-client .client-comment:hover {
+      background: rgba(219, 234, 254, 1);
     }
 
     .comment-text {
@@ -894,7 +947,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       background: #f1f5f9;
       padding: 0.375rem 0.75rem;
       border-radius: 8px;
-      font-weight: 500;
+      font-weight: 700;
+      border: 1px solid #e2e8f0;
     }
 
     .summary-row.discount .summary-value {
@@ -1217,9 +1271,26 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       width: 20px;
       height: 20px;
     }
+
+    .loading-indicator {
+      margin-top: 1rem;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.9rem;
+      padding: 0.75rem;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
   `]
 })
 export class TransactionModalComponent implements OnChanges, OnDestroy {
+  private clientsService = inject(ClientsService);
+  private paymentsService = inject(PaymentsService);
+  private messageTemplatesService = inject(MessageTemplatesService);
+  private messagesService = inject(MessagesService);
+  private bonusTypesService = inject(BonusTypesService);
+  private toastService = inject(ToastService);
+
   @Input() visible = false;
   @Input() welcomeMessageTemplates: any[] = []; // Шаблоны приветственных сообщений
   @Output() visibleChange = new EventEmitter<boolean>();
@@ -1234,10 +1305,16 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   useBonuses = false;
   bonusesToUse = 0;
   paymentId: string | null = null;
+  draftPayment: DraftPaymentResponse | null = null;
+  isLoading = false;
+  bonusPercentage: number | null = null; // Bonus percentage from API
   newClientName = '';
+  newClientSurname = '';
   newClientType: 'individual' | 'business' = 'individual';
   newClientTags = '';
   newClientComment = '';
+  newClientEmail = '';
+  newClientBirthday = '';
   isCommentExpanded = false;
   showTagsDropdown = false;
 
@@ -1245,28 +1322,36 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   isSendingMessage = false;
   pendingTransactionResult: TransactionResult | null = null;
   selectedWelcomeTemplate: any = null;
+  populatedMessageContent = '';
   
   // Track if current client was just created (for transaction result)
   isNewlyCreatedClient = false;
   
-  // Список доступных тэгов
-  availableTags: string[] = [
-    'VIP',
-    'Постоянный',
-    'Новый',
-    'Оптовик',
-    'B2B',
-    'Скидка 10%',
-    'Скидка 20%',
-    'День рождения',
-    'Корпоративный',
-    'Рекомендация'
-  ];
+  // Список доступных тэгов из API
+  availableTags: string[] = [];
+
+  // Cancel confirmation
+  showCancelConfirmation = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
       this.toggleBodyScroll(changes['visible'].currentValue);
+      if (changes['visible'].currentValue) {
+        this.loadAvailableTags();
+      }
     }
+  }
+
+  loadAvailableTags(): void {
+    this.clientsService.getTags().subscribe({
+      next: (tags) => {
+        this.availableTags = Array.isArray(tags) ? tags : [];
+      },
+      error: (err) => {
+        console.error('Error loading tags:', err);
+        this.availableTags = [];
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -1278,41 +1363,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       document.body.style.overflow = disable ? 'hidden' : '';
     }
   }
-  newClientEmail = '';
-  newClientBirthday = '';
 
-  private readonly BONUS_RATE = 0.1;
-
-  // Mock database
-  private mockDB: Record<string, Client> = {
-    '89001234567': { 
-      id: '1', 
-      name: 'Александр Петров', 
-      phone: '89001234567', 
-      balance: 450,
-      type: 'individual',
-      tags: ['VIP', 'Постоянный'],
-      comment: 'Клиент предпочитает утренние визиты. Любит скидки на сезонные товары. Рекомендовал нас друзьям.'
-    },
-    '89998887766': { 
-      id: '2', 
-      name: 'Елена Смирнова', 
-      phone: '89998887766', 
-      balance: 1200,
-      type: 'business',
-      tags: ['Оптовик', 'B2B'],
-      comment: 'Представитель компании "ТехноПром". Закупки каждый месяц.'
-    },
-    '777': { 
-      id: '3', 
-      name: 'Тестовый Клиент', 
-      phone: '777', 
-      balance: 5000,
-      type: 'individual',
-      tags: ['Новый'],
-      comment: 'Тестовый комментарий для проверки функционала модального окна.'
-    }
-  };
 
   getModalTitle(): string {
     switch (this.currentStep) {
@@ -1330,9 +1381,54 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   onClose(): void {
+    // Show confirmation if draft payment exists AND we're on payment creation steps (found, new)
+    // NOT on notify step - payment is already completed there
+    const isPaymentCreationStep = this.currentStep === 'found' || this.currentStep === 'new';
+    if (this.draftPayment && isPaymentCreationStep) {
+      this.showCancelConfirmation = true;
+    } else {
+      this.closeModal();
+    }
+  }
+
+  confirmCancel(): void {
+    // If we're on notify step, payment is already completed, just go back to found step
+    if (this.currentStep === 'notify') {
+      this.showCancelConfirmation = false;
+      this.currentStep = 'found';
+      return;
+    }
+
+    // For other steps, delete draft payment if it exists
+    if (this.draftPayment) {
+      // Delete draft payment
+      this.paymentsService.deleteDraftPayment(this.draftPayment.txId).subscribe({
+        next: () => {
+          this.toastService.success('Черновик платежа удален');
+          this.showCancelConfirmation = false;
+          this.closeModal();
+        },
+        error: (err) => {
+          console.error('Error deleting draft payment:', err);
+          const errorMessage = err.error?.message || 'Ошибка при удалении черновика платежа';
+          this.toastService.error(errorMessage);
+          // Close modal anyway
+          this.showCancelConfirmation = false;
+          this.closeModal();
+        }
+      });
+    } else {
+      this.showCancelConfirmation = false;
+      this.closeModal();
+    }
+  }
+
+  closeModal(): void {
+    // Reset all form state first
+    this.resetForm();
+    // Then update visibility and emit change
     this.visible = false;
     this.visibleChange.emit(false);
-    this.resetForm();
   }
 
   onSearchKeypress(event: KeyboardEvent): void {
@@ -1342,20 +1438,124 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   handleSearch(): void {
-    const cleanPhone = this.searchPhone.replace(/\D/g, '');
+    const cleanPhone = this.searchPhone.trim();
     
     if (cleanPhone.length < 3) {
+      this.toastService.error('Введите корректный номер телефона');
       return;
     }
 
-    const client = this.mockDB[cleanPhone] || this.mockDB[this.searchPhone];
+    this.isLoading = true;
     
-    if (client) {
-      this.foundClient = client;
-      this.currentStep = 'found';
-    } else {
-      this.currentStep = 'new';
+    // Search client by phone
+    this.clientsService.getClientByPhone(cleanPhone).subscribe({
+      next: (response) => {
+        // Client found - map to Client interface
+        this.foundClient = {
+          id: response.clientId,
+          name: response.name,
+          surname: response.surname || '',
+          phone: cleanPhone,
+          balance: response.currentBonusBalance || 0, // Use currentBonusBalance from API
+          type: response.clientType === 'BUSINESS' ? 'business' : 'individual', // Use clientType from API
+          tags: response.tags || [],
+          comment: response.comment || undefined
+        };
+        this.isNewlyCreatedClient = false;
+        // Keep isLoading = true, createDraftPayment will handle it
+        // Create draft payment directly (no need to load balance separately)
+        this.createDraftPayment();
+      },
+      error: (err) => {
+        // Client not found (404) - show create client form
+        if (err.status === 404) {
+          this.isLoading = false;
+          this.currentStep = 'new';
+        } else {
+          const errorMessage = err.error?.message || 'Ошибка при поиске клиента';
+          this.toastService.error(errorMessage);
+          this.isLoading = false;
+        }
+      }
+    });
+  }
+
+  createDraftPayment(): void {
+    if (!this.foundClient) {
+      console.error('createDraftPayment called but foundClient is null');
+      this.isLoading = false;
+      return;
     }
+    
+    this.isLoading = true;
+    console.log('Loading bonus configuration for new_payment flow...');
+    
+    // Load bonus configuration for new_payment flow with timeout and error handling
+    this.bonusTypesService.getBonusTypesByFlow('new_payment')
+      .pipe(
+        timeout(5000), // 5 second timeout
+        catchError((err) => {
+          console.warn('Error or timeout loading bonus configuration, continuing with default:', err);
+          // Return null on error so we can continue
+          return of(null as BonusTypeResponse | null);
+        })
+      )
+      .subscribe({
+        next: (bonusType) => {
+          console.log('Bonus type loaded:', bonusType);
+          
+          // API returns a single object, check if it's enabled and has bonusPercentage
+          if (bonusType && bonusType.enabled && bonusType.bonusPercentage !== null && bonusType.bonusPercentage !== undefined) {
+            // Convert percentage to decimal (e.g., 3.00 -> 0.03)
+            this.bonusPercentage = bonusType.bonusPercentage / 100;
+            console.log('Using bonus percentage:', bonusType.bonusPercentage, '% (', this.bonusPercentage, 'as decimal)');
+          } else {
+            // Fallback to 0 if bonus type is disabled or has no percentage
+            this.bonusPercentage = 0;
+            console.log('Bonus type is disabled or has no percentage, using 0%');
+          }
+          
+          // Create draft payment after bonus config is loaded
+          console.log('Creating draft payment for client:', this.foundClient!.id);
+          this.paymentsService.createDraftPayment({ clientId: this.foundClient!.id }).subscribe({
+            next: (draft) => {
+              console.log('Draft payment created:', draft);
+              this.draftPayment = draft;
+              this.paymentId = draft.txId;
+              this.currentStep = 'found';
+              this.isLoading = false;
+              // Recalculate bonus with new percentage
+              this.calculateBonus();
+            },
+            error: (err) => {
+              console.error('Error creating draft payment:', err);
+              const errorMessage = err.error?.message || 'Ошибка при создании черновика платежа';
+              this.toastService.error(errorMessage);
+              this.isLoading = false;
+            }
+          });
+        },
+        error: (err) => {
+          // This should not happen due to catchError, but just in case
+          console.error('Unexpected error in bonus config subscription:', err);
+          this.bonusPercentage = 0;
+          // Still try to create draft payment
+          this.paymentsService.createDraftPayment({ clientId: this.foundClient!.id }).subscribe({
+            next: (draft) => {
+              this.draftPayment = draft;
+              this.paymentId = draft.txId;
+              this.currentStep = 'found';
+              this.isLoading = false;
+              this.calculateBonus();
+            },
+            error: (err) => {
+              const errorMessage = err.error?.message || 'Ошибка при создании черновика платежа';
+              this.toastService.error(errorMessage);
+              this.isLoading = false;
+            }
+          });
+        }
+      });
   }
 
   calculateBonus(): void {
@@ -1363,7 +1563,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     if (this.useBonuses) {
       this.calculatedBonus = 0;
     } else {
-      this.calculatedBonus = Math.floor((this.purchaseAmount || 0) * this.BONUS_RATE);
+      // Use bonusPercentage from API (already converted to decimal, e.g., 0.03 for 3%)
+      const rate = this.bonusPercentage ?? 0;
+      this.calculatedBonus = Math.floor((this.purchaseAmount || 0) * rate);
     }
   }
 
@@ -1408,23 +1610,62 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   completeTransaction(): void {
-    if (!this.foundClient || !this.purchaseAmount) return;
+    if (!this.foundClient || !this.purchaseAmount || !this.draftPayment) {
+      this.toastService.error('Заполните все обязательные поля');
+      return;
+    }
 
-    const result: TransactionResult = {
-      clientName: this.foundClient.name,
-      phone: this.foundClient.phone,
-      amount: this.purchaseAmount,
-      bonuses: this.calculatedBonus,
-      isNewClient: this.isNewlyCreatedClient
+    this.isLoading = true;
+
+    // Prepare complete payment request
+    const completeRequest = {
+      originalAmount: this.purchaseAmount,
+      bonusAmountUsed: this.useBonuses && this.bonusesToUse > 0 ? this.bonusesToUse : null,
+      notes: 'Payment for services'
     };
 
-    // Save transaction result and open send message modal
-    this.pendingTransactionResult = result;
-    this.openSendMessageModal();
+    console.log('=== COMPLETE PAYMENT REQUEST ===');
+    console.log('Payment TX ID:', this.draftPayment.txId);
+    console.log('Full Request Payload:', JSON.stringify(completeRequest, null, 2));
+    console.log('================================');
+
+    this.paymentsService.completePayment(this.draftPayment.txId, completeRequest).subscribe({
+      next: () => {
+        const result: TransactionResult = {
+          clientName: this.foundClient!.name,
+          phone: this.foundClient!.phone,
+          amount: this.purchaseAmount!,
+          bonuses: this.calculatedBonus,
+          isNewClient: this.isNewlyCreatedClient
+        };
+
+        // Save transaction result
+        this.pendingTransactionResult = result;
+        this.isLoading = false;
+
+        // If bonuses were used, skip notification step (no new bonuses granted)
+        if (this.useBonuses && this.bonusesToUse > 0) {
+          this.finishTransaction();
+        } else {
+          // Open send message modal only if bonuses were not used (new bonuses granted)
+          this.openSendMessageModal();
+        }
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при завершении платежа';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
   }
 
   createClient(): void {
-    if (!this.newClientName) return;
+    if (!this.newClientName) {
+      this.toastService.error('Введите имя клиента');
+      return;
+    }
+
+    this.isLoading = true;
 
     // Parse tags from comma-separated string
     const tags = this.newClientTags
@@ -1432,69 +1673,128 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
-    // Create the new client object
-    const newClient: Client = {
-      id: 'new_' + Date.now(),
-      name: this.newClientName,
-      phone: this.searchPhone,
-      balance: 0,
-      type: this.newClientType,
+    // Split name into name and surname if individual
+    let name = this.newClientName;
+    let surname = this.newClientSurname;
+    if (this.newClientType === 'individual' && !surname) {
+      const nameParts = this.newClientName.trim().split(/\s+/);
+      if (nameParts.length > 1) {
+        name = nameParts[0];
+        surname = nameParts.slice(1).join(' ');
+      }
+    }
+
+    const createRequest: CreateClientRequest = {
+      phone: this.searchPhone.trim(),
+      name: name,
+      surname: surname || undefined,
+      dateOfBirth: this.newClientBirthday || null,
+      notes: this.newClientComment || null,
       tags: tags.length > 0 ? tags : undefined,
-      comment: this.newClientComment || undefined
+      clientType: this.newClientType === 'business' ? 'BUSINESS' : 'INDIVIDUAL',
+      referrerId: null,
+      email: this.newClientEmail || null
     };
 
-    // Set as found client and navigate to payment step
-    this.foundClient = newClient;
-    this.isNewlyCreatedClient = true;
-    this.currentStep = 'found';
-    
-    // Reset payment-related fields for fresh start
-    this.purchaseAmount = null;
-    this.calculatedBonus = 0;
-    this.useBonuses = false;
-    this.bonusesToUse = 0;
+    console.log('=== CREATE CLIENT REQUEST ===');
+    console.log('Full Request Payload:', JSON.stringify(createRequest, null, 2));
+    console.log('============================');
+
+    this.clientsService.createClient(createRequest).subscribe({
+      next: (createdClient) => {
+        // Map created client to Client interface
+        this.foundClient = {
+          id: createdClient.id,
+          name: createdClient.name,
+          surname: createdClient.surname || '',
+          phone: createdClient.phone,
+          balance: 0, // Will be loaded from bonus balance endpoint (should be 0 for new client)
+          type: createdClient.clientType === 'BUSINESS' ? 'business' : 'individual',
+          tags: createdClient.tags || [],
+          comment: createdClient.notes || undefined
+        };
+        this.isNewlyCreatedClient = true;
+        // Keep isLoading = true, createDraftPayment will handle it
+        // Create draft payment directly (new client has 0 balance)
+        this.createDraftPayment();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при создании клиента';
+        this.toastService.error(errorMessage);
+        this.isLoading = false;
+      }
+    });
   }
 
   openSendMessageModal(): void {
-    // Load templates from localStorage every time to get the latest version
-    const templates = this.loadWelcomeMessageTemplates();
-    
-    // Find welcome message template
-    this.selectedWelcomeTemplate = templates.find(
-      t => t.type === 'bonus_accrued' || t.name.toLowerCase().includes('привет')
-    ) || templates[0] || null;
+    if (!this.foundClient || !this.draftPayment) return;
 
-    this.currentStep = 'notify';
-  }
+    this.isLoading = true;
+    const templateType = 'BASIC_CASHBACK_BONUS_GRANT';
 
-  private loadWelcomeMessageTemplates(): any[] {
-    try {
-      const templatesJson = localStorage.getItem('whatsapp_message_templates');
-      if (templatesJson) {
-        const templates = JSON.parse(templatesJson);
-        // Convert date strings back to Date objects
-        return templates.map((t: any) => ({
-          ...t,
-          createdAt: new Date(t.createdAt)
-        }));
-      } else {
-        // Default welcome template if none exist
-        return [{
+    // Load template by type
+    this.messageTemplatesService.getAllTemplates(templateType).subscribe({
+      next: (templates) => {
+        if (templates && templates.length > 0) {
+          this.selectedWelcomeTemplate = templates[0];
+          
+          // Get populated message content
+          if (!this.draftPayment) {
+            this.isLoading = false;
+            this.toastService.error('Ошибка: черновик платежа не найден');
+            return;
+          }
+          
+          this.messageTemplatesService.getPopulatedTemplate(
+            templateType,
+            this.foundClient!.id,
+            this.draftPayment.txId
+          ).subscribe({
+            next: (populated) => {
+              this.populatedMessageContent = populated.content;
+              this.isLoading = false;
+              this.currentStep = 'notify';
+            },
+            error: (err) => {
+              console.error('Error loading populated template:', err);
+              // Fallback to manual formatting
+              this.populatedMessageContent = this.getFormattedMessage();
+              this.isLoading = false;
+              this.currentStep = 'notify';
+            }
+          });
+        } else {
+          // No template found, use default
+          this.selectedWelcomeTemplate = {
+            id: 'default',
+            name: 'Приветственное сообщение',
+            type: templateType,
+            content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.'
+          };
+          this.populatedMessageContent = this.getFormattedMessage();
+          this.isLoading = false;
+          this.currentStep = 'notify';
+        }
+      },
+      error: (err) => {
+        console.error('Error loading template:', err);
+        // Use default template
+        this.selectedWelcomeTemplate = {
           id: 'default',
           name: 'Приветственное сообщение',
-          type: 'bonus_accrued',
-          content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.',
-          createdAt: new Date()
-        }];
+          type: templateType,
+          content: 'Добро пожаловать, {clientName}! Спасибо за покупку. Вам начислено {clientBonus} бонусов.'
+        };
+        this.populatedMessageContent = this.getFormattedMessage();
+        this.isLoading = false;
+        this.currentStep = 'notify';
       }
-    } catch (e) {
-      console.error('Failed to load templates', e);
-      return [];
-    }
+    });
   }
 
   goBackFromNotify(): void {
-    // Always go back to found step (both existing and newly created clients use this step)
+    // Simply go back to found step without confirmation
+    // Payment is already completed, just return to payment step
     this.currentStep = 'found';
   }
 
@@ -1528,6 +1828,11 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   getFormattedMessage(): string {
+    // Use populated message content if available
+    if (this.populatedMessageContent) {
+      return this.populatedMessageContent;
+    }
+
     if (!this.selectedWelcomeTemplate) {
       return 'Добро пожаловать! Спасибо за покупку.';
     }
@@ -1556,34 +1861,59 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   sendWelcomeMessage(): void {
-    if (this.isSendingMessage) return;
+    if (this.isSendingMessage || !this.foundClient) return;
 
     const phone = this.getPhoneForMessage();
     const message = this.getFormattedMessage();
 
     if (!phone || !message) {
+      this.toastService.error('Не указан номер телефона или сообщение');
       return;
     }
 
     this.isSendingMessage = true;
 
-    // Emit event to parent component to handle WhatsApp sending
-    this.messageSent.emit({ phone, message });
-
-    // Simulate sending (in real app, this would be an API call)
-    setTimeout(() => {
-      this.finishTransaction();
-    }, 1500);
+    // Send message via API
+    this.messagesService.sendMessage({
+      clientId: this.foundClient.id,
+      messageContent: message,
+      channel: 'WHATSAPP'
+    }).subscribe({
+      next: () => {
+        this.toastService.success('Сообщение успешно отправлено');
+        this.messageSent.emit({ phone, message });
+        this.finishTransaction();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при отправке сообщения';
+        this.toastService.error(errorMessage);
+        this.isSendingMessage = false;
+      }
+    });
   }
 
   goBack(): void {
+    // Show confirmation if draft payment exists AND we're on payment creation steps (found, new, notify)
+    const isPaymentCreationStep = this.currentStep === 'found' || this.currentStep === 'new' || this.currentStep === 'notify';
+    if (this.draftPayment && isPaymentCreationStep) {
+      this.showCancelConfirmation = true;
+    } else {
+      this.resetToSearch();
+    }
+  }
+
+  resetToSearch(): void {
     this.currentStep = 'search';
     this.foundClient = null;
     this.purchaseAmount = null;
     this.calculatedBonus = 0;
     this.useBonuses = false;
     this.bonusesToUse = 0;
+    this.draftPayment = null;
+    this.paymentId = null;
+    this.bonusPercentage = null;
     this.newClientName = '';
+    this.newClientSurname = '';
     this.newClientEmail = '';
     this.newClientBirthday = '';
     this.newClientType = 'individual';
@@ -1644,7 +1974,11 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.calculatedBonus = 0;
     this.useBonuses = false;
     this.bonusesToUse = 0;
+    this.paymentId = null;
+    this.draftPayment = null;
+    this.bonusPercentage = null;
     this.newClientName = '';
+    this.newClientSurname = '';
     this.newClientEmail = '';
     this.newClientBirthday = '';
     this.newClientType = 'individual';
@@ -1654,8 +1988,11 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.showTagsDropdown = false;
     this.pendingTransactionResult = null;
     this.selectedWelcomeTemplate = null;
+    this.populatedMessageContent = '';
     this.isSendingMessage = false;
     this.isNewlyCreatedClient = false;
+    this.isLoading = false;
+    this.showCancelConfirmation = false;
   }
 }
 

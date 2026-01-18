@@ -321,7 +321,7 @@ interface PaymentItem {
                 <div class="bonuses-stats">
                   <div class="stat-item">
                     <span class="stat-label">Осталось:</span>
-                    <span class="stat-value active">{{ formatAmount(getActiveBonusesTotal()) }} ₸</span>
+                    <span class="stat-value active">{{ formatAmount(bonusBalance) }} ₸</span>
                   </div>
                   <div class="stat-item">
                     <span class="stat-label">Использовано:</span>
@@ -2146,8 +2146,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
           }
         }).filter(b => b !== null);
 
-        // Set bonus balance
-        this.bonusBalance = bonusBalance?.balance || 0;
+        // Set bonus balance - use currentBalance from API
+        this.bonusBalance = bonusBalance?.currentBalance ?? 0;
 
         // Set totals
         this.clientTotals = totals || {
@@ -2280,7 +2280,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
     this.bonusesService.getClientBonusBalance(this.clientId).subscribe({
       next: (bonusBalance) => {
-        this.bonusBalance = bonusBalance?.balance || 0;
+        this.bonusBalance = bonusBalance?.currentBalance ?? 0;
         this.cdr.detectChanges();
       },
       error: (err) => {

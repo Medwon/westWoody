@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ModalComponent } from '../modal/modal.component';
 import { ButtonComponent } from '../button/button.component';
@@ -8,32 +8,40 @@ import { ButtonComponent } from '../button/button.component';
   standalone: true,
   imports: [CommonModule, ModalComponent, ButtonComponent],
   template: `
-    <app-modal
-      [visible]="visible"
-      [title]="title"
-      [showCloseButton]="dismissible"
-      [size]="size"
-      (closed)="onClose()">
-      <div class="dialog-content">
-        <p *ngIf="message">{{ message }}</p>
-        <ng-content></ng-content>
-      </div>
-      <div modalFooter *ngIf="showActions">
-        <app-button
-          *ngIf="cancelLabel"
-          buttonType="ghost"
-          (onClick)="onCancel()">
-          {{ cancelLabel }}
-        </app-button>
-        <app-button
-          buttonType="primary"
-          (onClick)="onConfirm()">
-          {{ confirmLabel }}
-        </app-button>
-      </div>
-    </app-modal>
+    <div class="dialog-wrapper" *ngIf="visible">
+      <app-modal
+        [visible]="visible"
+        [title]="title"
+        [showCloseButton]="dismissible"
+        [showFooter]="showActions"
+        [size]="size"
+        (closed)="onClose()">
+        <div class="dialog-content">
+          <p *ngIf="message">{{ message }}</p>
+          <ng-content></ng-content>
+        </div>
+        <div modalFooter *ngIf="showActions">
+          <app-button
+            *ngIf="cancelLabel"
+            buttonType="ghost"
+            (onClick)="onCancel()">
+            {{ cancelLabel }}
+          </app-button>
+          <app-button
+            buttonType="primary"
+            (onClick)="onConfirm()">
+            {{ confirmLabel }}
+          </app-button>
+        </div>
+      </app-modal>
+    </div>
   `,
   styles: [`
+    .dialog-wrapper ::ng-deep .modal-overlay {
+      z-index: 10001 !important;
+      background-color: rgba(0, 0, 0, 0.6) !important;
+    }
+
     .dialog-content {
       color: #1a202c;
       line-height: 1.6;

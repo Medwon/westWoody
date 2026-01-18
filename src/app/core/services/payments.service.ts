@@ -46,6 +46,30 @@ export interface RefundRequest {
   notes: string;
 }
 
+export interface CreateDraftPaymentRequest {
+  clientId: string;
+}
+
+export interface DraftPaymentResponse {
+  txId: string;
+  clientId: string;
+  clientName: string;
+  enteredByUserId: string;
+  enteredByUsername: string;
+  amount: number;
+  notes: string | null;
+  status: string;
+  refundedPaymentTxId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompletePaymentRequest {
+  originalAmount: number;
+  bonusAmountUsed: number | null;
+  notes: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -76,5 +100,44 @@ export class PaymentsService {
       .set('page', page.toString())
       .set('size', size.toString());
     return this.http.get<PaymentSearchResponse>(`${this.apiUrl}/client/${clientId}`, { params });
+  }
+
+  /**
+   * Create a draft payment
+   */
+  createDraftPayment(request: CreateDraftPaymentRequest): Observable<DraftPaymentResponse> {
+    console.log('=== CREATE DRAFT PAYMENT REQUEST ===');
+    console.log('URL:', `${this.apiUrl}/draft`);
+    console.log('Method: POST');
+    console.log('Full Request Payload:', JSON.stringify(request, null, 2));
+    console.log('Request Payload (object):', request);
+    console.log('====================================');
+    return this.http.post<DraftPaymentResponse>(`${this.apiUrl}/draft`, request);
+  }
+
+  /**
+   * Complete a payment
+   */
+  completePayment(paymentTxId: string, request: CompletePaymentRequest): Observable<void> {
+    console.log('=== COMPLETE PAYMENT REQUEST ===');
+    console.log('URL:', `${this.apiUrl}/${paymentTxId}/complete`);
+    console.log('Method: POST');
+    console.log('Payment TX ID:', paymentTxId);
+    console.log('Full Request Payload:', JSON.stringify(request, null, 2));
+    console.log('Request Payload (object):', request);
+    console.log('================================');
+    return this.http.post<void>(`${this.apiUrl}/${paymentTxId}/complete`, request);
+  }
+
+  /**
+   * Delete a draft payment
+   */
+  deleteDraftPayment(paymentTxId: string): Observable<void> {
+    console.log('=== DELETE DRAFT PAYMENT REQUEST ===');
+    console.log('URL:', `${this.apiUrl}/draft/${paymentTxId}`);
+    console.log('Method: DELETE');
+    console.log('Payment TX ID:', paymentTxId);
+    console.log('=====================================');
+    return this.http.delete<void>(`${this.apiUrl}/draft/${paymentTxId}`);
   }
 }
