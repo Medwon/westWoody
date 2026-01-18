@@ -4,10 +4,10 @@
   "scripts": {
     "ng": "ng",
     "start": "node server.js",
-    "build": "ng build --configuration production",
+    "build": "node scripts/set-env.js && ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "heroku-postbuild": "ng build --configuration production"
+    "heroku-postbuild": "node scripts/set-env.js && ng build --configuration production"
   },
   "private": true,
   "dependencies": {
