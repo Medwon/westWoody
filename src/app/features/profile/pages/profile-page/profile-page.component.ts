@@ -1,22 +1,29 @@
-import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { ClientsService, ClientDetails, UpdateClientRequest } from '../../../../core/services/clients.service';
+import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
+import { BonusesService, BonusHistoryItem } from '../../../../core/services/bonuses.service';
+import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
-interface MockClient {
+interface Client {
+  id: string;
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
+  email: string | null;
   tags: string[];
-  comment: string;
-  active: boolean;
+  comment: string | null;
   type: 'individual' | 'business';
 }
 
@@ -34,10 +41,15 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
-      <div class="profile-container">
+      <!-- Loading State -->
+      <div class="loading-container" *ngIf="isLoading">
+        <app-loader></app-loader>
+      </div>
+
+      <div class="profile-container" *ngIf="client && !isLoading">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -46,27 +58,26 @@ interface PaymentItem {
               <div class="avatar-large">
                 {{ getInitials() }}
               </div>
-              <div class="status-indicator" [class.active]="mockClient.active"></div>
             </div>
             <div class="profile-main-info">
               <div class="name-row">
                 <h1 class="profile-name">{{ getFullName() }}</h1>
-                <span class="client-type-badge" [class.business]="mockClient.type === 'business'">
-                  <svg *ngIf="mockClient.type === 'business'" viewBox="0 0 24 24" fill="none">
+                <span class="client-type-badge" [class.business]="client.type === 'business'">
+                  <svg *ngIf="client.type === 'business'" viewBox="0 0 24 24" fill="none">
                     <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
                     <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" stroke-width="1.5"/>
                   </svg>
-                  <svg *ngIf="mockClient.type === 'individual'" viewBox="0 0 24 24" fill="none">
+                  <svg *ngIf="client.type === 'individual'" viewBox="0 0 24 24" fill="none">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
                     <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
                   </svg>
-                  {{ mockClient.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}
+                  {{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}
                 </span>
               </div>
-              <p class="profile-phone">{{ mockClient.phone }}</p>
+              <p class="profile-phone">{{ client.phone }}</p>
               <div class="tags-row">
                 <div class="tags-container">
-                  <span class="client-tag" *ngFor="let tag of mockClient.tags; let i = index">
+                  <span class="client-tag" *ngFor="let tag of client.tags; let i = index">
                     {{ tag }}
                     <button class="remove-tag-btn" *ngIf="isEditingTags" (click)="removeTag(i)">
                       <svg viewBox="0 0 24 24" fill="none">
@@ -91,7 +102,7 @@ interface PaymentItem {
                 </div>
                 
                 <!-- Tags Dropdown -->
-                <div class="tags-dropdown" *ngIf="isEditingTags && showTagsDropdown && getFilteredTags().length > 0">
+                <div class="tags-dropdown" *ngIf="isEditingTags && showTagsDropdown && availableTags.length > 0">
                   <div class="tags-dropdown-header">
                     <span>Популярные тэги</span>
                     <button type="button" class="tags-dropdown-close" (click)="showTagsDropdown = false">×</button>
@@ -104,6 +115,9 @@ interface PaymentItem {
                       (click)="addTagFromDropdown(tag)">
                       {{ tag }}
                     </button>
+                    <div class="tags-dropdown-empty" *ngIf="getFilteredTags().length === 0 && availableTags.length > 0">
+                      Все популярные теги уже добавлены
+                    </div>
                   </div>
                 </div>
                 <button class="edit-tags-btn" *ngIf="!isEditingTags" (click)="startEditTags()">
@@ -112,12 +126,12 @@ interface PaymentItem {
                   </svg>
                 </button>
                 <div class="tags-actions" *ngIf="isEditingTags">
-                  <button class="save-tags-btn" (click)="saveTags()">
+                  <button class="save-tags-btn" (click)="saveTags()" [disabled]="isSavingTags">
                     <svg viewBox="0 0 24 24" fill="none">
                       <path d="M5 12l5 5L20 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </button>
-                  <button class="cancel-tags-btn" (click)="cancelEditTags()">
+                  <button class="cancel-tags-btn" (click)="cancelEditTags()" [disabled]="isSavingTags">
                     <svg viewBox="0 0 24 24" fill="none">
                       <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
@@ -144,12 +158,12 @@ interface PaymentItem {
               </svg>
             </button>
             <div class="comment-actions" *ngIf="isEditingComment">
-              <button class="save-btn" (click)="saveComment()">Сохранить</button>
-              <button class="cancel-btn" (click)="cancelEditComment()">Отмена</button>
+              <button class="save-btn" (click)="saveComment()" [disabled]="isSavingComment">Сохранить</button>
+              <button class="cancel-btn" (click)="cancelEditComment()" [disabled]="isSavingComment">Отмена</button>
             </div>
           </div>
           <div class="comment-body">
-            <p *ngIf="!isEditingComment" class="comment-text">{{ mockClient.comment || 'Нет комментария' }}</p>
+            <p *ngIf="!isEditingComment" class="comment-text">{{ client.comment || 'Нет комментария' }}</p>
             <textarea 
               *ngIf="isEditingComment" 
               [(ngModel)]="editedComment" 
@@ -170,7 +184,7 @@ interface PaymentItem {
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">156</span>
+              <span class="stat-value">{{ clientTotals.totalPayments }}</span>
               <span class="stat-label">Транзакций</span>
             </div>
           </div>
@@ -181,7 +195,7 @@ interface PaymentItem {
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">485,200 ₸</span>
+              <span class="stat-value">{{ formatAmount(clientTotals.totalRevenue) }} ₸</span>
               <span class="stat-label">Общая сумма</span>
             </div>
           </div>
@@ -192,7 +206,7 @@ interface PaymentItem {
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">2,450</span>
+              <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesGranted) }}</span>
               <span class="stat-label">Бонусов начислено</span>
             </div>
           </div>
@@ -204,7 +218,7 @@ interface PaymentItem {
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">1,820</span>
+              <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesUsed) }}</span>
               <span class="stat-label">Бонусов использовано</span>
             </div>
           </div>
@@ -230,24 +244,24 @@ interface PaymentItem {
                 </svg>
               </button>
               <div class="card-actions" *ngIf="isEditingPersonal">
-                <button class="save-btn" (click)="savePersonal()">Сохранить</button>
-                <button class="cancel-btn" (click)="cancelEditPersonal()">Отмена</button>
+                <button class="save-btn" (click)="savePersonal()" [disabled]="isSavingPersonal">Сохранить</button>
+                <button class="cancel-btn" (click)="cancelEditPersonal()" [disabled]="isSavingPersonal">Отмена</button>
               </div>
             </div>
             <div class="info-list">
               <div class="info-row">
                 <span class="info-label">Имя</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ mockClient.firstName }}</span>
+                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.firstName }}</span>
                 <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.firstName">
               </div>
               <div class="info-row">
                 <span class="info-label">Фамилия</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ mockClient.lastName }}</span>
+                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.lastName }}</span>
                 <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.lastName">
               </div>
               <div class="info-row">
                 <span class="info-label">Тип клиента</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ mockClient.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}</span>
+                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}</span>
                 <select class="info-select" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.type">
                   <option value="individual">Индивидуальный</option>
                   <option value="business">Бизнес</option>
@@ -274,20 +288,20 @@ interface PaymentItem {
                 </svg>
               </button>
               <div class="card-actions" *ngIf="isEditingContacts">
-                <button class="save-btn" (click)="saveContacts()">Сохранить</button>
-                <button class="cancel-btn" (click)="cancelEditContacts()">Отмена</button>
+                <button class="save-btn" (click)="saveContacts()" [disabled]="isSavingContacts">Сохранить</button>
+                <button class="cancel-btn" (click)="cancelEditContacts()" [disabled]="isSavingContacts">Отмена</button>
               </div>
             </div>
             <div class="info-list">
               <div class="info-row">
                 <span class="info-label">Телефон</span>
-                <span class="info-value" *ngIf="!isEditingContacts">{{ mockClient.phone }}</span>
+                <span class="info-value" *ngIf="!isEditingContacts">{{ client.phone }}</span>
                 <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.phone" type="tel">
               </div>
               <div class="info-row">
                 <span class="info-label">Email</span>
-                <span class="info-value email" *ngIf="!isEditingContacts">{{ mockClient.email || 'Не указан' }}</span>
-                <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.email" type="email">
+                <span class="info-value email" *ngIf="!isEditingContacts">{{ client.email || '—' }}</span>
+                <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.email" type="email" [disabled]="true" placeholder="Email недоступен для редактирования">
               </div>
             </div>
           </div>
@@ -608,7 +622,7 @@ interface PaymentItem {
       [visible]="showRefundModal"
       [payment]="selectedPaymentForRefund"
       (visibleChange)="closeRefundModal()"
-      (confirm)="confirmRefund($event)">
+      (confirm)="confirmRefund($event.refundReason || '')">
     </app-refund-confirmation-modal>
 
   `,
@@ -1659,6 +1673,18 @@ interface PaymentItem {
       font-weight: 400;
     }
 
+    .info-input:disabled {
+      background: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .info-input:disabled:hover {
+      border-color: #e2e8f0;
+      background: #f1f5f9;
+    }
+
     .info-select {
       padding: 0.625rem 2.5rem 0.625rem 1rem;
       border: 1.5px solid #e2e8f0;
@@ -1940,33 +1966,45 @@ interface PaymentItem {
 })
 export class ProfilePageComponent implements OnInit, AfterViewInit {
   private pageHeaderService = inject(PageHeaderService);
+  private route = inject(ActivatedRoute);
+  private clientsService = inject(ClientsService);
+  private paymentsService = inject(PaymentsService);
+  private bonusesService = inject(BonusesService);
+  private analyticsService = inject(AnalyticsService);
+  private toastService = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+
+  clientId: string = '';
+  isLoading = true;
+  client: Client | null = null;
+  clientDetails: ClientDetails | null = null; // Store full client details from API
+
+  // Client totals for dashboard
+  clientTotals = {
+    totalPayments: 0,
+    totalRevenue: 0,
+    totalBonusesGranted: 0,
+    totalBonusesUsed: 0
+  };
+
+  // Bonus balance
+  bonusBalance = 0;
 
   isEditingComment = false;
   editedComment = '';
+  isSavingComment = false;
   
   isEditingTags = false;
   editedTags: string[] = [];
   newTagInput = '';
   showTagsDropdown = false;
+  isSavingTags = false;
   
-  // Список доступных тэгов
-  availableTags: string[] = [
-    'VIP',
-    'Постоянный',
-    'Новый',
-    'Премиум',
-    'Скидка 5%',
-    'Скидка 10%',
-    'Скидка 15%',
-    'Скидка 20%',
-    'Бизнес',
-    'Корпоративный',
-    'Партнёр',
-    'Оптовик',
-    'Лояльный'
-  ];
+  // Список доступных тэгов из API
+  availableTags: string[] = [];
   
   isEditingPersonal = false;
+  isSavingPersonal = false;
   editedPersonal = {
     firstName: '',
     lastName: '',
@@ -1974,21 +2012,10 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   };
   
   isEditingContacts = false;
+  isSavingContacts = false;
   editedContacts = {
     phone: '',
     email: ''
-  };
-
-  // Мок данные клиента
-  mockClient: MockClient = {
-    firstName: 'Алексей',
-    lastName: 'Петров',
-    phone: '+7 (777) 123-45-67',
-    email: 'alexey.petrov@mail.kz',
-    tags: ['VIP', 'Постоянный', 'Скидка 10%'],
-    comment: 'Постоянный клиент, предпочитает премиум услуги. Обычно приходит по выходным. Любит получать бонусы.',
-    active: true,
-    type: 'individual'
   };
 
   // Состояние сворачивания бонусов
@@ -1997,7 +2024,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   // Интерфейс для детальной информации о бонусах
   bonusesDetails: Array<{
     id: string;
-    type: 'welcome' | 'referral' | 'purchase' | 'promotion' | 'loyalty' | 'refund';
+    type: string;
     amount: number;
     issuedAt: Date;
     expiresAt: Date;
@@ -2005,97 +2032,13 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     refundReason?: string;
     initiatedBy?: string;
     initiatedById?: string;
-  }> = [
-    {
-      id: '1',
-      type: 'welcome',
-      amount: 500,
-      issuedAt: new Date('2025-01-01'),
-      expiresAt: new Date('2025-04-01'),
-      initiatedBy: 'Иванов Иван Иванович',
-      initiatedById: '1'
-    },
-    {
-      id: '2',
-      type: 'purchase',
-      amount: 1250,
-      issuedAt: new Date('2025-01-13'),
-      expiresAt: new Date('2025-04-13'),
-      used: true,
-      initiatedBy: 'Петрова Мария Сергеевна',
-      initiatedById: '2'
-    },
-    {
-      id: '3',
-      type: 'purchase',
-      amount: 2500,
-      issuedAt: new Date('2025-01-06'),
-      expiresAt: new Date('2025-04-06'),
-      used: true
-    },
-    {
-      id: '4',
-      type: 'referral',
-      amount: 1000,
-      issuedAt: new Date('2025-01-10'),
-      expiresAt: new Date('2025-07-10')
-    },
-    {
-      id: '5',
-      type: 'purchase',
-      amount: 4200,
-      issuedAt: new Date('2025-12-15'),
-      expiresAt: new Date('2026-03-15')
-    },
-    {
-      id: '6',
-      type: 'promotion',
-      amount: 300,
-      issuedAt: new Date('2024-12-20'),
-      expiresAt: new Date('2025-01-20'),
-      used: false
-    },
-    {
-      id: '7',
-      type: 'loyalty',
-      amount: 800,
-      issuedAt: new Date('2024-11-15'),
-      expiresAt: new Date('2025-02-15'),
-      used: true
-    },
-    {
-      id: '8',
-      type: 'refund',
-      amount: 500,
-      issuedAt: new Date('2025-01-05'),
-      expiresAt: new Date('2025-04-05'),
-      used: false,
-      refundReason: 'Возврат товара ненадлежащего качества',
-      initiatedBy: 'Сидоров Дмитрий Алексеевич',
-      initiatedById: '3'
-    },
-    {
-      id: '9',
-      type: 'refund',
-      amount: 750,
-      issuedAt: new Date('2025-01-12'),
-      expiresAt: new Date('2025-04-12'),
-      used: false
-    }
-  ];
+  }> = [];
 
   // Раскрытые строки бонусов
   expandedBonusRows = new Set<string>();
 
-  // Мок данные платежей
-  payments: PaymentItem[] = [
-    { id: 'PAY-156', amount: 12500, bonusEarned: 1250, bonusUsed: 0, paymentMethod: 'card', isRefund: false, date: '13.01.2026', time: '14:32' },
-    { id: 'PAY-155', amount: 8750, bonusEarned: 0, bonusUsed: 500, paymentMethod: 'cash', isRefund: false, date: '10.01.2026', time: '11:15' },
-    { id: 'PAY-154', amount: 25000, bonusEarned: 2500, bonusUsed: 0, paymentMethod: 'online', isRefund: false, date: '06.01.2026', time: '16:48' },
-    { id: 'PAY-153', amount: 15300, bonusEarned: 0, bonusUsed: 2800, paymentMethod: 'card', isRefund: false, date: '30.12.2025', time: '09:22' },
-    { id: 'PAY-152', amount: 5000, bonusEarned: 0, bonusUsed: 0, paymentMethod: 'cash', isRefund: true, date: '28.12.2025', time: '15:10' },
-    { id: 'PAY-151', amount: 42000, bonusEarned: 4200, bonusUsed: 0, paymentMethod: 'online', isRefund: false, date: '15.12.2025', time: '12:05' },
-  ];
+  // Payment data
+  payments: PaymentItem[] = [];
 
   // Refund modal
   showRefundModal = false;
@@ -2107,6 +2050,344 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       { label: 'Клиенты', route: '/clients' },
       { label: 'Профиль клиента' }
     ]);
+
+    this.route.params.subscribe(params => {
+      this.clientId = params['id'];
+      if (this.clientId) {
+        this.loadClientData();
+      }
+    });
+  }
+
+  loadClientData(): void {
+    this.isLoading = true;
+    
+    // Make individual calls to better handle errors
+    const client$ = this.clientsService.getClientById(this.clientId);
+    const payments$ = this.paymentsService.getClientPayments(this.clientId, 0, 100);
+    const bonusHistory$ = this.bonusesService.getClientBonusHistory(this.clientId, 0, 100);
+    const bonusBalance$ = this.bonusesService.getClientBonusBalance(this.clientId);
+    const totals$ = this.analyticsService.getClientTotals(this.clientId);
+    const tags$ = this.clientsService.getTags();
+    
+    forkJoin({
+      client: client$,
+      payments: payments$,
+      bonusHistory: bonusHistory$,
+      bonusBalance: bonusBalance$,
+      totals: totals$,
+      tags: tags$
+    }).subscribe({
+      next: ({ client, payments, bonusHistory, bonusBalance, totals, tags }) => {
+        // Store full client details from API
+        this.clientDetails = client;
+        
+        // Map client data for UI
+        this.client = {
+          id: client.id,
+          firstName: client.name,
+          lastName: client.surname || '',
+          phone: client.phone,
+          email: client.email,
+          tags: client.tags || [],
+          comment: client.notes,
+          type: client.clientType === 'BUSINESS' ? 'business' : 'individual'
+        };
+
+        // Map payments - extract content from paginated response
+        const paymentsArray = payments?.content || [];
+        this.payments = paymentsArray
+          .map(p => {
+            try {
+              return this.mapPaymentToItem(p);
+            } catch (error) {
+              console.error('Error mapping payment:', p, error);
+              return null;
+            }
+          })
+          .filter(p => p !== null)
+          .sort((a, b) => {
+            try {
+              const dateA = new Date(`${a.date} ${a.time}`);
+              const dateB = new Date(`${b.date} ${b.time}`);
+              return dateB.getTime() - dateA.getTime();
+            } catch (error) {
+              console.error('Error sorting payments:', error);
+              return 0;
+            }
+          });
+
+        // Map bonus history - extract content from paginated response and transform to match UI
+        const bonusHistoryArray = bonusHistory?.content || [];
+        this.bonusesDetails = bonusHistoryArray.map(b => {
+          try {
+            // Map eventType to type for UI
+            let type = 'purchase';
+            if (b.grantReason === 'WELCOME') type = 'welcome';
+            else if (b.eventType === 'GRANTED') type = 'purchase';
+            else if (b.eventType === 'USED') type = 'purchase';
+            else if (b.eventType === 'REVOKED') type = 'refund';
+            else if (b.eventType === 'EXPIRED') type = 'loyalty';
+
+            return {
+              id: String(b.id),
+              type: type,
+              amount: b.bonusAmount,
+              issuedAt: new Date(b.createdAt),
+              expiresAt: b.expiresAt ? new Date(b.expiresAt) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Default 90 days if no expiry
+              used: b.eventType === 'USED',
+              refundReason: b.revokeReason || undefined,
+              initiatedBy: undefined, // Not available in API response
+              initiatedById: undefined // Not available in API response
+            };
+          } catch (error) {
+            console.error('Error mapping bonus:', b, error);
+            return null;
+          }
+        }).filter(b => b !== null);
+
+        // Set bonus balance
+        this.bonusBalance = bonusBalance?.balance || 0;
+
+        // Set totals
+        this.clientTotals = totals || {
+          totalPayments: 0,
+          totalRevenue: 0,
+          totalBonusesGranted: 0,
+          totalBonusesUsed: 0
+        };
+
+        // Set available tags
+        this.availableTags = Array.isArray(tags) ? tags : [];
+        console.log('Loaded available tags:', this.availableTags);
+
+        this.isLoading = false;
+        
+        // Force change detection to update paginated tables
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading client data:', err);
+        console.error('Error details:', {
+          status: err.status,
+          statusText: err.statusText,
+          url: err.url,
+          error: err.error,
+          clientId: this.clientId
+        });
+        
+        // Try to load data individually to see which request fails
+        this.loadClientDataIndividually();
+        
+        const errorMessage = err.error?.message || `Ошибка загрузки данных клиента (${err.status || 'unknown'})`;
+        this.toastService.error(errorMessage);
+      }
+    });
+  }
+
+  loadClientDataIndividually(): void {
+    // Load client data individually to handle partial failures
+    this.clientsService.getClientById(this.clientId).subscribe({
+      next: (client) => {
+        // Store full client details from API
+        this.clientDetails = client;
+        
+        // Map client data for UI
+        this.client = {
+          id: client.id,
+          firstName: client.name,
+          lastName: client.surname || '',
+          phone: client.phone,
+          email: client.email,
+          tags: client.tags || [],
+          comment: client.notes,
+          type: client.clientType === 'BUSINESS' ? 'business' : 'individual'
+        };
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading client:', err);
+        this.isLoading = false;
+      }
+    });
+
+    this.paymentsService.getClientPayments(this.clientId, 0, 100).subscribe({
+      next: (payments) => {
+        const paymentsArray = payments?.content || [];
+        this.payments = paymentsArray
+          .map(p => {
+            try {
+              return this.mapPaymentToItem(p);
+            } catch (error) {
+              console.error('Error mapping payment:', p, error);
+              return null;
+            }
+          })
+          .filter(p => p !== null)
+          .sort((a, b) => {
+            try {
+              const dateA = new Date(`${a.date} ${a.time}`);
+              const dateB = new Date(`${b.date} ${b.time}`);
+              return dateB.getTime() - dateA.getTime();
+            } catch (error) {
+              return 0;
+            }
+          });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading payments:', err);
+        this.payments = [];
+      }
+    });
+
+    this.bonusesService.getClientBonusHistory(this.clientId, 0, 100).subscribe({
+      next: (bonusHistory) => {
+        const bonusHistoryArray = bonusHistory?.content || [];
+        this.bonusesDetails = bonusHistoryArray.map(b => {
+          try {
+            let type = 'purchase';
+            if (b.grantReason === 'WELCOME') type = 'welcome';
+            else if (b.eventType === 'GRANTED') type = 'purchase';
+            else if (b.eventType === 'USED') type = 'purchase';
+            else if (b.eventType === 'REVOKED') type = 'refund';
+            else if (b.eventType === 'EXPIRED') type = 'loyalty';
+
+            return {
+              id: String(b.id),
+              type: type,
+              amount: b.bonusAmount,
+              issuedAt: new Date(b.createdAt),
+              expiresAt: b.expiresAt ? new Date(b.expiresAt) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+              used: b.eventType === 'USED',
+              refundReason: b.revokeReason || undefined,
+              initiatedBy: undefined,
+              initiatedById: undefined
+            };
+          } catch (error) {
+            console.error('Error mapping bonus:', b, error);
+            return null;
+          }
+        }).filter(b => b !== null);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading bonus history:', err);
+        this.bonusesDetails = [];
+      }
+    });
+
+    this.bonusesService.getClientBonusBalance(this.clientId).subscribe({
+      next: (bonusBalance) => {
+        this.bonusBalance = bonusBalance?.balance || 0;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading bonus balance:', err);
+        this.bonusBalance = 0;
+      }
+    });
+
+    this.analyticsService.getClientTotals(this.clientId).subscribe({
+      next: (totals) => {
+        this.clientTotals = totals || {
+          totalPayments: 0,
+          totalRevenue: 0,
+          totalBonusesGranted: 0,
+          totalBonusesUsed: 0
+        };
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading client totals:', err);
+        this.clientTotals = {
+          totalPayments: 0,
+          totalRevenue: 0,
+          totalBonusesGranted: 0,
+          totalBonusesUsed: 0
+        };
+      }
+    });
+
+    this.clientsService.getTags().subscribe({
+      next: (tags) => {
+        this.availableTags = Array.isArray(tags) ? tags : [];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading tags:', err);
+        this.availableTags = [];
+      }
+    });
+  }
+
+  mapPaymentToItem(payment: PaymentSearchResult): PaymentItem {
+    if (!payment) {
+      console.warn('Invalid payment data: payment is null/undefined');
+      return null as any;
+    }
+    
+    if (!payment.createdAt) {
+      console.warn('Invalid payment data: missing createdAt', payment);
+      // Return a default payment item with current date
+      const now = new Date();
+      return {
+        id: payment.txId || 'unknown',
+        amount: payment.amount || 0,
+        bonusEarned: payment.bonusGranted || 0,
+        bonusUsed: payment.bonusUsed || 0,
+        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+        isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
+        date: this.formatDate(now),
+        time: this.formatTime(now)
+      };
+    }
+    
+    try {
+      const createdAt = new Date(payment.createdAt);
+      if (isNaN(createdAt.getTime())) {
+        console.warn('Invalid date format:', payment.createdAt);
+        const now = new Date();
+        return {
+          id: payment.txId,
+          amount: payment.amount || 0,
+          bonusEarned: payment.bonusGranted || 0,
+          bonusUsed: payment.bonusUsed || 0,
+          paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+          isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
+          date: this.formatDate(now),
+          time: this.formatTime(now)
+        };
+      }
+      
+      const dateStr = this.formatDate(createdAt);
+      const timeStr = this.formatTime(createdAt);
+      
+      return {
+        id: payment.txId,
+        amount: payment.amount || 0,
+        bonusEarned: payment.bonusGranted || 0,
+        bonusUsed: payment.bonusUsed || 0,
+        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+        isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
+        date: dateStr,
+        time: timeStr
+      };
+    } catch (error) {
+      console.error('Error mapping payment:', error, payment);
+      const now = new Date();
+      return {
+        id: payment.txId || 'unknown',
+        amount: payment.amount || 0,
+        bonusEarned: payment.bonusGranted || 0,
+        bonusUsed: payment.bonusUsed || 0,
+        paymentMethod: 'cash',
+        isRefund: false,
+        date: this.formatDate(now),
+        time: this.formatTime(now)
+      };
+    }
   }
 
   ngAfterViewInit(): void {
@@ -2119,54 +2400,96 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   }
 
   getFullName(): string {
-    return `${this.mockClient.firstName} ${this.mockClient.lastName}`;
+    if (!this.client) return '';
+    return `${this.client.firstName} ${this.client.lastName}`.trim();
   }
 
   getInitials(): string {
-    return `${this.mockClient.firstName.charAt(0)}${this.mockClient.lastName.charAt(0)}`.toUpperCase();
+    if (!this.client) return '';
+    const first = this.client.firstName.charAt(0).toUpperCase();
+    const last = this.client.lastName ? this.client.lastName.charAt(0).toUpperCase() : '';
+    return first + last;
   }
 
   // Tags editing
   startEditTags(): void {
-    this.editedTags = [...this.mockClient.tags];
+    if (!this.client) return;
+    this.editedTags = [...this.client.tags];
     this.isEditingTags = true;
     this.newTagInput = '';
+    this.showTagsDropdown = false;
+    console.log('Started editing tags. Available tags:', this.availableTags);
   }
 
   addTag(): void {
-    if (this.newTagInput.trim()) {
-      this.mockClient.tags.push(this.newTagInput.trim());
-      this.newTagInput = '';
+    if (!this.client || !this.newTagInput.trim()) return;
+    if (!this.client.tags.includes(this.newTagInput.trim())) {
+      this.client.tags.push(this.newTagInput.trim());
     }
+    this.newTagInput = '';
   }
 
   addTagFromDropdown(tag: string): void {
-    if (!this.mockClient.tags.includes(tag)) {
-      this.mockClient.tags.push(tag);
+    if (!this.client) return;
+    if (!this.client.tags.includes(tag)) {
+      this.client.tags.push(tag);
     }
     this.showTagsDropdown = false;
   }
 
   getFilteredTags(): string[] {
+    if (!this.client) return [];
+    if (!this.availableTags || this.availableTags.length === 0) {
+      console.warn('Available tags is empty:', this.availableTags);
+      return [];
+    }
     const searchTerm = this.newTagInput.toLowerCase();
-    return this.availableTags.filter(tag => 
-      !this.mockClient.tags.includes(tag) && 
+    const filtered = this.availableTags.filter(tag => 
+      !this.client!.tags.includes(tag) && 
       (searchTerm === '' || tag.toLowerCase().includes(searchTerm))
     );
+    console.log('Filtered tags:', {
+      availableTags: this.availableTags,
+      clientTags: this.client.tags,
+      searchTerm: searchTerm,
+      filtered: filtered
+    });
+    return filtered;
   }
 
   removeTag(index: number): void {
-    this.mockClient.tags.splice(index, 1);
+    if (!this.client) return;
+    this.client.tags.splice(index, 1);
   }
 
   saveTags(): void {
-    this.isEditingTags = false;
-    this.newTagInput = '';
-    this.showTagsDropdown = false;
+    if (!this.client) return;
+    this.isSavingTags = true;
+    const requestPayload = { tags: this.client.tags };
+    console.log('Update Client Tags - Request Payload:', {
+      clientId: this.clientId,
+      payload: requestPayload
+    });
+    this.clientsService.updateClientTags(this.clientId, requestPayload).subscribe({
+      next: () => {
+        this.toastService.success('Теги успешно обновлены');
+        this.isEditingTags = false;
+        this.newTagInput = '';
+        this.showTagsDropdown = false;
+        this.isSavingTags = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при обновлении тегов';
+        this.toastService.error(errorMessage);
+        this.cancelEditTags();
+        this.isSavingTags = false;
+      }
+    });
   }
 
   cancelEditTags(): void {
-    this.mockClient.tags = [...this.editedTags];
+    if (!this.client) return;
+    this.client.tags = [...this.editedTags];
     this.isEditingTags = false;
     this.newTagInput = '';
     this.showTagsDropdown = false;
@@ -2174,13 +2497,32 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   // Comment editing
   startEditComment(): void {
-    this.editedComment = this.mockClient.comment;
+    if (!this.client) return;
+    this.editedComment = this.client.comment || '';
     this.isEditingComment = true;
   }
 
   saveComment(): void {
-    this.mockClient.comment = this.editedComment;
-    this.isEditingComment = false;
+    if (!this.client) return;
+    this.isSavingComment = true;
+    const requestPayload = { notes: this.editedComment };
+    console.log('Update Client Notes - Request Payload:', {
+      clientId: this.clientId,
+      payload: requestPayload
+    });
+    this.clientsService.updateClientNotes(this.clientId, requestPayload).subscribe({
+      next: () => {
+        this.client!.comment = this.editedComment;
+        this.toastService.success('Комментарий успешно обновлен');
+        this.isEditingComment = false;
+        this.isSavingComment = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при обновлении комментария';
+        this.toastService.error(errorMessage);
+        this.isSavingComment = false;
+      }
+    });
   }
 
   cancelEditComment(): void {
@@ -2190,19 +2532,54 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   // Personal data editing
   startEditPersonal(): void {
+    if (!this.client) return;
     this.editedPersonal = {
-      firstName: this.mockClient.firstName,
-      lastName: this.mockClient.lastName,
-      type: this.mockClient.type
+      firstName: this.client.firstName,
+      lastName: this.client.lastName,
+      type: this.client.type
     };
     this.isEditingPersonal = true;
   }
 
   savePersonal(): void {
-    this.mockClient.firstName = this.editedPersonal.firstName;
-    this.mockClient.lastName = this.editedPersonal.lastName;
-    this.mockClient.type = this.editedPersonal.type;
-    this.isEditingPersonal = false;
+    if (!this.client || !this.clientDetails) return;
+    this.isSavingPersonal = true;
+    
+    // Build complete payload with all fields, only changing edited ones
+    const requestPayload: UpdateClientRequest = {
+      phone: this.clientDetails.phone,
+      name: this.editedPersonal.firstName, // Changed field
+      surname: this.editedPersonal.lastName, // Changed field
+      dateOfBirth: this.clientDetails.dateOfBirth,
+      notes: this.clientDetails.notes,
+      tags: this.clientDetails.tags || [],
+      clientType: this.editedPersonal.type === 'business' ? 'BUSINESS' : 'INDIVIDUAL', // Changed field
+      referrerId: this.clientDetails.referrerId
+    };
+    
+    console.log('Update Client (Personal Data) - Request Payload:', {
+      clientId: this.clientId,
+      payload: requestPayload
+    });
+    this.clientsService.updateClient(this.clientId, requestPayload).subscribe({
+      next: (updatedClient) => {
+        // Update stored client details
+        this.clientDetails = updatedClient;
+        
+        // Update UI client data
+        this.client!.firstName = updatedClient.name;
+        this.client!.lastName = updatedClient.surname || '';
+        this.client!.type = updatedClient.clientType === 'BUSINESS' ? 'business' : 'individual';
+        this.toastService.success('Личные данные успешно обновлены');
+        this.isEditingPersonal = false;
+        this.isSavingPersonal = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при обновлении личных данных';
+        this.toastService.error(errorMessage);
+        this.isSavingPersonal = false;
+      }
+    });
   }
 
   cancelEditPersonal(): void {
@@ -2211,17 +2588,53 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   // Contacts editing
   startEditContacts(): void {
+    if (!this.client) return;
     this.editedContacts = {
-      phone: this.mockClient.phone,
-      email: this.mockClient.email
+      phone: this.client.phone,
+      email: this.client.email || ''
     };
     this.isEditingContacts = true;
   }
 
   saveContacts(): void {
-    this.mockClient.phone = this.editedContacts.phone;
-    this.mockClient.email = this.editedContacts.email;
-    this.isEditingContacts = false;
+    if (!this.client || !this.clientDetails) return;
+    this.isSavingContacts = true;
+    
+    // Build complete payload with all fields, only changing phone
+    const requestPayload: UpdateClientRequest = {
+      phone: this.editedContacts.phone, // Changed field
+      name: this.clientDetails.name,
+      surname: this.clientDetails.surname || '',
+      dateOfBirth: this.clientDetails.dateOfBirth,
+      notes: this.clientDetails.notes,
+      tags: this.clientDetails.tags || [],
+      clientType: this.clientDetails.clientType,
+      referrerId: this.clientDetails.referrerId
+    };
+    
+    // Note: email is not included as it's not editable
+    
+    console.log('Update Client (Contacts) - Request Payload:', {
+      clientId: this.clientId,
+      payload: requestPayload
+    });
+    this.clientsService.updateClient(this.clientId, requestPayload).subscribe({
+      next: (updatedClient) => {
+        // Update stored client details
+        this.clientDetails = updatedClient;
+        
+        // Update UI client data
+        this.client!.phone = updatedClient.phone;
+        this.toastService.success('Контактные данные успешно обновлены');
+        this.isEditingContacts = false;
+        this.isSavingContacts = false;
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при обновлении контактных данных';
+        this.toastService.error(errorMessage);
+        this.isSavingContacts = false;
+      }
+    });
   }
 
   cancelEditContacts(): void {
@@ -2248,11 +2661,12 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   // Refund methods
   openRefundModal(payment: PaymentItem): void {
+    if (!this.client) return;
     this.selectedPaymentForRefund = {
       id: payment.id,
-      clientId: this.mockClient.phone.replace(/\D/g, ''), // Use phone as clientId
+      clientId: this.clientId,
       clientName: this.getFullName(),
-      clientPhone: this.mockClient.phone,
+      clientPhone: this.client.phone,
       amount: payment.amount,
       bonusEarned: payment.bonusEarned,
       bonusUsed: payment.bonusUsed,
@@ -2269,12 +2683,26 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     this.selectedPaymentForRefund = null;
   }
 
-  confirmRefund(payment: Payment): void {
-    const paymentIndex = this.payments.findIndex(p => p.id === payment.id);
-    if (paymentIndex !== -1) {
-      this.payments[paymentIndex].isRefund = true;
-    }
-    this.closeRefundModal();
+  confirmRefund(notes: string): void {
+    if (!this.selectedPaymentForRefund) return;
+    this.paymentsService.refundPayment(this.selectedPaymentForRefund.id, { notes }).subscribe({
+      next: () => {
+        this.toastService.success('Возврат успешно оформлен');
+        this.closeRefundModal();
+        // Reload client data to refresh payments
+        this.loadClientData();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при оформлении возврата';
+        this.toastService.error(errorMessage);
+      }
+    });
+  }
+
+  formatTime(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   }
 
   // Bonus helpers
@@ -2285,7 +2713,9 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       purchase: 'За покупку',
       promotion: 'Акция',
       loyalty: 'Лояльность',
-      refund: 'Отозвано'
+      refund: 'Отозвано',
+      used: 'Использовано',
+      granted: 'Начислено'
     };
     return labels[type] || type;
   }
