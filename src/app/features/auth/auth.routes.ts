@@ -12,10 +12,11 @@ export const AUTH_ROUTES: Routes = [
     path: 'login',
     loadComponent: () => import('./pages/login-page/login-page.component').then(m => m.LoginPageComponent)
   },
-  {
-    path: 'register',
-    loadComponent: () => import('./pages/register-page/register-page.component').then(m => m.RegisterPageComponent)
-  },
+  // Register route disabled - app is private, users should only be invited
+  // {
+  //   path: 'register',
+  //   loadComponent: () => import('./pages/register-page/register-page.component').then(m => m.RegisterPageComponent)
+  // },
   {
     path: 'activation',
     loadComponent: () => import('./pages/activation-page/activation-page.component').then(m => m.ActivationPageComponent),

@@ -1873,14 +1873,17 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
 
     this.isSendingMessage = true;
 
-    // Send message via API
+    // Send message via API to record it
     this.messagesService.sendMessage({
       clientId: this.foundClient.id,
       messageContent: message,
       channel: 'WHATSAPP'
     }).subscribe({
       next: () => {
-        this.toastService.success('Сообщение успешно отправлено');
+        // Open WhatsApp Web with phone and message
+        this.openWhatsAppWeb(phone, message);
+        
+        this.toastService.success('Сообщение записано, открывается WhatsApp');
         this.messageSent.emit({ phone, message });
         this.finishTransaction();
       },
@@ -1890,6 +1893,23 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
         this.isSendingMessage = false;
       }
     });
+  }
+
+  private openWhatsAppWeb(phone: string, message: string): void {
+    // Clean phone number - remove spaces, dashes, parentheses, and leading +
+    let cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    
+    // If phone starts with 8, replace with 7 (Kazakhstan/Russia format)
+    if (cleanPhone.startsWith('8')) {
+      cleanPhone = '7' + cleanPhone.substring(1);
+    }
+    
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp Web URL
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
   }
 
   goBack(): void {

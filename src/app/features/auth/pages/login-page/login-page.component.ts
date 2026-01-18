@@ -39,12 +39,6 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
           <div class="form-header">
             <h2 class="brand-name">WestWood</h2>
             <h3 class="welcome-title">Добро пожаловать!</h3>
-            <p class="register-prompt">
-              Нет аккаунта?
-              <app-link routerLink="/auth/register">
-                <strong>Создайте аккаунт прямо сейчас</strong>
-              </app-link>
-            </p>
           </div>
 
         <!-- Session expired message -->
@@ -164,23 +158,6 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
       font-weight: 700;
       color: #1a202c;
       margin: 0 0 1rem 0;
-    }
-
-    .register-prompt {
-      font-size: 0.9375rem;
-      color: #64748b;
-      line-height: 1.6;
-      margin: -0.5rem 0 0 0;
-    }
-
-    :host ::ng-deep .register-prompt app-link a {
-      color:#1a202c;
-      text-decoration: underline;
-      font-weight: 600;
-    }
-
-    :host ::ng-deep .register-prompt app-link a strong {
-      color: #0F0F10 !important;
     }
 
     .warning-alert, .error-alert {
