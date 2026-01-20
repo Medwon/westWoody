@@ -16,6 +16,7 @@ import { PaginatedTableWrapperComponent } from '../../../../shared/components/pa
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
 
 interface Client {
   id: string;
@@ -42,7 +43,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent],
   template: `
     <div class="page-wrapper">
       <!-- Loading State -->
@@ -50,7 +51,16 @@ interface PaymentItem {
         <app-loader></app-loader>
       </div>
 
-      <div class="profile-container" *ngIf="client && !isLoading">
+      <!-- Not Found State -->
+      <app-not-found-state
+        *ngIf="!isLoading && clientNotFound"
+        title="Клиент не найден"
+        description="К сожалению, запрашиваемый клиент не существует или был удален."
+        backLink="/clients"
+        backText="Вернуться к клиентам">
+      </app-not-found-state>
+
+      <div class="profile-container" *ngIf="client && !isLoading && !clientNotFound">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -2239,6 +2249,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   clientId: string = '';
   isLoading = true;
+  clientNotFound = false;
   client: Client | null = null;
   clientDetails: ClientDetails | null = null; // Store full client details from API
 
@@ -2445,6 +2456,13 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
           clientId: this.clientId
         });
         
+        // Check if it's a 404 error (client not found)
+        if (err.status === 404) {
+          this.clientNotFound = true;
+          this.isLoading = false;
+          return;
+        }
+        
         // Try to load data individually to see which request fails
         this.loadClientDataIndividually();
         
@@ -2477,6 +2495,9 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       },
       error: (err) => {
         console.error('Error loading client:', err);
+        if (err.status === 404) {
+          this.clientNotFound = true;
+        }
         this.isLoading = false;
       }
     });

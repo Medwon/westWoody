@@ -7,6 +7,7 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { User as ApiUser, UserRole, UserTransaction } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
 
 interface User {
   id: string;
@@ -37,7 +38,7 @@ interface UserPayment {
 @Component({
   selector: 'app-user-profile-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent, NotFoundStateComponent],
   template: `
     <div class="page-wrapper">
       <!-- Loading State -->
@@ -45,7 +46,16 @@ interface UserPayment {
         <app-loader></app-loader>
       </div>
 
-      <div class="profile-container" *ngIf="!isLoading && user">
+      <!-- Not Found State -->
+      <app-not-found-state
+        *ngIf="!isLoading && userNotFound"
+        title="Пользователь не найден"
+        description="К сожалению, запрашиваемый пользователь не существует или был удален."
+        backLink="/users"
+        backText="Вернуться к пользователям">
+      </app-not-found-state>
+
+      <div class="profile-container" *ngIf="!isLoading && user && !userNotFound">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -594,6 +604,7 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
   user: User | null = null;
   userPayments: UserPayment[] = [];
   isLoading = true;
+  userNotFound = false;
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('id');
@@ -618,6 +629,11 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
         this.isLoading = false;
       },
       error: (err) => {
+        if (err.status === 404) {
+          this.userNotFound = true;
+          this.isLoading = false;
+          return;
+        }
         const errorMessage = err.error?.message || 'Ошибка загрузки пользователя';
         this.toastService.error(errorMessage);
         this.isLoading = false;
