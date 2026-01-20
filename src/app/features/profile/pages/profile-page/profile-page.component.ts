@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ClientsService, ClientDetails, UpdateClientRequest } from '../../../../core/services/clients.service';
@@ -15,6 +15,7 @@ import { RefundConfirmationModalComponent, Payment } from '../../../../shared/co
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 interface Client {
   id: string;
@@ -41,7 +42,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent],
   template: `
     <div class="page-wrapper">
       <!-- Loading State -->
@@ -60,6 +61,12 @@ interface PaymentItem {
               </div>
             </div>
             <div class="profile-main-info">
+              <!-- Delete Button -->
+              <button class="delete-client-btn" (click)="openDeleteModal()" title="Удалить клиента">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
               <div class="name-row">
                 <h1 class="profile-name">{{ getFullName() }}</h1>
                 <span class="client-type-badge" [class.business]="client.type === 'business'">
@@ -625,6 +632,58 @@ interface PaymentItem {
       (confirm)="confirmRefund($event.refundReason || '')">
     </app-refund-confirmation-modal>
 
+    <!-- Delete Client Confirmation Modal -->
+    <div class="delete-modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+      <div class="delete-modal" (click)="$event.stopPropagation()">
+        <!-- Step 1: Initial confirmation -->
+        <div class="delete-modal-content" *ngIf="deleteStep === 1">
+          <div class="delete-modal-icon warning">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Удалить клиента?</h3>
+          <p class="delete-modal-description">
+            Вы уверены, что хотите удалить клиента <strong>{{ getFullName() }}</strong>?<br>
+            Это действие нельзя отменить. Все данные клиента, включая историю платежей и бонусов, будут удалены.
+          </p>
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteModal()">Отмена</button>
+            <button class="delete-modal-btn confirm" (click)="proceedToDeleteStep2()">Да, удалить</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Type confirmation word -->
+        <div class="delete-modal-content" *ngIf="deleteStep === 2">
+          <div class="delete-modal-icon danger">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Подтвердите удаление</h3>
+          <p class="delete-modal-description">
+            Для подтверждения удаления введите слово <strong class="confirm-word">удалить</strong>
+          </p>
+          <input 
+            type="text" 
+            class="delete-confirm-input"
+            [(ngModel)]="deleteConfirmationWord"
+            placeholder="Введите слово для подтверждения"
+            (keydown.enter)="confirmDelete()">
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteModal()">Отмена</button>
+            <button 
+              class="delete-modal-btn delete" 
+              [disabled]="deleteConfirmationWord !== 'удалить' || isDeletingClient"
+              (click)="confirmDelete()">
+              <span *ngIf="!isDeletingClient">Удалить навсегда</span>
+              <span *ngIf="isDeletingClient">Удаление...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   `,
   styles: [`
     .page-wrapper {
@@ -692,6 +751,36 @@ interface PaymentItem {
     .profile-main-info {
       flex: 1;
       min-width: 0;
+      position: relative;
+    }
+
+    /* Delete Client Button */
+    .delete-client-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #dc2626;
+      transition: all 0.2s ease;
+    }
+
+    .delete-client-btn:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    .delete-client-btn svg {
+      width: 18px;
+      height: 18px;
     }
 
     .name-row {
@@ -1962,11 +2051,185 @@ interface PaymentItem {
         display: none;
       }
     }
+
+    /* Delete Modal Styles */
+    .delete-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .delete-modal {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      max-width: 420px;
+      width: 90%;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .delete-modal-content {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .delete-modal-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .delete-modal-icon.warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-icon.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .delete-modal-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .delete-modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0 0 0.75rem;
+    }
+
+    .delete-modal-description {
+      font-size: 0.9rem;
+      color: #6b7280;
+      line-height: 1.6;
+      margin: 0 0 1.5rem;
+    }
+
+    .delete-modal-description strong {
+      color: #1f2937;
+    }
+
+    .confirm-word {
+      color: #dc2626;
+      background: #fee2e2;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+
+    .delete-confirm-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .delete-confirm-input:focus {
+      outline: none;
+      border-color: #dc2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .delete-confirm-input::placeholder {
+      color: #9ca3af;
+    }
+
+    .delete-modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .delete-modal-btn {
+      flex: 1;
+      padding: 0.875rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .delete-modal-btn.cancel {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .delete-modal-btn.cancel:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .delete-modal-btn.confirm {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-btn.confirm:hover {
+      background: #fde68a;
+      color: #b45309;
+    }
+
+    .delete-modal-btn.delete {
+      background: #dc2626;
+      color: white;
+    }
+
+    .delete-modal-btn.delete:hover:not(:disabled) {
+      background: #b91c1c;
+    }
+
+    .delete-modal-btn.delete:disabled {
+      background: #fca5a5;
+      cursor: not-allowed;
+    }
   `]
 })
 export class ProfilePageComponent implements OnInit, AfterViewInit {
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private clientsService = inject(ClientsService);
   private paymentsService = inject(PaymentsService);
   private bonusesService = inject(BonusesService);
@@ -2043,6 +2306,12 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
+
+  // Delete client modal
+  showDeleteModal = false;
+  deleteStep: 1 | 2 = 1;
+  deleteConfirmationWord = '';
+  isDeletingClient = false;
   
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Профиль клиента', [
@@ -2777,5 +3046,46 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   isBonusRowExpanded(bonusId: string): boolean {
     return this.expandedBonusRows.has(bonusId);
+  }
+
+  // Delete client methods
+  openDeleteModal(): void {
+    this.showDeleteModal = true;
+    this.deleteStep = 1;
+    this.deleteConfirmationWord = '';
+    this.isDeletingClient = false;
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal = false;
+    this.deleteStep = 1;
+    this.deleteConfirmationWord = '';
+    this.isDeletingClient = false;
+  }
+
+  proceedToDeleteStep2(): void {
+    this.deleteStep = 2;
+  }
+
+  confirmDelete(): void {
+    if (this.deleteConfirmationWord !== 'удалить') {
+      this.toastService.error('Введите слово "удалить" для подтверждения');
+      return;
+    }
+
+    this.isDeletingClient = true;
+    this.clientsService.deleteClient(this.clientId).subscribe({
+      next: () => {
+        this.toastService.success('Клиент успешно удален');
+        this.closeDeleteModal();
+        // Navigate back to clients list
+        this.router.navigate(['/clients']);
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при удалении клиента';
+        this.toastService.error(errorMessage);
+        this.isDeletingClient = false;
+      }
+    });
   }
 }

@@ -205,4 +205,16 @@ export class ClientsService {
     console.log('============================');
     return this.http.post<CreateClientResponse>(this.apiUrl, request);
   }
+
+  /**
+   * Delete a client by ID
+   */
+  deleteClient(clientId: string): Observable<void> {
+    console.log('=== DELETE CLIENT REQUEST ===');
+    console.log('URL:', `${this.apiUrl}/${clientId}`);
+    console.log('Method: DELETE');
+    console.log('Client ID:', clientId);
+    console.log('============================');
+    return this.http.delete<void>(`${this.apiUrl}/${clientId}`);
+  }
 }
