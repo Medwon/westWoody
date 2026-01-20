@@ -244,7 +244,7 @@ interface BonusRule {
           <button class="submit-btn" (click)="saveSettings()">
             Сохранить изменения
           </button>
-          <button class="delete-btn" (click)="deleteBonus()">
+          <button class="delete-btn" (click)="openDeleteModal()">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="delete-icon">
               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -454,6 +454,58 @@ interface BonusRule {
         </div>
       </div>
     </app-modal>
+
+    <!-- Delete Bonus Confirmation Modal -->
+    <div class="delete-modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+      <div class="delete-modal" (click)="$event.stopPropagation()">
+        <!-- Step 1: Initial confirmation -->
+        <div class="delete-modal-content" *ngIf="deleteStep === 1">
+          <div class="delete-modal-icon warning">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Удалить бонус?</h3>
+          <p class="delete-modal-description">
+            Вы уверены, что хотите удалить бонус <strong>{{ selectedRule?.title }}</strong>?<br>
+            Это действие нельзя отменить. Бонусная программа перестанет работать для всех будущих транзакций.
+          </p>
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteModal()">Отмена</button>
+            <button class="delete-modal-btn confirm" (click)="proceedToDeleteStep2()">Да, удалить</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Type confirmation word -->
+        <div class="delete-modal-content" *ngIf="deleteStep === 2">
+          <div class="delete-modal-icon danger">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Подтвердите удаление</h3>
+          <p class="delete-modal-description">
+            Для подтверждения удаления введите слово <strong class="confirm-word">удалить</strong>
+          </p>
+          <input 
+            type="text" 
+            class="delete-confirm-input"
+            [(ngModel)]="deleteConfirmationWord"
+            placeholder="Введите слово для подтверждения"
+            (keydown.enter)="confirmDeleteBonus()">
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteModal()">Отмена</button>
+            <button 
+              class="delete-modal-btn delete" 
+              [disabled]="deleteConfirmationWord !== 'удалить' || isDeletingBonus"
+              (click)="confirmDeleteBonus()">
+              <span *ngIf="!isDeletingBonus">Удалить навсегда</span>
+              <span *ngIf="isDeletingBonus">Удаление...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `,
   styles: [`
     :host {
@@ -1068,6 +1120,179 @@ interface BonusRule {
       padding: 2rem;
     }
 
+    /* Delete Modal Styles */
+    .delete-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .delete-modal {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      max-width: 420px;
+      width: 90%;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .delete-modal-content {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .delete-modal-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .delete-modal-icon.warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-icon.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .delete-modal-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .delete-modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0 0 0.75rem;
+    }
+
+    .delete-modal-description {
+      font-size: 0.9rem;
+      color: #6b7280;
+      line-height: 1.6;
+      margin: 0 0 1.5rem;
+    }
+
+    .delete-modal-description strong {
+      color: #1f2937;
+    }
+
+    .confirm-word {
+      color: #dc2626;
+      background: #fee2e2;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+
+    .delete-confirm-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .delete-confirm-input:focus {
+      outline: none;
+      border-color: #dc2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .delete-confirm-input::placeholder {
+      color: #9ca3af;
+    }
+
+    .delete-modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .delete-modal-btn {
+      flex: 1;
+      padding: 0.875rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .delete-modal-btn.cancel {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .delete-modal-btn.cancel:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .delete-modal-btn.confirm {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-btn.confirm:hover {
+      background: #fde68a;
+      color: #b45309;
+    }
+
+    .delete-modal-btn.delete {
+      background: #dc2626;
+      color: white;
+    }
+
+    .delete-modal-btn.delete:hover:not(:disabled) {
+      background: #b91c1c;
+    }
+
+    .delete-modal-btn.delete:disabled {
+      background: #fca5a5;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 768px) {
       .page-wrapper {
         margin: -1rem;
@@ -1135,6 +1360,12 @@ export class BonusProgramPageComponent implements OnInit {
   pendingToggleState = false;
   toggleConfirmTitle = '';
   toggleConfirmDescription = '';
+
+  // Delete confirmation modal
+  showDeleteModal = false;
+  deleteStep: 1 | 2 = 1;
+  deleteConfirmationWord = '';
+  isDeletingBonus = false;
   editValue = 0;
   editExpirationDays = 0;
   editIcon = 'gift';
@@ -1344,8 +1575,35 @@ export class BonusProgramPageComponent implements OnInit {
     }
   }
 
-  deleteBonus(): void {
+  // Delete confirmation modal methods
+  openDeleteModal(): void {
+    this.showDeleteModal = true;
+    this.deleteStep = 1;
+    this.deleteConfirmationWord = '';
+    this.isDeletingBonus = false;
+    // Close the settings modal but keep the selectedRule
+    this.isSettingsModalOpen = false;
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal = false;
+    this.deleteStep = 1;
+    this.deleteConfirmationWord = '';
+    this.isDeletingBonus = false;
+  }
+
+  proceedToDeleteStep2(): void {
+    this.deleteStep = 2;
+  }
+
+  confirmDeleteBonus(): void {
+    if (this.deleteConfirmationWord !== 'удалить') {
+      this.toastService.error('Введите слово "удалить" для подтверждения');
+      return;
+    }
+
     if (this.selectedRule) {
+      this.isDeletingBonus = true;
       const bonusTypeId = parseInt(this.selectedRule.id);
       this.bonusTypesService.deleteBonusType(bonusTypeId).subscribe({
         next: () => {
@@ -1354,15 +1612,21 @@ export class BonusProgramPageComponent implements OnInit {
             this.bonusRules.splice(index, 1);
           }
           this.toastService.success('Бонус успешно удален');
-          this.isSettingsModalOpen = false;
+          this.closeDeleteModal();
           this.selectedRule = null;
         },
         error: (err) => {
           const errorMessage = err.error?.message || 'Ошибка при удалении бонуса';
           this.toastService.error(errorMessage);
+          this.isDeletingBonus = false;
         }
       });
     }
+  }
+
+  // Legacy method - now redirects to modal
+  deleteBonus(): void {
+    this.openDeleteModal();
   }
 
   openAddModal(): void {
