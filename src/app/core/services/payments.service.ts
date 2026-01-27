@@ -31,6 +31,7 @@ export interface PaymentSearchResult {
   refundedPaymentTxId: string | null;
   bonusGranted: number;
   bonusUsed: number;
+  bonusRevoked: number;
   refundReason: string | null;
 }
 
@@ -68,6 +69,36 @@ export interface CompletePaymentRequest {
   originalAmount: number;
   bonusAmountUsed: number | null;
   notes: string;
+  paymentMethod?: 'CASH' | 'CARD' | 'TRANSFER';
+}
+
+export interface BonusRevocationDto {
+  id: number;
+  bonusAmount: number;
+  revokeReason: string;
+  revokedAt: string;
+  refundTxId: string;
+  revokedByUsername: string;
+}
+
+export interface PaymentTransactionDto {
+  txId: string;
+  clientId: string;
+  clientName: string;
+  enteredByUserId: string;
+  enteredByUsername: string;
+  amount: number;
+  notes: string | null;
+  status: string;
+  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | null;
+  refundedPaymentTxId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  bonusRevocations?: BonusRevocationDto[];
+}
+
+export interface UpdatePaymentMethodRequest {
+  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
 }
 
 @Injectable({
@@ -139,5 +170,19 @@ export class PaymentsService {
     console.log('Payment TX ID:', paymentTxId);
     console.log('=====================================');
     return this.http.delete<void>(`${this.apiUrl}/draft/${paymentTxId}`);
+  }
+
+  /**
+   * Get payment by transaction ID
+   */
+  getPaymentByTxId(txId: string): Observable<PaymentTransactionDto> {
+    return this.http.get<PaymentTransactionDto>(`${this.apiUrl}/${txId}`);
+  }
+
+  /**
+   * Update payment method
+   */
+  updatePaymentMethod(txId: string, request: UpdatePaymentMethodRequest): Observable<PaymentTransactionDto> {
+    return this.http.put<PaymentTransactionDto>(`${this.apiUrl}/${txId}/payment-method`, request);
   }
 }

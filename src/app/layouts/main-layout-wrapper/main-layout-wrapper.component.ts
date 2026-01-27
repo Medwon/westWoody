@@ -1,7 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { MainLayoutComponent } from '../main-layout/main-layout.component';
-import { filter } from 'rxjs';
+import { Store } from '@ngrx/store';
+import { filter, takeUntil } from 'rxjs';
+import { Subject } from 'rxjs';
+import { AppState } from '../../core/store/app.state';
+import { selectIsAuthenticated } from '../../core/store/auth/auth.selectors';
+import { UserActivityService } from '../../core/services/user-activity.service';
 
 @Component({
   selector: 'app-main-layout-wrapper',
@@ -13,12 +18,29 @@ import { filter } from 'rxjs';
     </app-main-layout>
   `
 })
-export class MainLayoutWrapperComponent implements OnInit {
+export class MainLayoutWrapperComponent implements OnInit, OnDestroy {
   private router = inject(Router);
+  private store = inject(Store<AppState>);
+  private userActivityService = inject(UserActivityService);
+  private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
+    // Listen to authentication state changes and start/stop heartbeat accordingly
+    this.store.select(selectIsAuthenticated)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((isAuthenticated) => {
+        if (isAuthenticated) {
+          this.userActivityService.startHeartbeat();
+        } else {
+          this.userActivityService.stopHeartbeat();
+        }
+      });
+
     this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
       .subscribe(() => {
         // Прокручиваем основной контейнер контента
         setTimeout(() => {
@@ -34,6 +56,12 @@ export class MainLayoutWrapperComponent implements OnInit {
           document.body.scrollTop = 0;
         }, 0);
       });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.userActivityService.stopHeartbeat();
   }
 }
 

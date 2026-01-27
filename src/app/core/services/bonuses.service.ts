@@ -19,6 +19,9 @@ export interface BonusHistoryItem {
   originalPaymentAmount: number | null;
   finalPaymentAmount: number | null;
   revokeReason: string | null;
+  originalPaymentTxId: string | null; // Original payment that granted the bonus (for REVOKED events)
+  refundTxId: string | null; // Refund transaction that caused the revocation
+  revokedAt: string | null; // When the bonus was revoked
 }
 
 export interface BonusHistoryResponse {

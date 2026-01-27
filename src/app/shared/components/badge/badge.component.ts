@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type BadgeType = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'payment' | 'refund' | 'bonusGranted' | 'bonusUsed' | 'bonusExpired';
+export type BadgeType = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'payment' | 'refund' | 'bonusGranted' | 'bonusUsed' | 'bonusExpired' | 'paymentMethod';
 export type BadgeSize = 'small' | 'medium' | 'large';
 
 @Component({
@@ -9,31 +9,48 @@ export type BadgeSize = 'small' | 'medium' | 'large';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <span class="badge" [class]="getBadgeClasses()" [class.dot]="dot" [class.with-icon]="icon">
+    <span class="badge" [class]="getBadgeClasses()" [class.dot]="dot" [class.with-icon]="hasIcon()">
       <span *ngIf="dot" class="badge-dot"></span>
-      <span *ngIf="icon" class="badge-icon">
-        <svg *ngIf="icon === 'star'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+      <span *ngIf="hasIcon()" class="badge-icon">
+        <svg *ngIf="getDisplayIcon() === 'star'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
         </svg>
-        <svg *ngIf="icon === 'check'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <svg *ngIf="getDisplayIcon() === 'check'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
           <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.5"/>
         </svg>
-        <svg *ngIf="icon === 'refund'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <svg *ngIf="getDisplayIcon() === 'refund'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <svg *ngIf="icon === 'payment'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <svg *ngIf="getDisplayIcon() === 'payment'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
         </svg>
-        <svg *ngIf="icon === 'expired'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <svg *ngIf="getDisplayIcon() === 'expired'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
           <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <svg *ngIf="icon === 'used'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <svg *ngIf="getDisplayIcon() === 'used'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
           <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        <svg *ngIf="getDisplayIcon() === 'cash'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="12" cy="14" r="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M7 5v2M17 5v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <svg *ngIf="getDisplayIcon() === 'card'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M2 10h20" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="7" cy="15" r="1" fill="currentColor"/>
+          <circle cx="10" cy="15" r="1" fill="currentColor"/>
+        </svg>
+        <svg *ngIf="getDisplayIcon() === 'transfer'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <path d="M7 16l-4-4m0 0l4-4m-4 4h18M17 8l4 4m0 0l-4 4m4-4H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </span>
-      <ng-content></ng-content>
+      <ng-container *ngIf="badgeType === 'paymentMethod' && paymentMethod">
+        {{ getPaymentMethodLabel() }}
+      </ng-container>
+      <ng-content *ngIf="badgeType !== 'paymentMethod' || !paymentMethod"></ng-content>
     </span>
   `,
   styles: [`
@@ -119,6 +136,11 @@ export type BadgeSize = 'small' | 'medium' | 'large';
       color: #64748b;
     }
 
+    .badge.paymentMethod {
+      background-color: #dcfce7;
+      color: #16A34A;
+    }
+
     .badge.dot {
       padding-left: 0.375rem;
     }
@@ -172,10 +194,40 @@ export class BadgeComponent {
   @Input() badgeType: BadgeType = 'primary';
   @Input() size: BadgeSize = 'medium';
   @Input() dot = false;
-  @Input() icon: 'star' | 'check' | 'refund' | 'payment' | 'expired' | 'used' | null = null;
+  @Input() icon: 'star' | 'check' | 'refund' | 'payment' | 'expired' | 'used' | 'cash' | 'card' | 'transfer' | null = null;
+  @Input() paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | null = null; // For payment method badges
 
   getBadgeClasses(): string {
     return `${this.badgeType} ${this.size}`;
+  }
+
+  hasIcon(): boolean {
+    return !!this.icon || !!this.getPaymentMethodIcon();
+  }
+
+  getDisplayIcon(): string | null {
+    if (this.icon) return this.icon;
+    return this.getPaymentMethodIcon();
+  }
+
+  getPaymentMethodIcon(): 'cash' | 'card' | 'transfer' | null {
+    if (this.paymentMethod) {
+      const method = this.paymentMethod.toLowerCase();
+      if (method === 'cash') return 'cash';
+      if (method === 'card') return 'card';
+      if (method === 'transfer') return 'transfer';
+    }
+    return null;
+  }
+
+  getPaymentMethodLabel(): string {
+    if (this.paymentMethod) {
+      const method = this.paymentMethod.toLowerCase();
+      if (method === 'cash') return 'Наличные';
+      if (method === 'card') return 'Карта';
+      if (method === 'transfer') return 'Перевод';
+    }
+    return '';
   }
 }
 

@@ -37,8 +37,8 @@ interface BonusRule {
     <div class="page-wrapper">
       <div class="bonus-program">
         <!-- Loading State -->
-        <div class="loading-container" *ngIf="isLoading">
-          <app-loader></app-loader>
+        <div class="page-loading-container" *ngIf="isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
         </div>
 
         <!-- Config Grid -->
@@ -523,6 +523,16 @@ interface BonusRule {
     .bonus-program {
       max-width: 1400px;
       margin: 0 auto;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     /* Config Grid */
@@ -1112,12 +1122,12 @@ interface BonusRule {
       margin: 0;
     }
 
-    .loading-container {
+    .page-loading-container {
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 400px;
-      padding: 2rem;
+      min-height: 60vh;
+      width: 100%;
     }
 
     /* Delete Modal Styles */

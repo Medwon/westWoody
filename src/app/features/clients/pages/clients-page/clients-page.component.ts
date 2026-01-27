@@ -36,10 +36,16 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoadingDashboard || isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
+        
+        <div *ngIf="!isLoadingDashboard && !isLoading">
         
         <!-- Header with Create Button -->
         <div class="page-header-actions">
@@ -47,10 +53,12 @@ type SortDirection = 'asc' | 'desc';
             buttonType="primary" 
             size="medium" 
             (onClick)="openCreateClientModal()">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <svg viewBox="0 0 24 24" fill="none" class="create-client-icon">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="8.5" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 8v6M23 11h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Новый клиент
+            Создать клиента
           </app-button>
         </div>
 
@@ -104,9 +112,6 @@ type SortDirection = 'asc' | 'desc';
               <span class="card-label">Бонусов в обороте</span>
             </div>
           </div>
-        </div>
-        <div class="loading-container" *ngIf="isLoadingDashboard">
-          <app-loader></app-loader>
         </div>
 
         <!-- Filters Section -->
@@ -267,19 +272,15 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
 
-        <!-- Loading State -->
-        <div class="loading-container" *ngIf="isLoading">
-          <app-loader></app-loader>
-        </div>
-
         <!-- Results count -->
-        <div class="results-info" *ngIf="!isLoading">
+        <div class="results-info">
           <span class="results-count">Найдено: {{ totalClientsFound }} клиентов</span>
         </div>
 
         <!-- Clients Table with Pagination -->
-        <div *ngIf="!isLoading">
-          <div class="table-container">
+        <div>
+          <!-- Desktop Table View -->
+          <div class="table-container desktop-view">
             <table class="clients-table">
               <thead>
                 <tr>
@@ -362,8 +363,56 @@ type SortDirection = 'asc' | 'desc';
               </tr>
             </tbody>
           </table>
+          </div>
 
-          <div class="empty-state" *ngIf="clients.length === 0">
+          <!-- Mobile Card View -->
+          <div class="mobile-cards-container mobile-view" 
+               (scroll)="onMobileScroll($event)"
+               #mobileCardsContainer>
+            <div class="client-card" *ngFor="let client of mobileClients" [routerLink]="['/clients', client.id]">
+              <div class="card-header">
+                <div class="card-avatar" [class.business]="client.type === 'business'">
+                  {{ getInitials(client) }}
+                </div>
+                <div class="card-header-info">
+                  <div class="card-name">{{ client.firstName }}{{ client.lastName ? ' ' + client.lastName : '' }}</div>
+                  <div class="card-phone">{{ client.phone }}</div>
+                </div>
+                <div class="card-type-badge" [class.business]="client.type === 'business'">
+                  <svg viewBox="0 0 24 24" fill="none" *ngIf="client.type === 'business'">
+                    <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                  <svg viewBox="0 0 24 24" fill="none" *ngIf="client.type === 'individual'">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="card-tags" *ngIf="client.tags.length > 0">
+                  <span class="card-tag" *ngFor="let tag of client.tags.slice(0, 3)">{{ tag }}</span>
+                  <span class="card-tag more" *ngIf="client.tags.length > 3">+{{ client.tags.length - 3 }}</span>
+                </div>
+                <div class="card-stats">
+                  <div class="card-stat-item">
+                    <span class="stat-label">Бонусы</span>
+                    <span class="stat-value bonus">{{ formatAmount(client.bonusBalance) }}</span>
+                  </div>
+                  <div class="card-stat-item">
+                    <span class="stat-label">Потрачено</span>
+                    <span class="stat-value">{{ formatAmount(client.totalAmount) }} ₸</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mobile-loading" *ngIf="isLoadingMore">
+              <app-loader></app-loader>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="clients.length === 0 && mobileClients.length === 0">
             <svg viewBox="0 0 24 24" fill="none">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
@@ -375,8 +424,8 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
 
-        <!-- Backend Pagination -->
-        <div class="pagination-container" *ngIf="!isLoading && totalClientsFound > 0">
+        <!-- Backend Pagination (Desktop only) -->
+        <div class="pagination-container desktop-view" *ngIf="!isLoading && totalClientsFound > 0">
           <div class="pagination-left">
             <div class="pagination-info">
               <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalClientsFound) }} из {{ totalClientsFound }}</span>
@@ -416,9 +465,16 @@ type SortDirection = 'asc' | 'desc';
       margin-bottom: 1rem;
     }
 
-    .page-header-actions app-button svg {
-      width: 16px;
-      height: 16px;
+    .page-header-actions app-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .page-header-actions .create-client-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
     }
 
     .page-wrapper {
@@ -430,6 +486,16 @@ type SortDirection = 'asc' | 'desc';
     .clients-container {
       max-width: 1400px;
       margin: 0 auto;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     /* Dashboard Grid */
@@ -1100,6 +1166,160 @@ type SortDirection = 'asc' | 'desc';
       }
     }
 
+    /* Mobile Cards */
+    .mobile-cards-container {
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: calc(100vh - 400px);
+      overflow-y: auto;
+      padding-bottom: 1rem;
+    }
+
+    .client-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .client-card:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: white;
+      background: linear-gradient(135deg, #16A34A 0%, #15803d 100%);
+      flex-shrink: 0;
+    }
+
+    .card-avatar.business {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    }
+
+    .card-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-phone {
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .card-type-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #f0fdf4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #16A34A;
+      flex-shrink: 0;
+    }
+
+    .card-type-badge.business {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .card-type-badge svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .card-tag {
+      padding: 4px 10px;
+      background: #dcfce7;
+      color: #16A34A;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .card-tag.more {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .card-stats {
+      display: flex;
+      gap: 1rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .card-stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .card-stat-item .stat-label {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .card-stat-item .stat-value {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .card-stat-item .stat-value.bonus {
+      color: #d97706;
+    }
+
+    .mobile-loading {
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+    }
+
     @media (max-width: 768px) {
       .page-wrapper {
         margin: -1rem;
@@ -1118,12 +1338,29 @@ type SortDirection = 'asc' | 'desc';
         width: 100%;
       }
 
-      .table-container {
-        overflow-x: auto;
+      /* Hide desktop table and pagination on mobile */
+      .desktop-view {
+        display: none !important;
       }
 
-      .clients-table {
-        min-width: 900px;
+      /* Show mobile cards */
+      .mobile-view {
+        display: flex !important;
+      }
+
+      .mobile-cards-container {
+        max-height: calc(100vh - 300px);
+      }
+    }
+
+    /* Hide mobile view on desktop */
+    @media (min-width: 769px) {
+      .mobile-view {
+        display: none !important;
+      }
+
+      .desktop-view {
+        display: block !important;
       }
     }
 
@@ -1231,9 +1468,14 @@ export class ClientsPageComponent implements OnInit {
   // Clients data
   isLoading = false;
   clients: Client[] = [];
+  mobileClients: Client[] = []; // For mobile infinite scroll
   totalClientsFound = 0;
   currentPage = 0;
   pageSize = 15;
+  isLoadingMore = false;
+  hasMorePages = true;
+  mobilePage = 0;
+  mobilePageSize = 20; // Load more items per scroll on mobile
 
   // Create client modal
   showCreateClientModal = false;
@@ -1291,6 +1533,13 @@ export class ClientsPageComponent implements OnInit {
         this.clients = response.content.map(result => this.mapSearchResultToClient(result));
         this.totalClientsFound = response.totalElements;
         this.isLoading = false;
+        
+        // Reset mobile clients on initial load or filter change
+        if (this.currentPage === 0) {
+          this.mobileClients = [...this.clients];
+          this.mobilePage = 0;
+          this.hasMorePages = response.totalPages > 1;
+        }
       },
       error: (err) => {
         const errorMessage = err.error?.message || 'Ошибка загрузки клиентов';
@@ -1298,6 +1547,44 @@ export class ClientsPageComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  loadMoreMobileClients(): void {
+    if (this.isLoadingMore || !this.hasMorePages) {
+      return;
+    }
+
+    this.isLoadingMore = true;
+    const nextPage = this.mobilePage + 1;
+    const searchRequest = this.buildSearchRequest();
+    searchRequest.page = nextPage;
+    searchRequest.size = this.mobilePageSize;
+    
+    this.clientsService.searchClients(searchRequest).subscribe({
+      next: (response) => {
+        const newClients = response.content.map(result => this.mapSearchResultToClient(result));
+        this.mobileClients = [...this.mobileClients, ...newClients];
+        this.mobilePage = nextPage;
+        this.hasMorePages = nextPage < response.totalPages - 1;
+        this.isLoadingMore = false;
+      },
+      error: (err) => {
+        console.error('Error loading more clients:', err);
+        this.isLoadingMore = false;
+      }
+    });
+  }
+
+  onMobileScroll(event: Event): void {
+    const target = event.target as HTMLElement;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+    
+    // Load more when user scrolls to 80% of the content
+    if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      this.loadMoreMobileClients();
+    }
   }
 
   buildSearchRequest() {
@@ -1371,6 +1658,8 @@ export class ClientsPageComponent implements OnInit {
 
   applyFilters(): void {
     this.currentPage = 0; // Reset to first page when filters change
+    this.mobilePage = 0; // Reset mobile pagination
+    this.mobileClients = []; // Clear mobile clients
     this.loadClients();
   }
 
@@ -1464,6 +1753,8 @@ export class ClientsPageComponent implements OnInit {
     this.sortField = 'lastVisit';
     this.sortDirection = 'desc';
     this.currentPage = 0;
+    this.mobilePage = 0; // Reset mobile pagination
+    this.mobileClients = []; // Clear mobile clients
     this.loadClients();
   }
 

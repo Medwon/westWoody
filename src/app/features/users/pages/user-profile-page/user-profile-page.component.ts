@@ -1,13 +1,17 @@
-import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
-import { UsersService } from '../../../../core/services/users.service';
+import { UsersService, UserStatus } from '../../../../core/services/users.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
+import { Subject, takeUntil } from 'rxjs';
 import { User as ApiUser, UserRole, UserTransaction } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
+import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 
 interface User {
   id: string;
@@ -29,7 +33,7 @@ interface UserPayment {
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online' | string;
+  paymentMethod: 'cash' | 'card' | 'transfer' | string;
   isRefund: boolean;
   date: string;
   time: string;
@@ -38,13 +42,14 @@ interface UserPayment {
 @Component({
   selector: 'app-user-profile-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent, NotFoundStateComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent, NotFoundStateComponent, PaymentViewModalComponent],
   template: `
     <div class="page-wrapper">
-      <!-- Loading State -->
-      <div class="loading-container" *ngIf="isLoading">
-        <app-loader></app-loader>
-      </div>
+      <div class="profile-container-wrapper">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
 
       <!-- Not Found State -->
       <app-not-found-state
@@ -60,11 +65,11 @@ interface UserPayment {
         <!-- Profile Header Card -->
         <div class="profile-header-card">
           <div class="profile-header-content">
-            <div class="avatar-wrapper">
+              <div class="avatar-wrapper">
               <div class="avatar-large">
                 {{ getInitials() }}
               </div>
-              <div class="status-indicator" [class.active]="user.status === 'active'"></div>
+              <div class="status-indicator" [class.online]="userStatus?.isOnline" [class.offline]="!userStatus?.isOnline"></div>
             </div>
             <div class="profile-main-info">
               <div class="name-row">
@@ -127,6 +132,19 @@ interface UserPayment {
               <span class="info-label">Дата регистрации:</span>
               <span class="info-value">{{ formatDate(user.createdAt) }}</span>
             </div>
+            <div class="info-row" *ngIf="userStatus">
+              <span class="info-label">Статус:</span>
+              <span class="info-value">
+                <span class="status-badge" [class.online]="userStatus.isOnline" [class.offline]="!userStatus.isOnline">
+                  <span class="status-dot"></span>
+                  {{ userStatus.isOnline ? 'Онлайн' : 'Офлайн' }}
+                </span>
+              </span>
+            </div>
+            <div class="info-row" *ngIf="userStatus?.lastSeenAt">
+              <span class="info-label">Последний раз онлайн:</span>
+              <span class="info-value">{{ formatLastSeen(userStatus?.lastSeenAt || null) }}</span>
+            </div>
           </div>
         </div>
 
@@ -142,7 +160,8 @@ interface UserPayment {
               <h3 class="card-title">История операций</h3>
             </div>
           </div>
-          <div class="payments-table-container">
+          <!-- Desktop Table View -->
+          <div class="payments-table-container desktop-view">
             <table class="payments-table">
               <thead>
                 <tr>
@@ -158,7 +177,7 @@ interface UserPayment {
               <tbody>
                 <tr *ngFor="let payment of userPayments" class="payment-row">
                   <td class="td-id">
-                    <span class="payment-id">#{{ payment.txId || payment.id }}</span>
+                    <span class="payment-id clickable" (click)="openPaymentView(payment.txId || payment.id)">#{{ payment.txId || payment.id }}</span>
                   </td>
                   <td class="td-client">
                     <div class="client-cell">
@@ -198,9 +217,11 @@ interface UserPayment {
                     </div>
                   </td>
                   <td class="td-method">
-                    <span class="method-badge" [class]="'method-' + (getPaymentMethod(payment) || 'unknown')">
-                      {{ getPaymentMethodLabel(getPaymentMethod(payment)) }}
-                    </span>
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="medium"
+                      [paymentMethod]="getPaymentMethodForBadge(getPaymentMethod(payment))">
+                    </app-badge>
                   </td>
                   <td class="td-status">
                     <app-badge 
@@ -228,10 +249,80 @@ interface UserPayment {
               <span>Нет операций</span>
             </div>
           </div>
-        </div>
 
+          <!-- Mobile Card View -->
+          <div class="mobile-payments-cards mobile-view">
+            <div class="mobile-payment-card" *ngFor="let payment of userPayments">
+              <div class="mobile-payment-card-header" (click)="toggleMobilePaymentCard(payment.txId || payment.id)">
+                <div class="mobile-payment-card-main">
+                  <div>
+                    <div class="mobile-payment-id clickable" (click)="openPaymentView(payment.txId || payment.id); $event.stopPropagation()">#{{ payment.txId || payment.id }}</div>
+                    <div class="mobile-payment-amount">{{ formatAmount(payment.amount) }} ₸</div>
+                  </div>
+                </div>
+                <div class="mobile-payment-expand" [class.expanded]="isMobilePaymentExpanded(payment.txId || payment.id)">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="mobile-payment-details" [class.expanded]="isMobilePaymentExpanded(payment.txId || payment.id)">
+                <div class="detail-row">
+                  <span class="detail-label">Клиент:</span>
+                  <a [routerLink]="['/clients', payment.clientId]" class="detail-value link">
+                    {{ payment.clientName }}
+                  </a>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Телефон:</span>
+                  <span class="detail-value">{{ payment.clientPhone }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Бонусы:</span>
+                  <div class="detail-value bonus-info">
+                    <app-badge *ngIf="getBonusGranted(payment) > 0" badgeType="bonusGranted" size="small">+{{ formatAmount(getBonusGranted(payment)) }}</app-badge>
+                    <app-badge *ngIf="getBonusUsed(payment) > 0" badgeType="bonusUsed" size="small">-{{ formatAmount(getBonusUsed(payment)) }}</app-badge>
+                    <span *ngIf="getBonusGranted(payment) === 0 && getBonusUsed(payment) === 0">—</span>
+                  </div>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Способ оплаты:</span>
+                  <span class="detail-value">
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="small"
+                      [paymentMethod]="getPaymentMethodForBadge(getPaymentMethod(payment))">
+                    </app-badge>
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Дата:</span>
+                  <span class="detail-value">{{ getFormattedDate(payment) }} {{ getFormattedTime(payment) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state mobile-view" *ngIf="userPayments.length === 0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <span>Нет операций</span>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
+
+    <!-- Payment View Modal -->
+    <app-payment-view-modal
+      [visible]="showPaymentViewModal"
+      [paymentTxId]="selectedPaymentTxId"
+      (visibleChange)="closePaymentView()"
+      (paymentUpdated)="onPaymentUpdated()"
+      (refundedPaymentClick)="openPaymentView($event)">
+    </app-payment-view-modal>
   `,
   styles: [`
     .page-wrapper {
@@ -239,6 +330,19 @@ interface UserPayment {
       margin: -2rem;
       padding: 2rem;
       background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
+    }
+
+    .profile-container-wrapper {
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     .profile-container {
@@ -292,8 +396,48 @@ interface UserPayment {
       border: 3px solid white;
     }
 
-    .status-indicator.active {
+    .status-indicator.online {
       background: #22c55e;
+    }
+
+    .status-indicator.offline {
+      background: #94a3b8;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-badge.online {
+      background: #f0fdf4;
+      color: #16A34A;
+    }
+
+    .status-badge.offline {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .status-badge .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-badge.online .status-dot {
+      background: #16A34A;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    .status-badge.offline .status-dot {
+      background: #94a3b8;
     }
 
     .profile-main-info {
@@ -464,6 +608,23 @@ interface UserPayment {
       font-size: 0.875rem;
     }
 
+    .payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .payment-id.clickable:hover {
+      color: #475569;
+    }
+
+    .mobile-payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
     .client-cell {
       display: flex;
       align-items: center;
@@ -535,28 +696,6 @@ interface UserPayment {
       font-size: 0.875rem;
     }
 
-    .method-badge {
-      display: inline-block;
-      padding: 0.375rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.8125rem;
-      font-weight: 500;
-    }
-
-    .method-cash {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .method-card {
-      background: #dbeafe;
-      color: #1e40af;
-    }
-
-    .method-online {
-      background: #dcfce7;
-      color: #15803d;
-    }
 
     .date-info {
       display: flex;
@@ -593,18 +732,227 @@ interface UserPayment {
     .empty-state span {
       font-size: 0.9375rem;
     }
+
+    /* Mobile Card View for Payments */
+    .mobile-payments-cards {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mobile-payment-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e5e7eb;
+    }
+
+    .mobile-payment-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .mobile-payment-card-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .mobile-payment-id {
+      font-family: monospace;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .mobile-payment-amount {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #16A34A;
+    }
+
+    .mobile-payment-expand {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .mobile-payment-expand.expanded {
+      transform: rotate(180deg);
+    }
+
+    .mobile-payment-details {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .mobile-payment-details.expanded {
+      display: flex;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .detail-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      font-size: 0.875rem;
+      color: #1f2937;
+      font-weight: 500;
+      text-align: right;
+      flex: 1;
+    }
+
+    .detail-value.link {
+      color: #16A34A;
+      text-decoration: none;
+    }
+
+    .detail-value.link:hover {
+      text-decoration: underline;
+    }
+
+    .detail-value.bonus-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+
+    @media (max-width: 768px) {
+      .page-wrapper {
+        margin: -1rem;
+        padding: 1rem;
+      }
+
+      .profile-header-card {
+        border-radius: 12px;
+        margin-bottom: 1rem;
+      }
+
+      .profile-header-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 1.5rem 1rem;
+      }
+
+      .avatar-large {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+      }
+
+      .profile-main-info {
+        width: 100%;
+        text-align: center;
+      }
+
+      .name-row {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .profile-name {
+        font-size: 1.25rem;
+      }
+
+      .info-card,
+      .activity-card {
+        border-radius: 12px;
+        padding: 1.25rem 1rem;
+      }
+
+      .card-header {
+        margin-bottom: 1rem;
+      }
+
+      .card-title {
+        font-size: 1.125rem;
+      }
+
+      .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.75rem 0;
+      }
+
+      .info-label {
+        min-width: auto;
+        font-size: 0.875rem;
+      }
+
+      .info-value {
+        font-size: 0.875rem;
+      }
+
+      /* Hide desktop table on mobile */
+      .desktop-view {
+        display: none !important;
+      }
+
+      /* Show mobile cards */
+      .mobile-view {
+        display: flex !important;
+      }
+
+      .payments-table-container {
+        padding: 0;
+      }
+    }
+
+    /* Hide mobile view on desktop */
+    @media (min-width: 769px) {
+      .mobile-view {
+        display: none !important;
+      }
+
+      .desktop-view {
+        display: block !important;
+      }
+    }
   `]
 })
-export class UserProfilePageComponent implements OnInit, AfterViewInit {
+export class UserProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private titleService = inject(Title);
   private usersService = inject(UsersService);
   private toastService = inject(ToastService);
+  private transactionModalService = inject(TransactionModalService);
+  private destroy$ = new Subject<void>();
 
   user: User | null = null;
   userPayments: UserPayment[] = [];
   isLoading = true;
   userNotFound = false;
+  userStatus: { isOnline: boolean; lastSeenAt: string | null } | null = null;
+  expandedMobilePaymentCards = new Set<string>();
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('id');
@@ -616,16 +964,39 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
       ]);
       this.loadUser(userId);
       this.loadTransactions(userId);
+      this.loadUserStatus(userId);
     } else {
       this.isLoading = false;
       this.toastService.error('ID пользователя не указан');
     }
+
+    // Subscribe to transaction completion events
+    this.transactionModalService.transactionComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Reload user transactions when on user profile route
+        const currentUrl = this.router.url;
+        const userId = this.route.snapshot.paramMap.get('id');
+        if (currentUrl.startsWith('/users/') && userId) {
+          this.loadTransactions(userId);
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadUser(userId: string): void {
     this.usersService.getUserById(userId).subscribe({
       next: (apiUser) => {
         this.user = this.mapApiUserToUser(apiUser);
+        
+        // Update page title with user name
+        const userName = `${this.user.firstName}${this.user.lastName ? ' ' + this.user.lastName : ''}`.trim();
+        this.titleService.setTitle(`Westwood - User - ${userName}`);
+        
         this.isLoading = false;
       },
       error: (err) => {
@@ -651,6 +1022,48 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
         this.toastService.error(errorMessage);
       }
     });
+  }
+
+  loadUserStatus(userId: string): void {
+    this.usersService.getUserStatus(userId).subscribe({
+      next: (status) => {
+        this.userStatus = {
+          isOnline: status.isOnline,
+          lastSeenAt: status.lastSeenAt
+        };
+      },
+      error: (err) => {
+        console.error('Error loading user status:', err);
+      }
+    });
+  }
+
+  formatLastSeen(lastSeenAt: string | null): string {
+    if (!lastSeenAt) {
+      return 'Никогда';
+    }
+    
+    const lastSeen = new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) {
+      return 'Только что';
+    }
+    if (diffMins < 60) {
+      return `${diffMins} мин назад`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours} ч назад`;
+    }
+    if (diffDays < 7) {
+      return `${diffDays} дн назад`;
+    }
+    
+    return lastSeen.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   mapApiUserToUser(apiUser: ApiUser): User {
@@ -781,16 +1194,59 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit {
     return amount.toLocaleString('ru-RU');
   }
 
+  getPaymentMethodForBadge(method: string | undefined): 'CASH' | 'CARD' | 'TRANSFER' | null {
+    if (!method) return null;
+    const upperMethod = method.toUpperCase();
+    if (upperMethod === 'CASH' || upperMethod === 'CARD' || upperMethod === 'TRANSFER') {
+      return upperMethod as 'CASH' | 'CARD' | 'TRANSFER';
+    }
+    return null;
+  }
+
   getPaymentMethodLabel(method: string): string {
     switch (method) {
       case 'cash':
         return 'Наличные';
       case 'card':
         return 'Карта';
-      case 'online':
-        return 'Онлайн';
+      case 'transfer':
+        return 'Перевод';
       default:
         return method;
+    }
+  }
+
+  toggleMobilePaymentCard(paymentId: string): void {
+    if (this.expandedMobilePaymentCards.has(paymentId)) {
+      this.expandedMobilePaymentCards.delete(paymentId);
+    } else {
+      this.expandedMobilePaymentCards.add(paymentId);
+    }
+  }
+
+  isMobilePaymentExpanded(paymentId: string): boolean {
+    return this.expandedMobilePaymentCards.has(paymentId);
+  }
+
+  // Payment view modal
+  showPaymentViewModal = false;
+  selectedPaymentTxId: string | null = null;
+
+  openPaymentView(paymentId: string): void {
+    this.selectedPaymentTxId = paymentId;
+    this.showPaymentViewModal = true;
+  }
+
+  closePaymentView(): void {
+    this.showPaymentViewModal = false;
+    this.selectedPaymentTxId = null;
+  }
+
+  onPaymentUpdated(): void {
+    // Reload user payments after update
+    const userId = this.route.snapshot.paramMap.get('id');
+    if (userId) {
+      this.loadTransactions(userId);
     }
   }
 }

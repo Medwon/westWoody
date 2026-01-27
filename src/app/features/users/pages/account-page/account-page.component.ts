@@ -1,25 +1,31 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ProfileService, UserTransaction } from '../../../../core/services/profile.service';
+import { PaymentSearchResult } from '../../../../core/services/payments.service';
 import { UserProfile, UpdateProfileRequest, ChangePasswordRequest } from '../../../../core/models/user.model';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { ToastService } from '../../../../core/services/toast.service';
+import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
+import { Subject, takeUntil } from 'rxjs';
 
 interface UserPayment {
   id: string;
+  txId: string; // Full transaction ID for API calls
   clientId: string;
   clientName: string;
   clientPhone: string;
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  bonusRevoked: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   isRefund: boolean;
   date: string;
   time: string;
@@ -28,16 +34,16 @@ interface UserPayment {
 @Component({
   selector: 'app-account-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, LoaderComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, LoaderComponent, PaymentViewModalComponent],
   template: `
     <div class="page-wrapper">
-      <!-- Loading State -->
-      <div class="loading-container" *ngIf="isLoading">
-        <app-loader></app-loader>
-      </div>
-
-
-      <div class="profile-container" *ngIf="profile && !isLoading">
+      <div class="profile-container-wrapper">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
+        
+        <div class="profile-container" *ngIf="profile && !isLoading">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -219,7 +225,8 @@ interface UserPayment {
               <h3 class="card-title">История операций</h3>
             </div>
           </div>
-          <div class="payments-table-container">
+          <!-- Desktop Table View -->
+          <div class="payments-table-container desktop-view">
             <table class="payments-table">
               <thead>
                 <tr>
@@ -235,7 +242,7 @@ interface UserPayment {
               <tbody>
                 <tr *ngFor="let payment of userPayments" class="payment-row">
                   <td class="td-id">
-                    <span class="payment-id">#{{ payment.id }}</span>
+                    <span class="payment-id clickable" (click)="openPaymentView(payment.txId)">#{{ payment.txId }}</span>
                   </td>
                   <td class="td-client">
                     <div class="client-cell">
@@ -271,13 +278,23 @@ interface UserPayment {
                         class="bonus-badge">
                         -{{ formatAmount(payment.bonusUsed) }}
                       </app-badge>
-                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                      <app-badge 
+                        *ngIf="payment.bonusRevoked > 0"
+                        badgeType="refund" 
+                        size="medium"
+                        icon="refund"
+                        class="bonus-badge">
+                        -{{ formatAmount(payment.bonusRevoked) }}
+                      </app-badge>
+                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
                     </div>
                   </td>
                   <td class="td-method">
-                    <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                      {{ getPaymentMethodLabel(payment.paymentMethod) }}
-                    </span>
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="medium"
+                      [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                    </app-badge>
                   </td>
                   <td class="td-status">
                     <app-badge 
@@ -305,10 +322,82 @@ interface UserPayment {
               <span>Нет операций</span>
             </div>
           </div>
-        </div>
 
+          <!-- Mobile Card View -->
+          <div class="mobile-payments-cards mobile-view">
+            <div class="mobile-payment-card" *ngFor="let payment of userPayments">
+              <div class="mobile-payment-card-header" (click)="toggleMobilePaymentCard(payment.id)">
+                <div class="mobile-payment-card-main">
+                  <div>
+                    <div class="mobile-payment-id clickable" (click)="openPaymentView(payment.txId); $event.stopPropagation()">#{{ payment.txId }}</div>
+                    <div class="mobile-payment-amount">{{ formatAmount(payment.amount) }} ₸</div>
+                  </div>
+                </div>
+                <div class="mobile-payment-expand" [class.expanded]="isMobilePaymentExpanded(payment.id)">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="mobile-payment-details" [class.expanded]="isMobilePaymentExpanded(payment.id)">
+                <div class="detail-row">
+                  <span class="detail-label">Клиент:</span>
+                  <a [routerLink]="['/clients', payment.clientId]" class="detail-value link">
+                    {{ payment.clientName }}
+                  </a>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Телефон:</span>
+                  <span class="detail-value">{{ payment.clientPhone }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Бонусы:</span>
+                  <div class="detail-value bonus-info">
+                    <app-badge *ngIf="payment.bonusEarned > 0" badgeType="bonusGranted" size="small">+{{ formatAmount(payment.bonusEarned) }}</app-badge>
+                    <app-badge *ngIf="payment.bonusUsed > 0" badgeType="bonusUsed" size="small">-{{ formatAmount(payment.bonusUsed) }}</app-badge>
+                    <app-badge *ngIf="payment.bonusRevoked > 0" badgeType="refund" size="small">-{{ formatAmount(payment.bonusRevoked) }}</app-badge>
+                    <span *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
+                  </div>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Способ оплаты:</span>
+                  <span class="detail-value">
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="small"
+                      [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                    </app-badge>
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Дата:</span>
+                  <span class="detail-value">{{ payment.date }} {{ payment.time }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state mobile-view" *ngIf="userPayments.length === 0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <span>Нет операций</span>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
+
+    <!-- Payment View Modal -->
+    <app-payment-view-modal
+      [visible]="showPaymentViewModal"
+      [paymentTxId]="selectedPaymentTxId"
+      [paymentSearchResult]="selectedPaymentSearchResult"
+      (visibleChange)="closePaymentView()"
+      (paymentUpdated)="onPaymentUpdated()"
+      (refundedPaymentClick)="openPaymentView($event)">
+    </app-payment-view-modal>
   `,
   styles: [`
     .page-wrapper {
@@ -318,11 +407,17 @@ interface UserPayment {
       background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
     }
 
-    .loading-container {
+    .profile-container-wrapper {
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 400px;
+      min-height: 60vh;
+      width: 100%;
     }
 
     .profile-container {
@@ -655,6 +750,23 @@ interface UserPayment {
       font-size: 0.875rem;
     }
 
+    .payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .payment-id.clickable:hover {
+      color: #475569;
+    }
+
+    .mobile-payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
     .client-cell {
       display: flex;
       align-items: center;
@@ -705,9 +817,9 @@ interface UserPayment {
     }
 
     .amount-value {
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #1f2937;
-      font-size: 0.9375rem;
+      color: #16A34A;
     }
 
     .bonus-info {
@@ -726,28 +838,6 @@ interface UserPayment {
       font-size: 0.875rem;
     }
 
-    .method-badge {
-      display: inline-block;
-      padding: 0.375rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.8125rem;
-      font-weight: 500;
-    }
-
-    .method-cash {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .method-card {
-      background: #dbeafe;
-      color: #1e40af;
-    }
-
-    .method-online {
-      background: #dcfce7;
-      color: #15803d;
-    }
 
     .date-info {
       display: flex;
@@ -785,6 +875,115 @@ interface UserPayment {
       font-size: 0.9375rem;
     }
 
+    /* Mobile Card View for Payments */
+    .mobile-payments-cards {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mobile-payment-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e5e7eb;
+    }
+
+    .mobile-payment-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .mobile-payment-card-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .mobile-payment-id {
+      font-family: monospace;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .mobile-payment-amount {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #16A34A;
+    }
+
+    .mobile-payment-expand {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .mobile-payment-expand.expanded {
+      transform: rotate(180deg);
+    }
+
+    .mobile-payment-details {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .mobile-payment-details.expanded {
+      display: flex;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .detail-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      font-size: 0.875rem;
+      color: #1f2937;
+      font-weight: 500;
+      text-align: right;
+      flex: 1;
+    }
+
+    .detail-value.link {
+      color: #16A34A;
+      text-decoration: none;
+    }
+
+    .detail-value.link:hover {
+      text-decoration: underline;
+    }
+
+    .detail-value.bonus-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+
     /* Responsive */
     @media (max-width: 768px) {
       .page-wrapper {
@@ -792,21 +991,66 @@ interface UserPayment {
         padding: 1rem;
       }
 
+      .profile-header-card {
+        border-radius: 12px;
+        margin-bottom: 1rem;
+      }
+
       .profile-header-content {
         flex-direction: column;
+        align-items: center;
         text-align: center;
-        padding: 1.5rem;
+        padding: 1.5rem 1rem;
+      }
+
+      .avatar-large {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+      }
+
+      .profile-main-info {
+        width: 100%;
+        text-align: center;
       }
 
       .name-row {
-        flex-direction: column;
-        gap: 0.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .profile-name {
+        font-size: 1.25rem;
+      }
+
+      .info-card,
+      .activity-card {
+        border-radius: 12px;
+        padding: 1.25rem 1rem;
+      }
+
+      .card-header {
+        margin-bottom: 1rem;
+      }
+
+      .card-title {
+        font-size: 1.125rem;
       }
 
       .info-row {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
+        padding: 0.75rem 0;
+      }
+
+      .info-label {
+        min-width: auto;
+        font-size: 0.875rem;
+      }
+
+      .info-value {
+        font-size: 0.875rem;
       }
 
       .info-input {
@@ -816,13 +1060,41 @@ interface UserPayment {
       .form-input {
         max-width: 100%;
       }
+
+      /* Hide desktop table on mobile */
+      .desktop-view {
+        display: none !important;
+      }
+
+      /* Show mobile cards */
+      .mobile-view {
+        display: flex !important;
+      }
+
+      .payments-table-container {
+        padding: 0;
+      }
+    }
+
+    /* Hide mobile view on desktop */
+    @media (min-width: 769px) {
+      .mobile-view {
+        display: none !important;
+      }
+
+      .desktop-view {
+        display: block !important;
+      }
     }
   `]
 })
-export class AccountPageComponent implements OnInit {
+export class AccountPageComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private profileService = inject(ProfileService);
   private toastService = inject(ToastService);
+  private transactionModalService = inject(TransactionModalService);
+  private router = inject(Router);
+  private destroy$ = new Subject<void>();
 
   // Profile data
   profile: UserProfile | null = null;
@@ -830,6 +1102,7 @@ export class AccountPageComponent implements OnInit {
 
   // User payments (mock data for now)
   userPayments: UserPayment[] = [];
+  expandedMobilePaymentCards = new Set<string>();
 
   // Edit states
   isEditingPersonal = false;
@@ -856,6 +1129,22 @@ export class AccountPageComponent implements OnInit {
       { label: 'Профиль' }
     ]);
     this.loadProfile();
+
+    // Subscribe to transaction completion events
+    this.transactionModalService.transactionComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Reload profile and transactions when on /profile route
+        const currentUrl = this.router.url;
+        if (currentUrl === '/profile' || currentUrl.startsWith('/profile')) {
+          this.loadProfile();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadProfile(): void {
@@ -918,14 +1207,23 @@ export class AccountPageComponent implements OnInit {
     return amount.toLocaleString('ru-RU');
   }
 
+  getPaymentMethodForBadge(method: string | undefined): 'CASH' | 'CARD' | 'TRANSFER' | null {
+    if (!method) return null;
+    const upperMethod = method.toUpperCase();
+    if (upperMethod === 'CASH' || upperMethod === 'CARD' || upperMethod === 'TRANSFER') {
+      return upperMethod as 'CASH' | 'CARD' | 'TRANSFER';
+    }
+    return null;
+  }
+
   getPaymentMethodLabel(method: string): string {
     switch (method) {
       case 'cash':
         return 'Наличные';
       case 'card':
         return 'Карта';
-      case 'online':
-        return 'Онлайн';
+      case 'transfer':
+        return 'Перевод';
       default:
         return method;
     }
@@ -1063,28 +1361,83 @@ export class AccountPageComponent implements OnInit {
     const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
     // Parse payment method
-    let paymentMethod: 'cash' | 'card' | 'online' = 'cash';
+    let paymentMethod: 'cash' | 'card' | 'transfer' = 'cash';
     if (transaction.paymentMethod) {
       const method = transaction.paymentMethod.toLowerCase();
       if (method.includes('card') || method.includes('карт')) {
         paymentMethod = 'card';
-      } else if (method.includes('online') || method.includes('онлайн')) {
-        paymentMethod = 'online';
+      } else if (method.includes('transfer') || method.includes('перевод')) {
+        paymentMethod = 'transfer';
       }
     }
 
     return {
-      id: transaction.txId.replace(/^PTX-/, ''), // Remove PTX- prefix for display
+      id: transaction.txId, // Keep full txId for display
+      txId: transaction.txId, // Keep full txId for API calls
       clientId: transaction.clientId,
       clientName: transaction.clientName,
       clientPhone: transaction.clientPhone,
       amount: transaction.amount,
       bonusEarned: transaction.bonusGranted,
       bonusUsed: transaction.bonusUsed,
+      bonusRevoked: transaction.bonusRevoked || 0,
       paymentMethod: paymentMethod,
       isRefund: transaction.status === 'REFUNDED' || transaction.refundedPaymentTxId !== null,
       date: dateStr,
       time: timeStr
     };
+  }
+
+  toggleMobilePaymentCard(paymentId: string): void {
+    if (this.expandedMobilePaymentCards.has(paymentId)) {
+      this.expandedMobilePaymentCards.delete(paymentId);
+    } else {
+      this.expandedMobilePaymentCards.add(paymentId);
+    }
+  }
+
+  isMobilePaymentExpanded(paymentId: string): boolean {
+    return this.expandedMobilePaymentCards.has(paymentId);
+  }
+
+  // Payment view modal
+  showPaymentViewModal = false;
+  selectedPaymentTxId: string | null = null;
+  selectedPaymentSearchResult: PaymentSearchResult | null = null;
+
+  openPaymentView(paymentId: string): void {
+    const payment = this.userPayments.find(p => p.txId === paymentId);
+    if (payment) {
+      this.selectedPaymentSearchResult = {
+        txId: payment.txId,
+        clientId: payment.clientId,
+        clientName: payment.clientName,
+        clientPhone: payment.clientPhone,
+        clientEmail: null,
+        amount: payment.amount,
+        status: payment.isRefund ? 'REFUNDED' : 'COMPLETED',
+        paymentMethod: payment.paymentMethod?.toUpperCase() as 'CASH' | 'CARD' | 'TRANSFER' | null,
+        initiatedBy: null,
+        createdAt: payment.date + 'T' + payment.time,
+        refundedPaymentTxId: null,
+        bonusGranted: payment.bonusEarned,
+        bonusUsed: payment.bonusUsed,
+        bonusRevoked: payment.bonusRevoked,
+        refundReason: null
+      };
+    }
+    this.selectedPaymentTxId = paymentId;
+    this.showPaymentViewModal = true;
+  }
+
+  closePaymentView(): void {
+    this.showPaymentViewModal = false;
+    this.selectedPaymentTxId = null;
+    this.selectedPaymentSearchResult = null;
+  }
+
+  onPaymentUpdated(): void {
+    // Reload user transactions after update
+    this.loadUserTransactions();
   }
 }

@@ -39,6 +39,9 @@ import { BreadcrumbsComponent } from '../../shared/components/breadcrumbs/breadc
     @media (max-width: 768px) {
       .page-header {
         padding: 1rem 0;
+        margin-top: 0;
+        position: relative;
+        z-index: 1;
       }
 
       .page-title {

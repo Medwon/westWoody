@@ -42,9 +42,16 @@ export const authInterceptor: HttpInterceptorFn = (
     // Method 3: Check by domain (if URL is absolute)
     if (req.url.startsWith('http')) {
       const requestDomain = new URL(req.url).origin;
-      const apiDomain = new URL(environment.apiUrl).origin;
-      if (requestDomain === apiDomain) {
-        isApiRequest = true;
+      // Only try to parse apiUrl as URL if it's absolute (starts with http)
+      if (environment.apiUrl.startsWith('http')) {
+        try {
+          const apiDomain = new URL(environment.apiUrl).origin;
+          if (requestDomain === apiDomain) {
+            isApiRequest = true;
+          }
+        } catch (e) {
+          // Ignore URL parsing errors for relative URLs
+        }
       }
     }
   } catch (e) {

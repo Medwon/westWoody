@@ -86,15 +86,6 @@ type ModalStep = 'form' | 'notify';
             [(ngModel)]="clientBirthday">
         </div>
 
-        <div class="form-group">
-          <label class="input-label">Email (необязательно)</label>
-          <input
-            type="email"
-            class="form-input"
-            [(ngModel)]="clientEmail"
-            placeholder="client@mail.ru">
-        </div>
-
         <!-- Client Type Radio -->
         <div class="form-group">
           <label class="input-label">Тип клиента</label>
@@ -455,7 +446,7 @@ type ModalStep = 'form' | 'notify';
       background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
       border: 1px solid #fcd34d;
       border-radius: 12px;
-      margin: 1.5rem 0;
+      margin: 0 0 1rem 0;
     }
 
     .bonus-icon {

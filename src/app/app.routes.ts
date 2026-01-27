@@ -20,10 +20,12 @@ export const routes: Routes = [
     children: [
       {
         path: 'home',
-        loadComponent: () => import('./features/home/pages/home-page/home-page.component').then(m => m.HomePageComponent)
+        loadComponent: () => import('./features/home/pages/home-page/home-page.component').then(m => m.HomePageComponent),
+        title: 'Home'
       },
       {
         path: 'communications',
+        title: 'Communications',
         children: [
           {
             path: '',
@@ -32,7 +34,8 @@ export const routes: Routes = [
           },
           {
             path: 'whatsapp',
-            loadComponent: () => import('./features/invitation/pages/invitation-page/invitation-page.component').then(m => m.InvitationPageComponent)
+            loadComponent: () => import('./features/invitation/pages/invitation-page/invitation-page.component').then(m => m.InvitationPageComponent),
+            title: 'WhatsApp'
           }
           // {
           //   path: 'email',
@@ -42,31 +45,38 @@ export const routes: Routes = [
       },
       {
         path: 'bonus-program',
-        loadComponent: () => import('./features/bonus-program/pages/bonus-program-page/bonus-program-page.component').then(m => m.BonusProgramPageComponent)
+        loadComponent: () => import('./features/bonus-program/pages/bonus-program-page/bonus-program-page.component').then(m => m.BonusProgramPageComponent),
+        title: 'Bonus Program'
       },
       {
         path: 'clients',
-        loadComponent: () => import('./features/clients/pages/clients-page/clients-page.component').then(m => m.ClientsPageComponent)
+        loadComponent: () => import('./features/clients/pages/clients-page/clients-page.component').then(m => m.ClientsPageComponent),
+        title: 'Clients'
       },
       {
         path: 'clients/:id',
-        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent)
+        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent),
+        title: 'Client'
       },
       {
         path: 'payments',
-        loadComponent: () => import('./features/payments/pages/payments-page/payments-page.component').then(m => m.PaymentsPageComponent)
+        loadComponent: () => import('./features/payments/pages/payments-page/payments-page.component').then(m => m.PaymentsPageComponent),
+        title: 'Payments'
       },
       {
         path: 'users',
-        loadComponent: () => import('./features/users/pages/users-page/users-page.component').then(m => m.UsersPageComponent)
+        loadComponent: () => import('./features/users/pages/users-page/users-page.component').then(m => m.UsersPageComponent),
+        title: 'Users'
       },
       {
         path: 'users/:id',
-        loadComponent: () => import('./features/users/pages/user-profile-page/user-profile-page.component').then(m => m.UserProfilePageComponent)
+        loadComponent: () => import('./features/users/pages/user-profile-page/user-profile-page.component').then(m => m.UserProfilePageComponent),
+        title: 'User'
       },
       {
         path: 'profile',
-        loadComponent: () => import('./features/users/pages/account-page/account-page.component').then(m => m.AccountPageComponent)
+        loadComponent: () => import('./features/users/pages/account-page/account-page.component').then(m => m.AccountPageComponent),
+        title: 'Profile'
       }
     ]
   },

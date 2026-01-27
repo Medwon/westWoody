@@ -133,6 +133,43 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             (input)="onAmountChange()">
         </div>
 
+        <!-- Payment Method Selector -->
+        <div class="form-group">
+          <label class="input-label">Способ оплаты</label>
+          <div class="payment-method-radio-group">
+            <label class="payment-method-radio-label">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="CASH"
+                [(ngModel)]="selectedPaymentMethod"
+                class="payment-method-radio-input">
+              <span class="payment-method-radio-custom"></span>
+              <span class="payment-method-radio-text">Наличные</span>
+            </label>
+            <label class="payment-method-radio-label">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="CARD"
+                [(ngModel)]="selectedPaymentMethod"
+                class="payment-method-radio-input">
+              <span class="payment-method-radio-custom"></span>
+              <span class="payment-method-radio-text">Карта</span>
+            </label>
+            <label class="payment-method-radio-label">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="TRANSFER"
+                [(ngModel)]="selectedPaymentMethod"
+                class="payment-method-radio-input">
+              <span class="payment-method-radio-custom"></span>
+              <span class="payment-method-radio-text">Перевод</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Use Bonuses Toggle -->
         <div class="use-bonus-toggle" *ngIf="foundClient && foundClient.balance > 0">
           <label class="toggle-label">
@@ -159,7 +196,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             (input)="onBonusesChange()"
             placeholder="0">
           <div class="bonus-hint">
-            Максимум: {{ getMaxBonuses() }} бонусов (до 50% от суммы)
+            Максимум: {{ getMaxBonuses() }} бонусов
           </div>
         </div>
 
@@ -251,15 +288,6 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             type="date"
             class="form-input"
             [(ngModel)]="newClientBirthday">
-        </div>
-
-        <div class="form-group">
-          <label class="input-label">Email (необязательно)</label>
-          <input
-            type="email"
-            class="form-input"
-            [(ngModel)]="newClientEmail"
-            placeholder="client@mail.ru">
         </div>
 
         <!-- Client Type Radio -->
@@ -1383,6 +1411,84 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       background: #f8fafc;
       border-radius: 8px;
     }
+
+    /* Payment Method Radio Group */
+    .payment-method-radio-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .payment-method-radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #374151;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      transition: all 0.2s;
+      flex: 1;
+      min-width: 120px;
+      justify-content: center;
+    }
+
+    .payment-method-radio-label:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .payment-method-radio-input {
+      display: none;
+    }
+
+    .payment-method-radio-custom {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #cbd5e1;
+      border-radius: 50%;
+      position: relative;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+
+    .payment-method-radio-custom::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #16A34A;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      transition: 0.2s;
+    }
+
+    .payment-method-radio-input:checked + .payment-method-radio-custom {
+      border-color: #16A34A;
+    }
+
+    .payment-method-radio-input:checked + .payment-method-radio-custom::after {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .payment-method-radio-input:checked ~ .payment-method-radio-text {
+      color: #16A34A;
+      font-weight: 600;
+    }
+
+    .payment-method-radio-label:has(.payment-method-radio-input:checked) {
+      border-color: #16A34A;
+      background: #f0fdf4;
+    }
+
+    .payment-method-radio-text {
+      font-weight: 500;
+      transition: 0.2s;
+    }
   `]
 })
 export class TransactionModalComponent implements OnChanges, OnDestroy {
@@ -1409,6 +1515,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   paymentId: string | null = null;
   draftPayment: DraftPaymentResponse | null = null;
   isLoading = false;
+  selectedPaymentMethod: 'CASH' | 'CARD' | 'TRANSFER' = 'CASH';
   bonusPercentage: number | null = null; // Bonus percentage from API
   newClientName = '';
   newClientSurname = '';
@@ -1510,8 +1617,11 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   onClose(): void {
     // Show confirmation if draft payment exists AND we're on payment creation steps (found, new)
     // NOT on notify step - payment is already completed there
+    // Also don't show if we're on notify step (payment already completed)
     const isPaymentCreationStep = this.currentStep === 'found' || this.currentStep === 'new';
-    if (this.draftPayment && isPaymentCreationStep) {
+    const isPaymentCompleted = this.currentStep === 'notify' || this.pendingTransactionResult !== null;
+    
+    if (this.draftPayment && isPaymentCreationStep && !isPaymentCompleted) {
       this.showCancelConfirmation = true;
     } else {
       this.closeModal();
@@ -1724,10 +1834,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   getMaxBonuses(): number {
-    if (!this.foundClient || !this.purchaseAmount) return 0;
-    // Максимум 50% от суммы покупки или доступный баланс бонусов
-    const maxFromPurchase = Math.floor(this.purchaseAmount * 0.5);
-    return Math.min(this.foundClient.balance, maxFromPurchase);
+    if (!this.foundClient) return 0;
+    // Return available bonus balance (no percentage limit)
+    return this.foundClient.balance;
   }
 
   getFinalAmount(): number {
@@ -1748,7 +1857,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     const completeRequest = {
       originalAmount: this.purchaseAmount,
       bonusAmountUsed: this.useBonuses && this.bonusesToUse > 0 ? this.bonusesToUse : null,
-      notes: 'Payment for services'
+      notes: 'Payment for services',
+      paymentMethod: this.selectedPaymentMethod
     };
 
     console.log('=== COMPLETE PAYMENT REQUEST ===');
@@ -1770,11 +1880,24 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
         this.pendingTransactionResult = result;
         this.isLoading = false;
 
+        // Show success message
+        const finalAmount = this.getFinalAmount();
+        const bonusText = this.useBonuses && this.bonusesToUse > 0 
+          ? ` (использовано бонусов: ${this.bonusesToUse} ₸)` 
+          : this.calculatedBonus > 0 
+            ? ` (начислено бонусов: ${this.calculatedBonus} ₸)` 
+            : '';
+        this.toastService.success(`Платеж успешно создан на сумму ${finalAmount} ₸${bonusText}`);
+
         // If bonuses were used, skip notification step (no new bonuses granted)
+        // Clear draft payment before finishing since we won't need it anymore
         if (this.useBonuses && this.bonusesToUse > 0) {
+          this.draftPayment = null;
           this.finishTransaction();
         } else {
           // Open send message modal only if bonuses were not used (new bonuses granted)
+          // Keep draftPayment for now - it's needed for the notify step
+          // It will be cleared in finishTransaction() when closing the modal
           this.openSendMessageModal();
         }
       },
@@ -1940,6 +2063,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     if (this.pendingTransactionResult) {
       const result = this.pendingTransactionResult;
       this.pendingTransactionResult = null;
+      // Clear draft payment now that transaction is fully complete
+      this.draftPayment = null;
       this.transactionComplete.emit(result);
       this.onClose();
     }
@@ -2150,6 +2275,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.isNewlyCreatedClient = false;
     this.isLoading = false;
     this.showCancelConfirmation = false;
+    this.selectedPaymentMethod = 'CASH';
   }
 }
 

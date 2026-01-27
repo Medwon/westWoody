@@ -119,7 +119,7 @@ interface InvitationHistory {
                       <svg viewBox="0 0 24 24" fill="none">
                         <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
-                      <span class="recipient-value">{{ item.clientName || formatPhone(item.phone) }}</span>
+                      <span class="recipient-value">{{ getSafeClientName(item) }}</span>
                     </div>
                   </td>
                   <td>
@@ -573,10 +573,11 @@ https://westwood.app/register`;
   }
 
   openMessageDetails(item: InvitationHistory): void {
+    const recipient = this.getSafeClientName(item);
     this.selectedMessage = {
       id: item.id,
       type: 'whatsapp',
-      recipient: item.clientName || item.phone,
+      recipient,
       message: item.message,
       sentAt: item.createdAt || item.sentAt,
       status: item.status,
@@ -697,5 +698,18 @@ https://westwood.app/register`;
         this.templateVariables = [];
       }
     });
+  }
+
+  getSafeClientName(item: InvitationHistory): string {
+    const rawName = item.clientName ?? '';
+    // Remove literal "null" parts and extra spaces
+    let cleanedName = rawName.replace(/null/gi, '').replace(/\s+/g, ' ').trim();
+
+    if (!cleanedName) {
+      // Fallback to formatted phone if name is empty or only contained "null"
+      return this.formatPhone(item.phone);
+    }
+
+    return cleanedName;
   }
 }

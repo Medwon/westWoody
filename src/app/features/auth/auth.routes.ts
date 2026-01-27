@@ -10,7 +10,8 @@ export const AUTH_ROUTES: Routes = [
   },
   {
     path: 'login',
-    loadComponent: () => import('./pages/login-page/login-page.component').then(m => m.LoginPageComponent)
+    loadComponent: () => import('./pages/login-page/login-page.component').then(m => m.LoginPageComponent),
+    title: 'Login'
   },
   // Register route disabled - app is private, users should only be invited
   // {
@@ -20,16 +21,19 @@ export const AUTH_ROUTES: Routes = [
   {
     path: 'activation',
     loadComponent: () => import('./pages/activation-page/activation-page.component').then(m => m.ActivationPageComponent),
-    canActivate: [activationGuard]
+    canActivate: [activationGuard],
+    title: 'Activation'
   },
   {
     path: 'forgot-password',
-    loadComponent: () => import('./pages/forgot-password-page/forgot-password-page.component').then(m => m.ForgotPasswordPageComponent)
+    loadComponent: () => import('./pages/forgot-password-page/forgot-password-page.component').then(m => m.ForgotPasswordPageComponent),
+    title: 'Forgot Password'
   },
   {
     path: 'reset-password',
     loadComponent: () => import('./pages/reset-password-page/reset-password-page.component').then(m => m.ResetPasswordPageComponent),
-    canActivate: [resetPasswordGuard]
+    canActivate: [resetPasswordGuard],
+    title: 'Reset Password'
   }
 ];
 

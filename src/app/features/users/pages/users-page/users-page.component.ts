@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Subject } from 'rxjs';
+import { Subject, interval } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
-import { UsersService } from '../../../../core/services/users.service';
+import { UsersService, UserStatus } from '../../../../core/services/users.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { User as ApiUser, UserRole, InviteUserRequest } from '../../../../core/models/user.model';
 import { selectUserId } from '../../../../core/store/auth/auth.selectors';
@@ -44,6 +44,12 @@ interface User {
   template: `
     <div class="page-wrapper">
       <div class="users-container">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
+        
+        <div *ngIf="!isLoading">
         <!-- Header with Add Button -->
         <div class="page-header-section">
           <app-button
@@ -57,26 +63,22 @@ interface User {
           </app-button>
         </div>
 
-        <!-- Loading State -->
-        <div class="loading-container" *ngIf="isLoading">
-          <app-loader></app-loader>
-        </div>
-
         <!-- Users Table with Pagination -->
         <app-paginated-table-wrapper
-          *ngIf="!isLoading"
           [paginationEnabled]="false"
           [data]="filteredUsers"
           [defaultPageSize]="15"
           #paginatedTable>
           
-          <div class="table-container">
+          <!-- Desktop Table View -->
+          <div class="table-container desktop-view">
             <table class="users-table">
               <thead>
                 <tr>
                   <th>Имя</th>
                   <th>Роль</th>
                   <th>Статус</th>
+                  <th>Онлайн</th>
                   <th>Дата добавления</th>
                   <th>Действия</th>
                 </tr>
@@ -99,6 +101,17 @@ interface User {
                     size="medium">
                     {{ getStatusLabel(user.status) }}
                   </app-badge>
+                </td>
+                <td>
+                  <div class="online-status-cell">
+                    <div class="status-indicator" [class.online]="getUserStatus(user.id)?.isOnline" [class.offline]="!getUserStatus(user.id)?.isOnline">
+                      <span class="status-dot"></span>
+                      <span class="status-text">{{ getUserStatus(user.id)?.isOnline ? 'Онлайн' : 'Офлайн' }}</span>
+                    </div>
+                    <div class="last-seen" *ngIf="getUserStatus(user.id)?.lastSeenAt">
+                      {{ formatLastSeen(getUserStatus(user.id)!.lastSeenAt) }}
+                    </div>
+                  </div>
                 </td>
                 <td>
                   <span class="user-date">{{ formatDate(user.createdAt) }}</span>
@@ -151,8 +164,58 @@ interface User {
               </tr>
             </tbody>
           </table>
-        </div>
+          </div>
+
+          <!-- Mobile Card View -->
+          <div class="mobile-users-cards mobile-view" 
+               (scroll)="onMobileScroll($event)"
+               #mobileCardsContainer>
+            <a [routerLink]="getUserRoute(user)" class="mobile-user-card" *ngFor="let user of mobileUsers" [class.current-user]="isCurrentUser(user)">
+              <div class="card-header-section">
+                <div class="card-avatar">
+                  {{ getInitials(user) }}
+                </div>
+                <div class="card-header-info">
+                  <div class="card-name">{{ user.firstName }} {{ user.lastName }}</div>
+                  <div class="card-email">{{ user.email }}</div>
+                </div>
+                <div class="card-status-badge">
+                  <app-badge 
+                    [badgeType]="getStatusBadgeType(user.status)" 
+                    size="small">
+                    {{ getStatusLabel(user.status) }}
+                  </app-badge>
+                </div>
+              </div>
+              <div class="card-body-section">
+                <div class="card-info-row">
+                  <span class="info-label">Роль:</span>
+                  <span class="info-value">{{ user.role }}</span>
+                </div>
+                <div class="card-info-row">
+                  <span class="info-label">Статус:</span>
+                  <div class="status-indicator-inline" [class.online]="getUserStatus(user.id)?.isOnline">
+                    <span class="status-dot"></span>
+                    <span class="status-text">{{ getUserStatus(user.id)?.isOnline ? 'Онлайн' : 'Офлайн' }}</span>
+                  </div>
+                </div>
+                <div class="card-info-row" *ngIf="getUserStatus(user.id)?.lastSeenAt && !getUserStatus(user.id)?.isOnline">
+                  <span class="info-label">Последний раз:</span>
+                  <span class="info-value">{{ formatLastSeen(getUserStatus(user.id)!.lastSeenAt) }}</span>
+                </div>
+                <div class="card-info-row">
+                  <span class="info-label">Дата регистрации:</span>
+                  <span class="info-value">{{ formatDate(user.createdAt) }}</span>
+                </div>
+              </div>
+            </a>
+            
+            <div class="mobile-loading" *ngIf="isLoadingMore">
+              <app-loader></app-loader>
+            </div>
+          </div>
         </app-paginated-table-wrapper>
+        </div>
       </div>
     </div>
 
@@ -343,6 +406,16 @@ interface User {
     .users-container {
       max-width: 1400px;
       margin: 0 auto;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     .page-header-section {
@@ -452,6 +525,50 @@ interface User {
     .user-date {
       color: #64748b;
       font-size: 0.875rem;
+    }
+
+    .online-status-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-indicator.online .status-dot {
+      background: #16A34A;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    .status-indicator.offline .status-dot {
+      background: #94a3b8;
+    }
+
+    .status-text {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #475569;
+    }
+
+    .status-indicator.online .status-text {
+      color: #16A34A;
+    }
+
+    .last-seen {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.125rem;
     }
 
     .actions-cell {
@@ -718,6 +835,181 @@ interface User {
       justify-content: center;
       min-height: 400px;
     }
+
+    /* Mobile Card View */
+    .mobile-users-cards {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .mobile-user-card {
+      background: white;
+      border-radius: 16px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .mobile-user-card:hover {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .mobile-user-card.current-user {
+      border: 2px solid #16A34A;
+      background: #f0fdf4;
+    }
+
+    .card-header-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .card-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #16A34A 0%, #15803d 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .card-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-email {
+      font-size: 0.875rem;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-status-badge {
+      flex-shrink: 0;
+    }
+
+    .card-body-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .card-info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .card-info-row .info-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .card-info-row .info-value {
+      font-size: 0.875rem;
+      color: #1f2937;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .status-indicator-inline {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-indicator-inline .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .status-indicator-inline.online .status-dot {
+      background: #16A34A;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    .status-indicator-inline .status-text {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .status-indicator-inline.online .status-text {
+      color: #16A34A;
+    }
+
+    .mobile-loading {
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .page-wrapper {
+        margin: -1rem;
+        padding: 1rem;
+      }
+
+      /* Hide desktop table on mobile */
+      .desktop-view {
+        display: none !important;
+      }
+
+      /* Show mobile cards */
+      .mobile-view {
+        display: flex !important;
+      }
+
+      .mobile-users-cards {
+        max-height: calc(100vh - 250px);
+      }
+    }
+
+    /* Hide mobile view on desktop */
+    @media (min-width: 769px) {
+      .mobile-view {
+        display: none !important;
+      }
+
+      .desktop-view {
+        display: block !important;
+      }
+    }
   `]
 })
 export class UsersPageComponent implements OnInit, OnDestroy {
@@ -748,6 +1040,12 @@ export class UsersPageComponent implements OnInit, OnDestroy {
 
   users: User[] = [];
   filteredUsers: User[] = [];
+  mobileUsers: User[] = []; // For mobile infinite scroll
+  userStatuses: Map<string, { isOnline: boolean; lastSeenAt: string | null }> = new Map();
+  isLoadingMore = false;
+  mobilePage = 0;
+  mobilePageSize = 20; // Load more items per scroll on mobile
+  hasMoreUsers = true;
 
   constructor() {
     this.addUserForm = this.fb.group({
@@ -777,6 +1075,15 @@ export class UsersPageComponent implements OnInit, OnDestroy {
     });
     
     this.loadUsers();
+    
+    // Refresh statuses every 30 seconds
+    interval(30000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (this.users.length > 0) {
+          this.loadUserStatuses();
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -790,6 +1097,11 @@ export class UsersPageComponent implements OnInit, OnDestroy {
       next: (apiUsers) => {
         this.users = apiUsers.map(user => this.mapApiUserToUser(user));
         this.sortUsersWithCurrentUserFirst();
+        // Reset mobile users on initial load
+        this.mobileUsers = [...this.filteredUsers];
+        this.mobilePage = 0;
+        this.hasMoreUsers = true;
+        this.loadUserStatuses();
         this.isLoading = false;
       },
       error: (err) => {
@@ -800,9 +1112,98 @@ export class UsersPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadMoreMobileUsers(): void {
+    if (this.isLoadingMore || !this.hasMoreUsers) {
+      return;
+    }
+
+    this.isLoadingMore = true;
+    const startIndex = (this.mobilePage + 1) * this.mobilePageSize;
+    const endIndex = startIndex + this.mobilePageSize;
+    const moreUsers = this.filteredUsers.slice(startIndex, endIndex);
+    
+    if (moreUsers.length > 0) {
+      this.mobileUsers = [...this.mobileUsers, ...moreUsers];
+      this.mobilePage++;
+      this.hasMoreUsers = endIndex < this.filteredUsers.length;
+    } else {
+      this.hasMoreUsers = false;
+    }
+    
+    this.isLoadingMore = false;
+  }
+
+  onMobileScroll(event: Event): void {
+    const target = event.target as HTMLElement;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+    
+    // Load more when user scrolls to 80% of the content
+    if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      this.loadMoreMobileUsers();
+    }
+  }
+
+  getInitials(user: User): string {
+    const first = user.firstName?.charAt(0)?.toUpperCase() || '';
+    const last = user.lastName?.charAt(0)?.toUpperCase() || '';
+    return (first + last) || '?';
+  }
+
+  loadUserStatuses(): void {
+    this.usersService.getAllUsersStatus().subscribe({
+      next: (statuses) => {
+        this.userStatuses.clear();
+        statuses.forEach(status => {
+          this.userStatuses.set(status.userId, {
+            isOnline: status.isOnline,
+            lastSeenAt: status.lastSeenAt
+          });
+        });
+      },
+      error: (err) => {
+        console.error('Error loading user statuses:', err);
+      }
+    });
+  }
+
+  getUserStatus(userId: string): { isOnline: boolean; lastSeenAt: string | null } | null {
+    return this.userStatuses.get(userId) || null;
+  }
+
+  formatLastSeen(lastSeenAt: string | null): string {
+    if (!lastSeenAt) {
+      return 'Никогда';
+    }
+    
+    const lastSeen = new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) {
+      return 'Только что';
+    }
+    if (diffMins < 60) {
+      return `${diffMins} мин назад`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours} ч назад`;
+    }
+    if (diffDays < 7) {
+      return `${diffDays} дн назад`;
+    }
+    
+    return lastSeen.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
   sortUsersWithCurrentUserFirst(): void {
     if (!this.currentUserId) {
       this.filteredUsers = [...this.users];
+      this.mobileUsers = [...this.filteredUsers];
       return;
     }
 
@@ -814,6 +1215,11 @@ export class UsersPageComponent implements OnInit, OnDestroy {
     } else {
       this.filteredUsers = [...this.users];
     }
+    
+    // Update mobile users
+    this.mobileUsers = [...this.filteredUsers.slice(0, this.mobilePageSize)];
+    this.mobilePage = 0;
+    this.hasMoreUsers = this.filteredUsers.length > this.mobilePageSize;
   }
 
   isCurrentUser(user: User): boolean {

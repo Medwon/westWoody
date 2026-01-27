@@ -1,18 +1,20 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { RouterModule, Router } from '@angular/router';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { AnalyticsService } from '../../../../core/services/analytics.service';
 import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { RefundConfirmationModalComponent } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
+import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 
 interface Payment {
   id: string;
@@ -22,7 +24,8 @@ interface Payment {
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  bonusRevoked: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   isRefund: boolean;
   date: string;
   time: string;
@@ -39,10 +42,29 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent, PaymentViewModalComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoadingDashboard || isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
+        
+        <div *ngIf="!isLoadingDashboard && !isLoading">
+        
+        <!-- Header with Create Button -->
+        <div class="page-header-actions">
+          <app-button 
+            buttonType="primary" 
+            size="medium" 
+            (onClick)="openTransactionModal()">
+            <svg viewBox="0 0 24 24" fill="none" class="create-payment-icon">
+              <path d="M6 12H18M12 6V18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Новая транзакция
+          </app-button>
+        </div>
         
         <!-- Dashboard Cards -->
         <div class="dashboard-grid">
@@ -180,8 +202,8 @@ type SortDirection = 'asc' | 'desc';
                   (click)="filterPaymentMethod = 'card'">Карта</button>
                 <button 
                   class="type-btn" 
-                  [class.active]="filterPaymentMethod === 'online'"
-                  (click)="filterPaymentMethod = 'online'">Онлайн</button>
+                  [class.active]="filterPaymentMethod === 'transfer'"
+                  (click)="filterPaymentMethod = 'transfer'">Перевод</button>
               </div>
             </div>
 
@@ -249,18 +271,13 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
 
-        <!-- Loading State -->
-        <div class="loading-container" *ngIf="isLoading">
-          <app-loader></app-loader>
-        </div>
-
         <!-- Results count -->
-        <div class="results-info" *ngIf="!isLoading">
+        <div class="results-info">
           <span class="results-count">Найдено: {{ totalPaymentsFound }} платежей</span>
         </div>
 
         <!-- Payments Table with Pagination -->
-        <div *ngIf="!isLoading">
+        <div>
           <div class="table-container">
             <table class="payments-table">
               <thead>
@@ -279,7 +296,7 @@ type SortDirection = 'asc' | 'desc';
                 <ng-container *ngFor="let payment of payments">
                   <tr class="payment-row">
                     <td class="td-id">
-                      <span class="payment-id">{{ payment.id }}</span>
+                      <span class="payment-id clickable" (click)="openPaymentView(payment.id)">{{ payment.id }}</span>
                     </td>
                     <td class="td-client">
                       <div class="client-cell">
@@ -315,13 +332,23 @@ type SortDirection = 'asc' | 'desc';
                           class="bonus-badge">
                           -{{ formatAmount(payment.bonusUsed) }}
                         </app-badge>
-                        <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                        <app-badge 
+                          *ngIf="payment.bonusRevoked > 0"
+                          badgeType="refund" 
+                          size="medium"
+                          icon="refund"
+                          class="bonus-badge">
+                          -{{ formatAmount(payment.bonusRevoked) }}
+                        </app-badge>
+                        <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
                       </div>
                     </td>
                     <td class="td-method">
-                      <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                        {{ getPaymentMethodLabel(payment.paymentMethod) }}
-                      </span>
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="medium"
+                      [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                    </app-badge>
                     </td>
                     <td class="td-status">
                       <app-badge 
@@ -407,7 +434,7 @@ type SortDirection = 'asc' | 'desc';
         </div>
 
         <!-- Backend Pagination -->
-        <div class="pagination-container" *ngIf="!isLoading && totalPaymentsFound > 0">
+        <div class="pagination-container" *ngIf="totalPaymentsFound > 0">
           <div class="pagination-left">
             <div class="pagination-info">
               <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalPaymentsFound) }} из {{ totalPaymentsFound }}</span>
@@ -431,7 +458,6 @@ type SortDirection = 'asc' | 'desc';
           </div>
         </div>
         </div>
-
       </div>
     </div>
 
@@ -442,6 +468,16 @@ type SortDirection = 'asc' | 'desc';
       (visibleChange)="closeRefundModal()"
       (confirm)="confirmRefund($event)">
     </app-refund-confirmation-modal>
+
+    <!-- Payment View Modal -->
+    <app-payment-view-modal
+      [visible]="showPaymentViewModal"
+      [paymentTxId]="selectedPaymentTxId"
+      [paymentSearchResult]="selectedPaymentSearchResult"
+      (visibleChange)="closePaymentView()"
+      (paymentUpdated)="onPaymentUpdated()"
+      (refundedPaymentClick)="openPaymentView($event)">
+    </app-payment-view-modal>
   `,
   styles: [`
     .page-wrapper {
@@ -453,6 +489,35 @@ type SortDirection = 'asc' | 'desc';
     .payments-container {
       max-width: 1400px;
       margin: 0 auto;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
+    }
+
+    /* Header with Create Button */
+    .page-header-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .page-header-actions app-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .page-header-actions .create-payment-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
     }
 
     /* Dashboard Grid */
@@ -980,6 +1045,17 @@ type SortDirection = 'asc' | 'desc';
       font-size: 0.875rem;
     }
 
+    .payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .payment-id.clickable:hover {
+      color: #475569;
+    }
+
     /* Client Cell */
     .client-cell {
       display: flex;
@@ -1057,28 +1133,6 @@ type SortDirection = 'asc' | 'desc';
       color: #94a3b8;
     }
 
-    /* Payment Method */
-    .method-badge {
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .method-badge.method-cash {
-      background: #dcfce7;
-      color: #16A34A;
-    }
-
-    .method-badge.method-card {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .method-badge.method-online {
-      background: #fef3c7;
-      color: #d97706;
-    }
 
     /* Date Info */
     .date-info {
@@ -1246,11 +1300,14 @@ type SortDirection = 'asc' | 'desc';
 
   `]
 })
-export class PaymentsPageComponent implements OnInit {
+export class PaymentsPageComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private analyticsService = inject(AnalyticsService);
   private paymentsService = inject(PaymentsService);
   private toastService = inject(ToastService);
+  private transactionModalService = inject(TransactionModalService);
+  private router = inject(Router);
+  private destroy$ = new Subject<void>();
 
   // Dashboard data
   totalPayments = 0;
@@ -1265,7 +1322,7 @@ export class PaymentsPageComponent implements OnInit {
   searchPhone = '';
   dateFrom = '';
   dateTo = '';
-  filterPaymentMethod: 'all' | 'cash' | 'card' | 'online' = 'all';
+  filterPaymentMethod: 'all' | 'cash' | 'card' | 'transfer' = 'all';
   filterRefund: 'all' | 'paid' | 'refund' = 'all';
   sortField: SortField = 'date';
   sortDirection: SortDirection = 'desc';
@@ -1273,6 +1330,11 @@ export class PaymentsPageComponent implements OnInit {
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
+
+  // Payment view modal
+  showPaymentViewModal = false;
+  selectedPaymentTxId: string | null = null;
+  selectedPaymentSearchResult: PaymentSearchResult | null = null;
 
   // Payments data
   isLoading = false;
@@ -1292,6 +1354,23 @@ export class PaymentsPageComponent implements OnInit {
     
     this.loadDashboardData();
     this.loadPayments();
+
+    // Subscribe to transaction completion events
+    this.transactionModalService.transactionComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Reload payments and dashboard when on /payments route
+        const currentUrl = this.router.url;
+        if (currentUrl === '/payments' || currentUrl.startsWith('/payments')) {
+          this.loadDashboardData();
+          this.loadPayments();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadDashboardData(): void {
@@ -1376,7 +1455,8 @@ export class PaymentsPageComponent implements OnInit {
       amount: result.amount,
       bonusEarned: result.bonusGranted,
       bonusUsed: result.bonusUsed,
-      paymentMethod: (result.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+      bonusRevoked: result.bonusRevoked || 0,
+      paymentMethod: (result.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'transfer') || 'cash',
       isRefund: result.status === 'REFUNDED' || !!result.refundedPaymentTxId,
       date: dateStr,
       time: timeStr,
@@ -1394,6 +1474,15 @@ export class PaymentsPageComponent implements OnInit {
   formatPaymentId(id: string): string {
     // Remove PTX- prefix if present
     return id.replace(/^PTX-/, '');
+  }
+
+  getPaymentMethodForBadge(method: string | undefined): 'CASH' | 'CARD' | 'TRANSFER' | null {
+    if (!method) return null;
+    const upperMethod = method.toUpperCase();
+    if (upperMethod === 'CASH' || upperMethod === 'CARD' || upperMethod === 'TRANSFER') {
+      return upperMethod as 'CASH' | 'CARD' | 'TRANSFER';
+    }
+    return null;
   }
 
   togglePaymentRow(paymentId: string): void {
@@ -1438,7 +1527,7 @@ export class PaymentsPageComponent implements OnInit {
     const labels: Record<string, string> = {
       cash: 'Наличные',
       card: 'Карта',
-      online: 'Онлайн'
+      transfer: 'Перевод'
     };
     return labels[method] || method;
   }
@@ -1529,5 +1618,47 @@ export class PaymentsPageComponent implements OnInit {
         this.toastService.error(errorMessage);
       }
     });
+  }
+
+  openPaymentView(paymentId: string): void {
+    // Find payment in the list to get search result data
+    const payment = this.payments.find(p => p.id === paymentId);
+    if (payment) {
+      // Convert Payment to PaymentSearchResult format
+      this.selectedPaymentSearchResult = {
+        txId: payment.id,
+        clientId: payment.clientId,
+        clientName: payment.clientName,
+        clientPhone: payment.clientPhone,
+        clientEmail: null,
+        amount: payment.amount,
+        status: payment.isRefund ? 'REFUNDED' : 'COMPLETED',
+        paymentMethod: payment.paymentMethod?.toUpperCase() as 'CASH' | 'CARD' | 'TRANSFER' | null,
+        initiatedBy: payment.initiatedBy || null,
+        createdAt: payment.date + 'T' + payment.time,
+        refundedPaymentTxId: null,
+        bonusGranted: payment.bonusEarned,
+        bonusUsed: payment.bonusUsed,
+        bonusRevoked: payment.bonusRevoked,
+        refundReason: payment.refundReason || null
+      };
+    }
+    this.selectedPaymentTxId = paymentId;
+    this.showPaymentViewModal = true;
+  }
+
+  closePaymentView(): void {
+    this.showPaymentViewModal = false;
+    this.selectedPaymentTxId = null;
+    this.selectedPaymentSearchResult = null;
+  }
+
+  onPaymentUpdated(): void {
+    // Reload payments after update
+    this.loadPayments();
+  }
+
+  openTransactionModal(): void {
+    this.transactionModalService.open();
   }
 }

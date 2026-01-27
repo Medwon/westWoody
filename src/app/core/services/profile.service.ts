@@ -76,5 +76,6 @@ export interface UserTransaction {
   refundedPaymentTxId: string | null;
   bonusGranted: number;
   bonusUsed: number;
+  bonusRevoked: number;
   refundReason: string | null;
 }

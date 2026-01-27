@@ -1,14 +1,16 @@
-import { Component, OnInit, AfterViewInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Title } from '@angular/platform-browser';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ClientsService, ClientDetails, UpdateClientRequest } from '../../../../core/services/clients.service';
 import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
 import { BonusesService, BonusHistoryItem } from '../../../../core/services/bonuses.service';
 import { AnalyticsService } from '../../../../core/services/analytics.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
@@ -17,6 +19,7 @@ import { ModalComponent } from '../../../../shared/components/modal/modal.compon
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
+import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 
 interface Client {
   id: string;
@@ -31,10 +34,14 @@ interface Client {
 
 interface PaymentItem {
   id: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  bonusRevoked: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   isRefund: boolean;
   date: string;
   time: string;
@@ -43,13 +50,14 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent, PaymentViewModalComponent],
   template: `
     <div class="page-wrapper">
-      <!-- Loading State -->
-      <div class="loading-container" *ngIf="isLoading">
-        <app-loader></app-loader>
-      </div>
+      <div class="profile-container-wrapper">
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
 
       <!-- Not Found State -->
       <app-not-found-state
@@ -60,10 +68,16 @@ interface PaymentItem {
         backText="Вернуться к клиентам">
       </app-not-found-state>
 
-      <div class="profile-container" *ngIf="client && !isLoading && !clientNotFound">
+        <div class="profile-container" *ngIf="client && !isLoading && !clientNotFound">
         
         <!-- Profile Header Card -->
         <div class="profile-header-card">
+          <!-- Delete Button -->
+          <button class="delete-client-btn" (click)="openDeleteModal()" title="Удалить клиента">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
           <div class="profile-header-content">
             <div class="avatar-wrapper">
               <div class="avatar-large">
@@ -71,12 +85,6 @@ interface PaymentItem {
               </div>
             </div>
             <div class="profile-main-info">
-              <!-- Delete Button -->
-              <button class="delete-client-btn" (click)="openDeleteModal()" title="Удалить клиента">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
               <div class="name-row">
                 <h1 class="profile-name">{{ getFullName() }}</h1>
                 <span class="client-type-badge" [class.business]="client.type === 'business'">
@@ -517,6 +525,62 @@ interface PaymentItem {
               </div>
             </app-paginated-table-wrapper>
           </div>
+
+          <!-- Mobile Bonus Cards -->
+          <div class="mobile-bonuses-cards" *ngIf="isBonusesExpanded && bonusesDetails.length > 0">
+            <div class="mobile-bonus-card" *ngFor="let bonus of bonusesDetails">
+              <div class="mobile-bonus-card-header" (click)="toggleMobileBonusCard(bonus.id)">
+                <div class="mobile-bonus-card-main">
+                  <div>
+                    <div class="mobile-bonus-type">{{ getBonusTypeLabel(bonus.type) }}</div>
+                    <div class="mobile-bonus-amount">
+                      <span *ngIf="bonus.used">-</span>
+                      <span *ngIf="bonus.type === 'refund'"></span>
+                      <span *ngIf="bonus.type !== 'refund' && !bonus.used">+</span>
+                      {{ formatAmount(bonus.amount) }} ₸
+                    </div>
+                  </div>
+                </div>
+                <div class="mobile-bonus-expand" [class.expanded]="isMobileBonusExpanded(bonus.id)">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="mobile-bonus-details" [class.expanded]="isMobileBonusExpanded(bonus.id)">
+                <div class="mobile-bonus-detail-row">
+                  <span class="mobile-bonus-detail-label">Начислено:</span>
+                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.issuedAt) }}</span>
+                </div>
+                <div class="mobile-bonus-detail-row">
+                  <span class="mobile-bonus-detail-label">Истекает:</span>
+                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.expiresAt) }}</span>
+                </div>
+                <div class="mobile-bonus-detail-row">
+                  <span class="mobile-bonus-detail-label">Статус:</span>
+                  <span class="mobile-bonus-detail-value">
+                    <span *ngIf="bonus.used">Использовано</span>
+                    <span *ngIf="bonus.type === 'refund'">Отозвано</span>
+                    <span *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0">
+                      {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
+                    </span>
+                    <span *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0">Истек</span>
+                  </span>
+                </div>
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.refundReason">
+                  <span class="mobile-bonus-detail-label">Причина возврата:</span>
+                  <span class="mobile-bonus-detail-value">{{ bonus.refundReason }}</span>
+                </div>
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.initiatedBy">
+                  <span class="mobile-bonus-detail-label">Инициатор:</span>
+                  <span class="mobile-bonus-detail-value">
+                    <a *ngIf="bonus.initiatedById" [routerLink]="['/users', bonus.initiatedById]">{{ bonus.initiatedBy }}</a>
+                    <span *ngIf="!bonus.initiatedById">{{ bonus.initiatedBy }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Payments Table Card (Full Width) -->
@@ -546,6 +610,7 @@ interface PaymentItem {
                 <thead>
                   <tr>
                     <th class="th-id">ID платежа</th>
+                    <th class="th-client">Клиент</th>
                     <th class="th-amount">Сумма</th>
                     <th class="th-bonuses">Бонусы</th>
                     <th class="th-method">Способ оплаты</th>
@@ -557,7 +622,20 @@ interface PaymentItem {
                 <tbody>
                   <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
                   <td class="td-id">
-                    <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                    <span class="payment-id clickable" (click)="openPaymentView(payment.id)">{{ payment.id }}</span>
+                  </td>
+                  <td class="td-client">
+                    <div class="client-cell">
+                      <div class="client-avatar">
+                        {{ getInitials(payment.clientName || '') }}
+                      </div>
+                      <div class="client-info">
+                        <a [routerLink]="['/clients', payment.clientId]" class="client-name-link">
+                          <span class="client-name">{{ payment.clientName || '—' }}</span>
+                        </a>
+                        <span class="client-phone">{{ payment.clientPhone || '—' }}</span>
+                      </div>
+                    </div>
                   </td>
                   <td class="td-amount">
                     <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
@@ -580,13 +658,23 @@ interface PaymentItem {
                         class="bonus-badge">
                         -{{ formatAmount(payment.bonusUsed) }}
                       </app-badge>
-                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                      <app-badge 
+                        *ngIf="payment.bonusRevoked > 0"
+                        badgeType="refund" 
+                        size="medium"
+                        icon="refund"
+                        class="bonus-badge">
+                        -{{ formatAmount(payment.bonusRevoked) }}
+                      </app-badge>
+                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
                     </div>
                   </td>
                   <td class="td-method">
-                    <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                      {{ getPaymentMethodLabel(payment.paymentMethod) }}
-                    </span>
+                    <app-badge 
+                      badgeType="paymentMethod" 
+                      size="medium"
+                      [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                    </app-badge>
                   </td>
                   <td class="td-status">
                     <app-badge 
@@ -629,6 +717,59 @@ interface PaymentItem {
             </div>
           </div>
           </app-paginated-table-wrapper>
+
+          <!-- Mobile Payment Cards -->
+          <div class="mobile-payments-cards" *ngIf="payments.length > 0">
+            <div class="mobile-payment-card" *ngFor="let payment of paginatedTable.paginatedData">
+              <div class="mobile-payment-card-header" (click)="toggleMobilePaymentCard(payment.id)">
+                <div class="mobile-payment-card-main">
+                  <div>
+                    <div class="mobile-payment-id clickable" (click)="openPaymentView(payment.id); $event.stopPropagation()">{{ payment.id }}</div>
+                    <div class="mobile-payment-amount">{{ formatAmount(payment.amount) }} ₸</div>
+                  </div>
+                </div>
+                <div class="mobile-payment-expand" [class.expanded]="isMobilePaymentExpanded(payment.id)">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="mobile-payment-details" [class.expanded]="isMobilePaymentExpanded(payment.id)">
+                <div class="mobile-payment-detail-row">
+                  <span class="mobile-payment-detail-label">Дата:</span>
+                  <span class="mobile-payment-detail-value">{{ payment.date }}</span>
+                </div>
+                <div class="mobile-payment-detail-row">
+                  <span class="mobile-payment-detail-label">Время:</span>
+                  <span class="mobile-payment-detail-value">{{ payment.time }}</span>
+                </div>
+                <div class="mobile-payment-detail-row" *ngIf="payment.bonusEarned > 0">
+                  <span class="mobile-payment-detail-label">Бонусов начислено:</span>
+                  <span class="mobile-payment-detail-value">+{{ formatAmount(payment.bonusEarned) }}</span>
+                </div>
+                <div class="mobile-payment-detail-row" *ngIf="payment.bonusUsed > 0">
+                  <span class="mobile-payment-detail-label">Бонусов использовано:</span>
+                  <span class="mobile-payment-detail-value">-{{ formatAmount(payment.bonusUsed) }}</span>
+                </div>
+                <div class="mobile-payment-detail-row">
+                  <span class="mobile-payment-detail-label">Способ оплаты:</span>
+                  <span class="mobile-payment-detail-value">{{ getPaymentMethodLabel(payment.paymentMethod) }}</span>
+                </div>
+                <div class="mobile-payment-detail-row">
+                  <span class="mobile-payment-detail-label">Статус:</span>
+                  <span class="mobile-payment-detail-value">{{ payment.isRefund ? 'Возврат' : 'Оплачено' }}</span>
+                </div>
+                <div class="mobile-payment-detail-row" *ngIf="!payment.isRefund">
+                  <button class="mobile-refund-btn" (click)="openRefundModal(payment); $event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Возврат
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -641,6 +782,15 @@ interface PaymentItem {
       (visibleChange)="closeRefundModal()"
       (confirm)="confirmRefund($event.refundReason || '')">
     </app-refund-confirmation-modal>
+
+    <!-- Payment View Modal -->
+    <app-payment-view-modal
+      [visible]="showPaymentViewModal"
+      [paymentTxId]="selectedPaymentTxId"
+      [paymentSearchResult]="selectedPaymentSearchResult"
+      (visibleChange)="showPaymentViewModal = $event"
+      (paymentUpdated)="onPaymentUpdated()">
+    </app-payment-view-modal>
 
     <!-- Delete Client Confirmation Modal -->
     <div class="delete-modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
@@ -692,6 +842,7 @@ interface PaymentItem {
           </div>
         </div>
       </div>
+      </div>
     </div>
 
   `,
@@ -703,9 +854,22 @@ interface PaymentItem {
       background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
     }
 
+    .profile-container-wrapper {
+      position: relative;
+      min-height: 400px;
+    }
+
     .profile-container {
       max-width: 1200px;
       margin: 0 auto;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     /* Profile Header Card */
@@ -715,6 +879,7 @@ interface PaymentItem {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       border: 1px solid #e5e7eb;
       margin-bottom: 1rem;
+      position: relative;
     }
 
     .profile-header-content {
@@ -767,8 +932,8 @@ interface PaymentItem {
     /* Delete Client Button */
     .delete-client-btn {
       position: absolute;
-      top: 0;
-      right: 0;
+      top: 1rem;
+      right: 1rem;
       background: #fef2f2;
       border: 1px solid #fecaca;
       width: 36px;
@@ -780,6 +945,7 @@ interface PaymentItem {
       cursor: pointer;
       color: #dc2626;
       transition: all 0.2s ease;
+      z-index: 10;
     }
 
     .delete-client-btn:hover {
@@ -1298,9 +1464,13 @@ interface PaymentItem {
       cursor: pointer;
       user-select: none;
       transition: background 0.2s ease;
-      padding: 1rem 1.5rem;
+      padding: 1.5rem;
       margin-bottom: 0;
       border-bottom: none;
+    }
+
+    .bonuses-content {
+      padding: 0 1.5rem 1.5rem 1.5rem;
     }
 
     .bonuses-details-card .card-header:hover {
@@ -1902,6 +2072,66 @@ interface PaymentItem {
       font-size: 0.875rem;
     }
 
+    .payment-id.clickable {
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.15s ease;
+    }
+
+    .payment-id.clickable:hover {
+      color: #475569;
+    }
+
+    /* Client */
+    .td-client {
+      min-width: 200px;
+    }
+
+    .client-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .client-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: #16A34A;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+    }
+
+    .client-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .client-name-link {
+      text-decoration: none;
+      color: #1f2937;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      transition: color 0.2s;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .client-name-link:hover {
+      color: #16A34A;
+    }
+
+    .client-phone {
+      font-size: 0.8125rem;
+      color: #64748b;
+    }
+
     /* Amount */
     .amount-value {
       font-size: 0.95rem;
@@ -1926,28 +2156,6 @@ interface PaymentItem {
       color: #94a3b8;
     }
 
-    /* Payment Method */
-    .method-badge {
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .method-badge.method-cash {
-      background: #dcfce7;
-      color: #16A34A;
-    }
-
-    .method-badge.method-card {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .method-badge.method-online {
-      background: #fef3c7;
-      color: #d97706;
-    }
 
     /* Date Info */
     .date-info {
@@ -2013,53 +2221,321 @@ interface PaymentItem {
         padding: 1rem;
       }
 
+      .profile-header-card {
+        border-radius: 12px;
+        margin-bottom: 1rem;
+      }
+
       .profile-header-content {
         flex-direction: column;
+        align-items: center;
         text-align: center;
-        padding: 1.5rem;
+        padding: 1.5rem 1rem;
+        position: relative;
+      }
+
+      .avatar-wrapper {
+        margin-bottom: 0.5rem;
+      }
+
+      .avatar-large {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+      }
+
+      .profile-main-info {
+        width: 100%;
+        padding-right: 0;
+        padding-top: 0.5rem;
+      }
+
+      /* Delete button already positioned at top right */
+      .delete-client-btn {
+        top: 1rem;
+        right: 1rem;
       }
 
       .name-row {
         flex-direction: column;
+        align-items: center;
         gap: 0.5rem;
+        padding-right: 0;
+        margin-top: 0.5rem;
+      }
+
+      .profile-name {
+        font-size: 1.25rem;
+        word-break: break-word;
+        padding-right: 0;
+      }
+
+      .profile-phone {
+        font-size: 0.9rem;
+        margin: 0.5rem 0;
       }
 
       .tags-row {
         flex-direction: column;
         align-items: center;
+        gap: 0.75rem;
       }
 
       .tags-container {
         justify-content: center;
+        width: 100%;
+      }
+
+      .comment-card,
+      .details-card {
+        border-radius: 12px;
+        padding: 1.25rem 1rem;
+      }
+
+      .card-header {
+        margin-bottom: 1rem;
+      }
+
+      .card-title {
+        font-size: 1.125rem;
+      }
+
+      .info-list .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.75rem 0;
+      }
+
+      .info-label {
+        min-width: auto;
+        font-size: 0.875rem;
+      }
+
+      .info-value {
+        font-size: 0.875rem;
       }
 
       .stats-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
       }
 
       .details-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
       }
 
-      .profile-name {
-        font-size: 1.25rem;
-      }
-
+      /* Hide desktop tables on mobile */
+      .bonuses-table,
       .payments-table {
-        font-size: 0.85rem;
-      }
-
-      .payments-table th,
-      .payments-table td {
-        padding: 0.75rem 0.5rem;
-      }
-
-      .th-bonuses,
-      .td-bonuses,
-      .th-method,
-      .td-method {
         display: none;
       }
+
+      /* Show mobile card views */
+      .mobile-bonuses-cards,
+      .mobile-payments-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+    }
+
+    /* Hide mobile cards on desktop */
+    @media (min-width: 769px) {
+      .mobile-bonuses-cards,
+      .mobile-payments-cards {
+        display: none;
+      }
+    }
+
+    /* Mobile Bonus Card - styles for when visible on mobile */
+    .mobile-bonuses-cards {
+      display: none; /* Hidden by default, shown via media query */
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .mobile-bonus-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      width: 100%;
+    }
+
+    .mobile-bonus-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .mobile-bonus-card-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .mobile-bonus-type {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .mobile-bonus-amount {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #d97706;
+    }
+
+    .mobile-bonus-expand {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .mobile-bonus-expand.expanded {
+      transform: rotate(180deg);
+    }
+
+    .mobile-bonus-details {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      display: none;
+    }
+
+    .mobile-bonus-details.expanded {
+      display: block;
+    }
+
+    .mobile-bonus-detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .mobile-bonus-detail-label {
+      color: #64748b;
+    }
+
+    .mobile-bonus-detail-value {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    /* Mobile Payment Card */
+    .mobile-payment-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-payment-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .mobile-payment-card-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .mobile-payment-id {
+      font-family: monospace;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .mobile-payment-amount {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #16A34A;
+    }
+
+    .mobile-payment-expand {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .mobile-payment-expand.expanded {
+      transform: rotate(180deg);
+    }
+
+    .mobile-payment-details {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      display: none;
+    }
+
+    .mobile-payment-details.expanded {
+      display: block;
+    }
+
+    .mobile-payment-detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .mobile-payment-detail-label {
+      color: #64748b;
+    }
+
+    .mobile-payment-detail-value {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    .mobile-refund-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      color: #dc2626;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .mobile-refund-btn:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
+    }
+
+    .mobile-refund-btn svg {
+      width: 16px;
+      height: 16px;
     }
 
     /* Delete Modal Styles */
@@ -2236,16 +2712,19 @@ interface PaymentItem {
     }
   `]
 })
-export class ProfilePageComponent implements OnInit, AfterViewInit {
+export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private titleService = inject(Title);
   private clientsService = inject(ClientsService);
   private paymentsService = inject(PaymentsService);
   private bonusesService = inject(BonusesService);
   private analyticsService = inject(AnalyticsService);
   private toastService = inject(ToastService);
+  private transactionModalService = inject(TransactionModalService);
   private cdr = inject(ChangeDetectorRef);
+  private destroy$ = new Subject<void>();
 
   clientId: string = '';
   isLoading = true;
@@ -2311,12 +2790,21 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   // Раскрытые строки бонусов
   expandedBonusRows = new Set<string>();
 
+  // Mobile card expanded states
+  expandedMobileBonusCards = new Set<string>();
+  expandedMobilePaymentCards = new Set<string>();
+
   // Payment data
   payments: PaymentItem[] = [];
 
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
+
+  // Payment view modal
+  showPaymentViewModal = false;
+  selectedPaymentTxId: string | null = null;
+  selectedPaymentSearchResult: PaymentSearchResult | null = null;
 
   // Delete client modal
   showDeleteModal = false;
@@ -2337,6 +2825,22 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
         this.loadClientData();
       }
     });
+
+    // Subscribe to transaction completion events
+    this.transactionModalService.transactionComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Reload client data, payments, and bonuses when on client profile route
+        const currentUrl = this.router.url;
+        if (currentUrl.startsWith('/clients/') && this.clientId) {
+          this.loadClientData();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadClientData(): void {
@@ -2361,6 +2865,10 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       next: ({ client, payments, bonusHistory, bonusBalance, totals, tags }) => {
         // Store full client details from API
         this.clientDetails = client;
+        
+        // Update page title with client name
+        const clientName = `${client.name}${client.surname ? ' ' + client.surname : ''}`.trim();
+        this.titleService.setTitle(`Westwood - Client - ${clientName}`);
         
         // Map client data for UI
         this.client = {
@@ -2478,6 +2986,10 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       next: (client) => {
         // Store full client details from API
         this.clientDetails = client;
+        
+        // Update page title with client name
+        const clientName = `${client.name}${client.surname ? ' ' + client.surname : ''}`.trim();
+        this.titleService.setTitle(`Westwood - Client - ${clientName}`);
         
         // Map client data for UI
         this.client = {
@@ -2624,10 +3136,14 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       const now = new Date();
       return {
         id: payment.txId || 'unknown',
+        clientId: payment.clientId || '',
+        clientName: payment.clientName || '—',
+        clientPhone: payment.clientPhone || '—',
         amount: payment.amount || 0,
         bonusEarned: payment.bonusGranted || 0,
         bonusUsed: payment.bonusUsed || 0,
-        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+        bonusRevoked: payment.bonusRevoked || 0,
+        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'transfer') || 'cash',
         isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
         date: this.formatDate(now),
         time: this.formatTime(now)
@@ -2641,10 +3157,14 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
         const now = new Date();
         return {
           id: payment.txId,
+          clientId: payment.clientId || '',
+          clientName: payment.clientName || '—',
+          clientPhone: payment.clientPhone || '—',
           amount: payment.amount || 0,
           bonusEarned: payment.bonusGranted || 0,
           bonusUsed: payment.bonusUsed || 0,
-          paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+          bonusRevoked: payment.bonusRevoked || 0,
+          paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'transfer') || 'cash',
           isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
           date: this.formatDate(now),
           time: this.formatTime(now)
@@ -2656,10 +3176,14 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       
       return {
         id: payment.txId,
+        clientId: payment.clientId || '',
+        clientName: payment.clientName || '—',
+        clientPhone: payment.clientPhone || '—',
         amount: payment.amount || 0,
         bonusEarned: payment.bonusGranted || 0,
         bonusUsed: payment.bonusUsed || 0,
-        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'online') || 'cash',
+        bonusRevoked: payment.bonusRevoked || 0,
+        paymentMethod: (payment.paymentMethod?.toLowerCase() as 'cash' | 'card' | 'transfer') || 'cash',
         isRefund: payment.status === 'REFUNDED' || !!payment.refundedPaymentTxId,
         date: dateStr,
         time: timeStr
@@ -2669,9 +3193,13 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       const now = new Date();
       return {
         id: payment.txId || 'unknown',
+        clientId: payment.clientId || '',
+        clientName: payment.clientName || '—',
+        clientPhone: payment.clientPhone || '—',
         amount: payment.amount || 0,
         bonusEarned: payment.bonusGranted || 0,
         bonusUsed: payment.bonusUsed || 0,
+        bonusRevoked: payment.bonusRevoked || 0,
         paymentMethod: 'cash',
         isRefund: false,
         date: this.formatDate(now),
@@ -2694,7 +3222,11 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     return `${this.client.firstName} ${this.client.lastName}`.trim();
   }
 
-  getInitials(): string {
+  getInitials(name?: string): string {
+    if (name) {
+      const parts = name.split(' ');
+      return parts.map(p => p.charAt(0)).join('').toUpperCase().slice(0, 2);
+    }
     if (!this.client) return '';
     const first = this.client.firstName.charAt(0).toUpperCase();
     const last = this.client.lastName ? this.client.lastName.charAt(0).toUpperCase() : '';
@@ -2940,11 +3472,20 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
     return amount.toLocaleString('ru-RU');
   }
 
+  getPaymentMethodForBadge(method: string | undefined): 'CASH' | 'CARD' | 'TRANSFER' | null {
+    if (!method) return null;
+    const upperMethod = method.toUpperCase();
+    if (upperMethod === 'CASH' || upperMethod === 'CARD' || upperMethod === 'TRANSFER') {
+      return upperMethod as 'CASH' | 'CARD' | 'TRANSFER';
+    }
+    return null;
+  }
+
   getPaymentMethodLabel(method: string): string {
     const labels: Record<string, string> = {
       cash: 'Наличные',
       card: 'Карта',
-      online: 'Онлайн'
+      transfer: 'Перевод'
     };
     return labels[method] || method;
   }
@@ -2960,6 +3501,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
       amount: payment.amount,
       bonusEarned: payment.bonusEarned,
       bonusUsed: payment.bonusUsed,
+      bonusRevoked: payment.bonusRevoked,
       paymentMethod: payment.paymentMethod,
       isRefund: payment.isRefund,
       date: payment.date,
@@ -2971,6 +3513,36 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
   closeRefundModal(): void {
     this.showRefundModal = false;
     this.selectedPaymentForRefund = null;
+  }
+
+  // Payment view modal methods
+  openPaymentView(paymentId: string): void {
+    const payment = this.payments.find(p => p.id === paymentId);
+    if (payment) {
+      this.selectedPaymentSearchResult = {
+        txId: payment.id,
+        clientId: this.clientId,
+        clientName: this.getFullName(),
+        clientPhone: this.client?.phone || '',
+        clientEmail: this.client?.email || null,
+        amount: payment.amount,
+        status: payment.isRefund ? 'REFUNDED' : 'COMPLETED',
+        paymentMethod: payment.paymentMethod?.toUpperCase() as 'CASH' | 'CARD' | 'TRANSFER' | null,
+        initiatedBy: null,
+        createdAt: payment.date + 'T' + payment.time,
+        refundedPaymentTxId: null,
+        bonusGranted: payment.bonusEarned,
+        bonusUsed: payment.bonusUsed,
+        bonusRevoked: payment.bonusRevoked,
+        refundReason: null
+      };
+    }
+    this.selectedPaymentTxId = paymentId;
+    this.showPaymentViewModal = true;
+  }
+
+  onPaymentUpdated(): void {
+    this.loadClientData();
   }
 
   confirmRefund(notes: string): void {
@@ -3067,6 +3639,31 @@ export class ProfilePageComponent implements OnInit, AfterViewInit {
 
   isBonusRowExpanded(bonusId: string): boolean {
     return this.expandedBonusRows.has(bonusId);
+  }
+
+  // Mobile card methods
+  toggleMobileBonusCard(bonusId: string): void {
+    if (this.expandedMobileBonusCards.has(bonusId)) {
+      this.expandedMobileBonusCards.delete(bonusId);
+    } else {
+      this.expandedMobileBonusCards.add(bonusId);
+    }
+  }
+
+  isMobileBonusExpanded(bonusId: string): boolean {
+    return this.expandedMobileBonusCards.has(bonusId);
+  }
+
+  toggleMobilePaymentCard(paymentId: string): void {
+    if (this.expandedMobilePaymentCards.has(paymentId)) {
+      this.expandedMobilePaymentCards.delete(paymentId);
+    } else {
+      this.expandedMobilePaymentCards.add(paymentId);
+    }
+  }
+
+  isMobilePaymentExpanded(paymentId: string): boolean {
+    return this.expandedMobilePaymentCards.has(paymentId);
   }
 
   // Delete client methods

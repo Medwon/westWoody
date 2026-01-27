@@ -24,6 +24,7 @@ export interface User {
   accountStatus?: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE';
   createdAt?: string;
   updatedAt?: string;
+  lastSeenAt?: string | null;
 }
 
 // User Profile - returned from /user/profile endpoint

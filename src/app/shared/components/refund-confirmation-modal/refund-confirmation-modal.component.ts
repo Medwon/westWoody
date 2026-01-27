@@ -12,7 +12,8 @@ export interface Payment {
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  bonusRevoked: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   isRefund: boolean;
   date: string;
   time: string;

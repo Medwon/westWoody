@@ -2,6 +2,7 @@ import { Component, ViewChild, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { PageHeaderComponent } from '../page-header/page-header.component';
+import { MobileHeaderComponent } from '../mobile-header/mobile-header.component';
 import { TransactionModalComponent } from '../../shared/components/transaction-modal/transaction-modal.component';
 import { TransactionModalService } from '../../core/services/transaction-modal.service';
 import { MessageTemplate } from '../../shared/components/invitation-form/invitation-form.component';
@@ -9,9 +10,15 @@ import { MessageTemplate } from '../../shared/components/invitation-form/invitat
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, SidebarComponent, PageHeaderComponent, TransactionModalComponent],
+  imports: [CommonModule, SidebarComponent, PageHeaderComponent, MobileHeaderComponent, TransactionModalComponent],
   template: `
     <div class="main-layout">
+      <!-- Mobile Header (only visible on mobile) -->
+      <app-mobile-header 
+        [logoText]="'WestWood'"
+        (menuClick)="onMobileMenuClick()">
+      </app-mobile-header>
+      
       <app-sidebar #sidebar (collapsedChange)="onSidebarCollapsed($event)" (closedChange)="onSidebarClosed($event)">
         <div class="main-content-wrapper">
           <app-page-header></app-page-header>
@@ -61,6 +68,11 @@ import { MessageTemplate } from '../../shared/components/invitation-form/invitat
     @media (max-width: 768px) {
       .main-content-wrapper {
         padding: 0 1rem;
+        padding-top: 80px; /* Account for fixed mobile header + extra spacing */
+      }
+
+      app-page-header {
+        padding-top: 0.5rem; /* Additional spacing for page header */
       }
     }
   `]
@@ -85,9 +97,16 @@ export class MainLayoutComponent implements OnInit {
     this.isSidebarClosed = closed;
   }
 
+  onMobileMenuClick(): void {
+    if (this.sidebar) {
+      this.sidebar.openSidebar();
+    }
+  }
+
   onTransactionComplete(result: any): void {
     console.log('Transaction completed:', result);
-    // Здесь можно добавить логику обработки транзакции
+    // Emit to service so pages can subscribe and reload data
+    this.transactionModalService.emitTransactionComplete(result);
   }
 
   onMessageSent(event: { phone: string; message: string }): void {

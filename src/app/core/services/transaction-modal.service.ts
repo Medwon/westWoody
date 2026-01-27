@@ -1,5 +1,13 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+
+export interface TransactionResult {
+  clientName: string;
+  phone: string;
+  amount: number;
+  bonuses: number;
+  isNewClient: boolean;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -7,6 +15,9 @@ import { BehaviorSubject, Observable } from 'rxjs';
 export class TransactionModalService {
   private visibleSource = new BehaviorSubject<boolean>(false);
   visible$: Observable<boolean> = this.visibleSource.asObservable();
+
+  private transactionCompleteSource = new Subject<TransactionResult>();
+  transactionComplete$: Observable<TransactionResult> = this.transactionCompleteSource.asObservable();
 
   open(): void {
     this.visibleSource.next(true);
@@ -18,6 +29,10 @@ export class TransactionModalService {
 
   toggle(): void {
     this.visibleSource.next(!this.visibleSource.value);
+  }
+
+  emitTransactionComplete(result: TransactionResult): void {
+    this.transactionCompleteSource.next(result);
   }
 }
 

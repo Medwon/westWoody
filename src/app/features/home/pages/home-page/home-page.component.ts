@@ -1,8 +1,8 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable, forkJoin, catchError, of, tap } from 'rxjs';
+import { Observable, forkJoin, catchError, of, tap, Subject, filter, takeUntil } from 'rxjs';
 import { AppState } from '../../../../core/store/app.state';
 import { selectUser } from '../../../../core/store/auth/auth.selectors';
 import { AuthUser } from '../../../../core/models/user.model';
@@ -15,6 +15,8 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { RefundConfirmationModalComponent, Payment } from '../../../../shared/components/refund-confirmation-modal/refund-confirmation-modal.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
+import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 
 interface KpiCard {
   iconId: 'revenue' | 'bonus' | 'clients' | 'transactions' | 'refunds' | 'average' | 'today' | 'month';
@@ -33,7 +35,8 @@ interface RecentPayment {
   amount: number;
   bonusEarned: number;
   bonusUsed: number;
-  paymentMethod: 'cash' | 'card' | 'online';
+  bonusRevoked: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   isRefund: boolean;
   date: string;
   time: string;
@@ -44,11 +47,17 @@ interface RecentPayment {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent, PaymentViewModalComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
       <div class="dashboard">
-      <!-- Header -->
+        <!-- Loading State -->
+        <div class="page-loading-container" *ngIf="isLoading || isChartLoading || isLoadingPayments">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+        </div>
+        
+        <div *ngIf="!isLoading && !isChartLoading && !isLoadingPayments">
+          <!-- Header -->
       <div class="dashboard-header">
         <app-button
           buttonType="primary"
@@ -222,7 +231,7 @@ interface RecentPayment {
               <ng-container *ngFor="let payment of recentPayments">
               <tr class="payment-row" [class.expanded]="isRowExpanded(payment.id)">
                 <td class="td-id">
-                  <span class="payment-id">#{{ formatPaymentId(payment.id) }}</span>
+                  <span class="payment-id clickable" (click)="openPaymentView(payment.id)">#{{ formatPaymentId(payment.id) }}</span>
                 </td>
                 <td class="td-client">
                   <div class="client-cell">
@@ -258,13 +267,23 @@ interface RecentPayment {
                       class="bonus-badge">
                       -{{ formatAmount(payment.bonusUsed) }}
                     </app-badge>
-                    <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0">—</span>
+                    <app-badge 
+                      *ngIf="payment.bonusRevoked > 0"
+                      badgeType="refund" 
+                      size="medium"
+                      icon="refund"
+                      class="bonus-badge">
+                      -{{ formatAmount(payment.bonusRevoked) }}
+                    </app-badge>
+                    <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
                   </div>
                 </td>
                 <td class="td-method">
-                  <span class="method-badge" [class]="'method-' + payment.paymentMethod">
-                    {{ getPaymentMethodLabel(payment.paymentMethod) }}
-                  </span>
+                  <app-badge 
+                    badgeType="paymentMethod" 
+                    size="medium"
+                    [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                  </app-badge>
                 </td>
                 <td class="td-status">
                   <app-badge 
@@ -346,6 +365,7 @@ interface RecentPayment {
             </tbody>
           </table>
         </div>
+        </div>
       </div>
     </div>
 
@@ -357,6 +377,16 @@ interface RecentPayment {
       (visibleChange)="onRefundModalVisibleChange($event)"
       (confirm)="confirmRefund($event)">
     </app-refund-confirmation-modal>
+
+    <!-- Payment View Modal -->
+    <app-payment-view-modal
+      [visible]="showPaymentViewModal"
+      [paymentTxId]="selectedPaymentTxId"
+      [paymentSearchResult]="selectedPaymentSearchResult"
+      (visibleChange)="closePaymentView()"
+      (paymentUpdated)="onPaymentUpdated()"
+      (refundedPaymentClick)="openPaymentView($event)">
+    </app-payment-view-modal>
   </div>
   `,
   styles: [`
@@ -375,6 +405,16 @@ interface RecentPayment {
     .dashboard {
       max-width: 1400px;
       margin: 0 auto;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .page-loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      width: 100%;
     }
 
     /* Header */
@@ -858,6 +898,17 @@ interface RecentPayment {
       font-size: 0.875rem;
     }
 
+    .payment-id.clickable {
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .payment-id.clickable:hover {
+      color: #475569;
+    }
+
     .client-cell {
       display: flex;
       align-items: center;
@@ -933,27 +984,6 @@ interface RecentPayment {
       color: #94a3b8;
     }
 
-    .method-badge {
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .method-badge.method-cash {
-      background: #dcfce7;
-      color: #16A34A;
-    }
-
-    .method-badge.method-card {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .method-badge.method-online {
-      background: #fef3c7;
-      color: #d97706;
-    }
 
     .date-info {
       display: flex;
@@ -1163,7 +1193,7 @@ interface RecentPayment {
     }
   `]
 })
-export class HomePageComponent implements OnInit {
+export class HomePageComponent implements OnInit, OnDestroy {
   user$: Observable<AuthUser | null>;
   private pageHeaderService = inject(PageHeaderService);
   transactionModalService = inject(TransactionModalService);
@@ -1175,6 +1205,11 @@ export class HomePageComponent implements OnInit {
   // Refund modal
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
+
+  // Payment view modal
+  showPaymentViewModal = false;
+  selectedPaymentTxId: string | null = null;
+  selectedPaymentSearchResult: PaymentSearchResult | null = null;
   isProcessingRefund = false;
   
   // Expanded rows
@@ -1185,82 +1220,14 @@ export class HomePageComponent implements OnInit {
   isChartLoading = true;
   isLoadingPayments = false;
 
-  // KPI Cards Data
-  kpiCards: KpiCard[] = [
-    {
-      iconId: 'month',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '1 245 890 ₸',
-      label: 'Выручка за месяц',
-      change: '+18%',
-      changeType: 'positive'
-    },
-    {
-      iconId: 'revenue',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '35 634 ₸',
-      label: 'Выручка за сегодня',
-      change: '+24%',
-      changeType: 'positive'
-    },
-    {
-      iconId: 'transactions',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '18',
-      label: 'Транзакций сегодня',
-      change: '+3',
-      changeType: 'positive'
-    },
-   
-    {
-      iconId: 'clients',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '2',
-      label: 'Новых клиентов',
-      change: '+5',
-      changeType: 'positive'
-    },
-    
-    {
-      iconId: 'revenue',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '17 817 ₸',
-      label: 'Средний чек',
-      change: '+8%',
-      changeType: 'positive'
-    },
-    {
-      iconId: 'bonus',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '3 563',
-      label: 'Бонусов начислено',
-      change: '+12%',
-      changeType: 'positive'
-    },
-    
-    
-    {
-      iconId: 'refunds',
-      iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
-      value: '2',
-      label: 'Возвратов',
-      change: '-1',
-      changeType: 'negative'
-      
-    },
-    
-    {
-      iconId: 'today',
-      iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-      value: '156',
-      label: 'Активных клиентов',
-      change: '+12',
-      changeType: 'positive'
-    }
-  ];
+  // KPI Cards Data (initialized empty, filled from real analytics API to avoid mock flicker)
+  kpiCards: KpiCard[] = [];
 
   // Recent Payments Data
   recentPayments: RecentPayment[] = [];
+
+  private destroy$ = new Subject<void>();
+  private router = inject(Router);
 
   constructor(private store: Store<AppState>) {
     this.user$ = this.store.select(selectUser);
@@ -1273,6 +1240,24 @@ export class HomePageComponent implements OnInit {
     this.loadAnalyticsData();
     this.loadChartData();
     this.loadRecentPayments();
+
+    // Subscribe to transaction completion events
+    this.transactionModalService.transactionComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Reload metrics and latest payments when on /home route
+        const currentUrl = this.router.url;
+        if (currentUrl === '/home' || currentUrl.startsWith('/home')) {
+          this.loadAnalyticsData();
+          this.loadChartData();
+          this.loadRecentPayments();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadAnalyticsData(): void {
@@ -1389,6 +1374,7 @@ export class HomePageComponent implements OnInit {
         amount: payment.amount || 0,
         bonusEarned: payment.bonusGranted || 0,
         bonusUsed: payment.bonusUsed || 0,
+        bonusRevoked: payment.bonusRevoked || 0,
         paymentMethod: 'card',
         isRefund: payment.status === 'REFUNDED' || payment.refundedPaymentTxId !== null,
         date: now.toLocaleDateString('ru-RU'),
@@ -1417,13 +1403,13 @@ export class HomePageComponent implements OnInit {
     const timeStr = `${hours}:${minutes}`;
     
     // Determine payment method from paymentMethod or default
-    let paymentMethod: 'cash' | 'card' | 'online' = 'card';
+    let paymentMethod: 'cash' | 'card' | 'transfer' = 'card';
     if (payment.paymentMethod) {
       const method = payment.paymentMethod.toLowerCase();
       if (method.includes('cash') || method.includes('налич')) {
         paymentMethod = 'cash';
-      } else if (method.includes('online') || method.includes('онлайн')) {
-        paymentMethod = 'online';
+      } else if (method.includes('transfer') || method.includes('перевод')) {
+        paymentMethod = 'transfer';
       } else {
         paymentMethod = 'card';
       }
@@ -1437,6 +1423,7 @@ export class HomePageComponent implements OnInit {
       amount: payment.amount || 0,
       bonusEarned: payment.bonusGranted || 0,
       bonusUsed: payment.bonusUsed || 0,
+      bonusRevoked: payment.bonusRevoked || 0,
       paymentMethod: paymentMethod,
       isRefund: payment.status === 'REFUNDED' || payment.refundedPaymentTxId !== null,
       date: dateStr,
@@ -1668,11 +1655,20 @@ export class HomePageComponent implements OnInit {
     return `PAY-${String(numId).padStart(3, '0')}`;
   }
 
-  getPaymentMethodLabel(method: 'cash' | 'card' | 'online'): string {
+  getPaymentMethodForBadge(method: string | undefined): 'CASH' | 'CARD' | 'TRANSFER' | null {
+    if (!method) return null;
+    const upperMethod = method.toUpperCase();
+    if (upperMethod === 'CASH' || upperMethod === 'CARD' || upperMethod === 'TRANSFER') {
+      return upperMethod as 'CASH' | 'CARD' | 'TRANSFER';
+    }
+    return null;
+  }
+
+  getPaymentMethodLabel(method: 'cash' | 'card' | 'transfer'): string {
     const labels: Record<string, string> = {
       cash: 'Наличные',
       card: 'Карта',
-      online: 'Онлайн'
+      transfer: 'Перевод'
     };
     return labels[method] || method;
   }
@@ -1696,6 +1692,7 @@ export class HomePageComponent implements OnInit {
       amount: payment.amount,
       bonusEarned: payment.bonusEarned,
       bonusUsed: payment.bonusUsed,
+      bonusRevoked: payment.bonusRevoked,
       paymentMethod: payment.paymentMethod,
       isRefund: payment.isRefund,
       date: payment.date,
@@ -1900,5 +1897,43 @@ export class HomePageComponent implements OnInit {
       const dayRatio = daysInMonth > 1 ? (day - 1) / (daysInMonth - 1) : 0;
       return padding + dayRatio * chartWidth;
     });
+  }
+
+  openPaymentView(paymentId: string): void {
+    // Find payment in the list to get search result data
+    const payment = this.recentPayments.find(p => p.id === paymentId);
+    if (payment) {
+      // Convert RecentPayment to PaymentSearchResult format
+      this.selectedPaymentSearchResult = {
+        txId: payment.id,
+        clientId: payment.clientId,
+        clientName: payment.clientName,
+        clientPhone: payment.clientPhone,
+        clientEmail: null,
+        amount: payment.amount,
+        status: payment.isRefund ? 'REFUNDED' : 'COMPLETED',
+        paymentMethod: payment.paymentMethod?.toUpperCase() as 'CASH' | 'CARD' | 'TRANSFER' | null,
+        initiatedBy: payment.initiatedBy || null,
+        createdAt: payment.date + 'T' + payment.time,
+        refundedPaymentTxId: null,
+        bonusGranted: payment.bonusEarned,
+        bonusUsed: payment.bonusUsed,
+        bonusRevoked: payment.bonusRevoked,
+        refundReason: payment.refundReason || null
+      };
+    }
+    this.selectedPaymentTxId = paymentId;
+    this.showPaymentViewModal = true;
+  }
+
+  closePaymentView(): void {
+    this.showPaymentViewModal = false;
+    this.selectedPaymentTxId = null;
+    this.selectedPaymentSearchResult = null;
+  }
+
+  onPaymentUpdated(): void {
+    // Reload payments after update
+    this.loadRecentPayments();
   }
 }

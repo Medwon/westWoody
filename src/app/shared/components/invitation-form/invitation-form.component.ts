@@ -85,7 +85,7 @@ export interface MessageTemplate {
                   <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
               </button>
-              <button class="template-action-btn" (click)="deleteTemplate(template.id, $event)" title="Удалить">
+              <button class="template-action-btn" (click)="deleteTemplate(template, $event)" title="Удалить">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
@@ -426,6 +426,58 @@ export interface MessageTemplate {
         </app-whatsapp-preview>
       </div>
     </app-modal>
+
+    <!-- Delete Template Confirmation Modal -->
+    <div class="delete-modal-overlay" *ngIf="showDeleteTemplateModal" (click)="closeDeleteTemplateModal()">
+      <div class="delete-modal" (click)="$event.stopPropagation()">
+        <!-- Step 1: Initial confirmation -->
+        <div class="delete-modal-content" *ngIf="deleteTemplateStep === 1">
+          <div class="delete-modal-icon warning">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Удалить шаблон?</h3>
+          <p class="delete-modal-description">
+            Вы уверены, что хотите удалить шаблон <strong>{{ templateToDelete?.name }}</strong>?<br>
+            Это действие нельзя отменить.
+          </p>
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteTemplateModal()">Отмена</button>
+            <button class="delete-modal-btn confirm" (click)="proceedToDeleteTemplateStep2()">Да, удалить</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Type confirmation word -->
+        <div class="delete-modal-content" *ngIf="deleteTemplateStep === 2">
+          <div class="delete-modal-icon danger">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="delete-modal-title">Подтвердите удаление</h3>
+          <p class="delete-modal-description">
+            Для подтверждения удаления введите слово <strong class="confirm-word">удалить</strong>
+          </p>
+          <input 
+            type="text" 
+            class="delete-confirm-input"
+            [(ngModel)]="deleteTemplateConfirmationText"
+            placeholder="Введите слово для подтверждения"
+            (input)="checkDeleteTemplateConfirmation()"
+            (keydown.enter)="confirmDeleteTemplate()">
+          <div class="delete-modal-actions">
+            <button class="delete-modal-btn cancel" (click)="closeDeleteTemplateModal()">Отмена</button>
+            <button 
+              class="delete-modal-btn delete" 
+              [disabled]="!isDeleteTemplateConfirmed"
+              (click)="confirmDeleteTemplate()">
+              Удалить навсегда
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `,
   styles: [`
     :host {
@@ -1319,6 +1371,179 @@ export interface MessageTemplate {
       color: #64748b;
       margin: 0 0 1.5rem 0;
     }
+
+    /* Delete Confirmation Modal */
+    .delete-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .delete-modal {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      max-width: 420px;
+      width: 90%;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .delete-modal-content {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .delete-modal-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .delete-modal-icon.warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-icon.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .delete-modal-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .delete-modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0 0 0.75rem;
+    }
+
+    .delete-modal-description {
+      font-size: 0.9rem;
+      color: #6b7280;
+      line-height: 1.6;
+      margin: 0 0 1.5rem;
+    }
+
+    .delete-modal-description strong {
+      color: #1f2937;
+    }
+
+    .confirm-word {
+      color: #dc2626;
+      background: #fee2e2;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+
+    .delete-confirm-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .delete-confirm-input:focus {
+      outline: none;
+      border-color: #dc2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .delete-confirm-input::placeholder {
+      color: #9ca3af;
+    }
+
+    .delete-modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .delete-modal-btn {
+      flex: 1;
+      padding: 0.875rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .delete-modal-btn.cancel {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .delete-modal-btn.cancel:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .delete-modal-btn.confirm {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .delete-modal-btn.confirm:hover {
+      background: #fde68a;
+      color: #b45309;
+    }
+
+    .delete-modal-btn.delete {
+      background: #dc2626;
+      color: white;
+    }
+
+    .delete-modal-btn.delete:hover:not(:disabled) {
+      background: #b91c1c;
+    }
+
+    .delete-modal-btn.delete:disabled {
+      background: #fca5a5;
+      cursor: not-allowed;
+    }
   `]
 })
 export class InvitationFormComponent implements AfterViewInit {
@@ -1349,6 +1574,13 @@ export class InvitationFormComponent implements AfterViewInit {
   showPreviewModal = false;
   previewTemplate: MessageTemplate | null = null;
   editingTemplateId: string | null = null;
+
+  // Delete template modal state
+  showDeleteTemplateModal = false;
+  deleteTemplateStep = 1;
+  deleteTemplateConfirmationText = '';
+  isDeleteTemplateConfirmed = false;
+  templateToDelete: MessageTemplate | null = null;
 
   newTemplate: MessageTemplate = {
     id: '',
@@ -1521,9 +1753,40 @@ export class InvitationFormComponent implements AfterViewInit {
     }, 100);
   }
 
-  deleteTemplate(templateId: string, event: Event): void {
+  deleteTemplate(template: MessageTemplate, event: Event): void {
     event.stopPropagation();
-    this.templateDeleted.emit(templateId);
+    this.openDeleteTemplateModal(template);
+  }
+
+  openDeleteTemplateModal(template: MessageTemplate): void {
+    this.templateToDelete = template;
+    this.deleteTemplateStep = 1;
+    this.deleteTemplateConfirmationText = '';
+    this.isDeleteTemplateConfirmed = false;
+    this.showDeleteTemplateModal = true;
+  }
+
+  closeDeleteTemplateModal(): void {
+    this.showDeleteTemplateModal = false;
+    this.deleteTemplateStep = 1;
+    this.deleteTemplateConfirmationText = '';
+    this.isDeleteTemplateConfirmed = false;
+    this.templateToDelete = null;
+  }
+
+  proceedToDeleteTemplateStep2(): void {
+    this.deleteTemplateStep = 2;
+  }
+
+  checkDeleteTemplateConfirmation(): void {
+    this.isDeleteTemplateConfirmed = this.deleteTemplateConfirmationText.toLowerCase().trim() === 'удалить';
+  }
+
+  confirmDeleteTemplate(): void {
+    if (this.templateToDelete && this.isDeleteTemplateConfirmed) {
+      this.templateDeleted.emit(this.templateToDelete.id);
+      this.closeDeleteTemplateModal();
+    }
   }
 
   openPreview(template: MessageTemplate, event: Event): void {

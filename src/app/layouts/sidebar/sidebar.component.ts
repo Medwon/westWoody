@@ -34,11 +34,11 @@ export interface SidebarMenuItem {
     ButtonComponent
   ],
   template: `
-    <!-- Overlay для закрытого sidebar на мобильных -->
+    <!-- Overlay для открытого sidebar на мобильных (клик закрывает sidebar) -->
     <div 
       class="sidebar-overlay" 
-      *ngIf="isClosed() && isMobile"
-      (click)="openSidebar()">
+      *ngIf="!isClosed() && isMobile"
+      (click)="closeSidebar()">
     </div>
 
     <div class="sidebar-container" [class.sidebar-collapsed]="isCollapsed()" [class.sidebar-closed]="isClosed()">
@@ -204,9 +204,10 @@ export interface SidebarMenuItem {
       display: flex;
       flex-direction: column;
       transition: width 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-      z-index: 100;
+      z-index: 102;
       overflow-y: auto;
       overflow-x: hidden;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
     }
 
     .sidebar.collapsed {
@@ -690,8 +691,8 @@ export interface SidebarMenuItem {
       right: 0;
       bottom: 0;
       background-color: rgba(0, 0, 0, 0.5);
-      z-index: 99;
-      backdrop-filter: blur(2px);
+      z-index: 101;
+      backdrop-filter: blur(4px);
     }
 
     /* Content */
@@ -854,13 +855,18 @@ export class SidebarComponent {
     // На мобильных закрываем sidebar по умолчанию, на десктопе открываем
     if (this.isMobile && !wasMobile) {
       this.isClosed.set(true);
+      // На мобильных не используем collapsed состояние
+      this.isCollapsed.set(false);
     } else if (!this.isMobile && wasMobile) {
       this.isClosed.set(false);
     }
   }
 
   toggleSidebar(): void {
-    this.isCollapsed.update(val => !val);
+    // На мобильных не используем collapsed состояние
+    if (!this.isMobile) {
+      this.isCollapsed.update(val => !val);
+    }
   }
 
   toggleClosed(): void {

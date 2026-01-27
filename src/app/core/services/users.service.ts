@@ -67,5 +67,26 @@ export class UsersService {
   deleteLockedUsers(): Observable<{ deletedCount: number }> {
     return this.http.delete<{ deletedCount: number }>(`${this.apiUrl}/locked`);
   }
+
+  // Update heartbeat (last seen)
+  updateHeartbeat(): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/activity/heartbeat`, {});
+  }
+
+  // Get user status
+  getUserStatus(userId: string): Observable<UserStatus> {
+    return this.http.get<UserStatus>(`${this.apiUrl}/${userId}/status`);
+  }
+
+  // Get all users status
+  getAllUsersStatus(): Observable<UserStatus[]> {
+    return this.http.get<UserStatus[]>(`${this.apiUrl}/status`);
+  }
+}
+
+export interface UserStatus {
+  userId: string;
+  isOnline: boolean;
+  lastSeenAt: string | null;
 }
 
