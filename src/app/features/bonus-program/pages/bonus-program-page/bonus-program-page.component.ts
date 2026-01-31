@@ -328,12 +328,12 @@ interface BonusRule {
               <button 
                 type="button"
                 class="unit-option"
-                [class.selected]="newBonus.unit === 'баллов'"
-                (click)="newBonus.unit = 'баллов'">
+                [class.selected]="newBonus.unit === 'бонус'"
+                (click)="newBonus.unit = 'бонус'">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="unit-icon-svg">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
                 </svg>
-                <span class="unit-text">Баллы</span>
+                <span class="unit-text">Тенге</span>
               </button>
             </div>
           </div>
@@ -1387,7 +1387,7 @@ export class BonusProgramPageComponent implements OnInit {
     title: '',
     description: '',
     value: 0,
-    unit: 'баллов',
+    unit: 'бонус',
     icon: 'gift',
     expirationDays: 30,
     type: '' as BonusTypeType | ''
@@ -1435,21 +1435,45 @@ export class BonusProgramPageComponent implements OnInit {
   // Map backend BonusTypeResponse to frontend BonusRule
   mapBonusTypeToRule(bonusType: BonusTypeResponse): BonusRule {
     const value = bonusType.bonusPercentage ?? bonusType.bonusAmount ?? 0;
-    const unit = bonusType.bonusPercentage ? '%' : 'баллов';
-    const label = bonusType.bonusPercentage ? 'Процент начисления' : 'Количество баллов';
+    const isPercentage = bonusType.bonusPercentage != null && bonusType.bonusPercentage > 0;
+    const unit = isPercentage ? '%' : 'бонус';
+    const label = isPercentage ? 'Процент начисления' : 'Сумма бонусов';
     const icon = this.mapBackendIconToFrontend(bonusType.iconType);
+    
+    // Generate dynamic description based on type and actual value
+    const description = this.generateDescription(bonusType.type, value, isPercentage);
 
     return {
       id: bonusType.id.toString(),
       icon: icon,
       title: bonusType.name,
-      description: bonusType.description,
+      description: description,
       value: value,
       unit: unit,
       label: label,
       active: bonusType.enabled,
       expirationDays: bonusType.expirationDays
     };
+  }
+
+  // Generate dynamic description based on bonus type and value
+  generateDescription(type: string, value: number, isPercentage: boolean): string {
+    const valueStr = isPercentage ? `${value}%` : `${value} тенге`;
+    
+    switch (type) {
+      case 'BASIC_CASHBACK':
+        return `${valueStr} кэшбэк с каждой оплаты клиента`;
+      case 'BIRTHDAY_BONUS':
+        return `Фиксированный бонус ${value} тенге в день рождения клиента`;
+      case 'REFERRAL_BONUS':
+        return `Фиксированный бонус ${value} тенге для реферера и нового клиента при использовании реферального кода`;
+      case 'WELCOME_BONUS':
+        return `Фиксированный бонус ${value} тенге для новых клиентов при регистрации`;
+      default:
+        return isPercentage 
+          ? `${valueStr} начисление с каждой транзакции` 
+          : `Фиксированный бонус ${value} тенге`;
+    }
   }
 
   // Map backend icon type (UPPERCASE) to frontend icon (lowercase)
@@ -1644,7 +1668,7 @@ export class BonusProgramPageComponent implements OnInit {
       title: '',
       description: '',
       value: 0,
-      unit: 'баллов',
+      unit: 'бонус',
       icon: 'gift',
       expirationDays: 30,
       type: '' as BonusTypeType | ''
@@ -1680,7 +1704,7 @@ export class BonusProgramPageComponent implements OnInit {
           title: '',
           description: '',
           value: 0,
-          unit: 'баллов',
+          unit: 'бонус',
           icon: 'gift',
           expirationDays: 30,
           type: '' as BonusTypeType | ''

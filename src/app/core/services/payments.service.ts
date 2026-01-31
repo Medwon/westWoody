@@ -185,4 +185,11 @@ export class PaymentsService {
   updatePaymentMethod(txId: string, request: UpdatePaymentMethodRequest): Observable<PaymentTransactionDto> {
     return this.http.put<PaymentTransactionDto>(`${this.apiUrl}/${txId}/payment-method`, request);
   }
+
+  /**
+   * Delete a completed payment and its associated bonuses
+   */
+  deletePayment(txId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${txId}`);
+  }
 }

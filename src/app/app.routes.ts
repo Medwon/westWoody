@@ -49,6 +49,11 @@ export const routes: Routes = [
         title: 'Bonus Program'
       },
       {
+        path: 'bonus-management',
+        loadComponent: () => import('./features/bonus-management/pages/bonus-management-page/bonus-management-page.component').then(m => m.BonusManagementPageComponent),
+        title: 'Bonus Management'
+      },
+      {
         path: 'clients',
         loadComponent: () => import('./features/clients/pages/clients-page/clients-page.component').then(m => m.ClientsPageComponent),
         title: 'Clients'

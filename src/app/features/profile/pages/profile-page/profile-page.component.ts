@@ -20,6 +20,7 @@ import { LoaderComponent } from '../../../../shared/components/loader/loader.com
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 
 interface Client {
   id: string;
@@ -30,6 +31,7 @@ interface Client {
   tags: string[];
   comment: string | null;
   type: 'individual' | 'business';
+  dateOfBirth?: string | null;
 }
 
 interface PaymentItem {
@@ -50,7 +52,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent, PaymentViewModalComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent, PaymentViewModalComponent, PhoneFormatPipe],
   template: `
     <div class="page-wrapper">
       <div class="profile-container-wrapper">
@@ -99,7 +101,7 @@ interface PaymentItem {
                   {{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}
                 </span>
               </div>
-              <p class="profile-phone">{{ client.phone }}</p>
+              <p class="profile-phone">{{ client.phone | phoneFormat }}</p>
               <div class="tags-row">
                 <div class="tags-container">
                   <span class="client-tag" *ngFor="let tag of client.tags; let i = index">
@@ -285,6 +287,11 @@ interface PaymentItem {
                 <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.lastName">
               </div>
               <div class="info-row">
+                <span class="info-label">Дата рождения</span>
+                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.dateOfBirth ? formatDate(client.dateOfBirth) : '—' }}</span>
+                <input class="info-input" *ngIf="isEditingPersonal" type="date" [(ngModel)]="editedPersonal.dateOfBirth">
+              </div>
+              <div class="info-row">
                 <span class="info-label">Тип клиента</span>
                 <span class="info-value" *ngIf="!isEditingPersonal">{{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}</span>
                 <select class="info-select" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.type">
@@ -320,7 +327,7 @@ interface PaymentItem {
             <div class="info-list">
               <div class="info-row">
                 <span class="info-label">Телефон</span>
-                <span class="info-value" *ngIf="!isEditingContacts">{{ client.phone }}</span>
+                <span class="info-value" *ngIf="!isEditingContacts">{{ client.phone | phoneFormat }}</span>
                 <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.phone" type="tel">
               </div>
               <div class="info-row">
@@ -377,20 +384,21 @@ interface PaymentItem {
                   <thead>
                     <tr>
                       <th>Тип бонуса</th>
-                      <th>Сумма</th>
+                      <th>Сумма начисления</th>
+                      <th>Остаток бонуса</th>
                       <th>Начислено</th>
                       <th>Истекает</th>
-                      <th>Осталось</th>
                       <th>Действия</th>
                     </tr>
                   </thead>
                   <tbody>
                     <ng-container *ngFor="let bonus of paginatedBonuses.paginatedData">
                     <tr
-                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund'"
+                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund' && bonus.type !== 'manual_revoke'"
                         [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
                         [class.used]="bonus.used"
-                        [class.refund]="bonus.type === 'refund'">
+                        [class.refund]="bonus.type === 'refund'"
+                        [class.manual-revoke]="bonus.type === 'manual_revoke'">
                       <td>
                         <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
                           {{ getBonusTypeLabel(bonus.type) }}
@@ -415,57 +423,78 @@ interface PaymentItem {
                             {{ formatAmount(bonus.amount) }}
                           </app-badge>
                           <app-badge
-                            *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                            *ngIf="bonus.type === 'manual_revoke'"
+                            badgeType="refund"
+                            size="medium"
+                            icon="refund"
+                            class="bonus-badge">
+                            -{{ formatAmount(bonus.amount) }} ₸
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
                             badgeType="bonusExpired"
                             size="medium"
                             icon="expired"
                             class="bonus-badge">
-                            {{ formatAmount(bonus.amount) }}
+                            {{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
                           </app-badge>
                           <app-badge
-                            *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
                             badgeType="bonusGranted"
                             size="medium"
                             icon="star"
                             class="bonus-badge">
-                            +{{ formatAmount(bonus.amount) }}
+                            +{{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
                           </app-badge>
                         </div>
                       </td>
                       <td>
-                        <span class="bonus-date">{{ formatDate(bonus.issuedAt) }}</span>
+                        <div class="bonus-remaining-badges">
+                          <span *ngIf="bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
+                          <app-badge
+                            *ngIf="bonus.used"
+                            badgeType="bonusUsed"
+                            size="medium"
+                            icon="used">
+                            Использовано
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type === 'refund'"
+                            badgeType="refund"
+                            size="medium"
+                            icon="refund">
+                            Отозвано
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount != null"
+                            [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 0 ? 'bonusExpired' : (getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success')"
+                            size="medium">
+                            {{ formatAmount(bonus.remainingAmount) }}{{ bonus.originalAmount != null ? ' из ' + formatAmount(bonus.originalAmount) : '' }} ₸
+                          </app-badge>
+                          <app-badge
+                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                            badgeType="bonusExpired"
+                            size="medium"
+                            icon="expired">
+                            Истек
+                          </app-badge>
+                        </div>
                       </td>
                       <td>
-                        <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
+                        <span class="bonus-date">{{ (bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke') ? '—' : formatDate(bonus.issuedAt) }}</span>
                       </td>
                       <td>
-                        <app-badge
-                          *ngIf="bonus.used"
-                          badgeType="bonusUsed"
-                          size="medium"
-                          icon="used">
-                          Использовано
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type === 'refund'"
-                          badgeType="refund"
-                          size="medium"
-                          icon="refund">
-                          Отозвано
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
-                          [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
-                          size="medium">
-                          {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
-                        </app-badge>
-                        <app-badge
-                          *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
-                          badgeType="bonusExpired"
-                          size="medium"
-                          icon="expired">
-                          Истек
-                        </app-badge>
+                        <span *ngIf="!(bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke')" class="bonus-expiry-cell">
+                          <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
+                          <app-badge
+                            *ngIf="getDaysUntilExpiry(bonus.expiresAt) > 0"
+                            [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
+                            size="medium"
+                            class="expires-in-badge">
+                            {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
+                          </app-badge>
+                        </span>
+                        <span *ngIf="bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
                       </td>
                       <td>
                         <div class="actions-cell">
@@ -500,10 +529,10 @@ interface PaymentItem {
                               <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
                                  [routerLink]="['/users', bonus.initiatedById]" 
                                  class="bonus-initiated-by-link">
-                                {{ bonus.initiatedBy }}
+                                {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
                               </a>
                               <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
-                                {{ bonus.initiatedBy }}
+                                {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
                               </div>
                               <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
                                 Не указан
@@ -536,8 +565,10 @@ interface PaymentItem {
                     <div class="mobile-bonus-amount">
                       <span *ngIf="bonus.used">-</span>
                       <span *ngIf="bonus.type === 'refund'"></span>
-                      <span *ngIf="bonus.type !== 'refund' && !bonus.used">+</span>
-                      {{ formatAmount(bonus.amount) }} ₸
+                      <span *ngIf="bonus.type === 'manual_revoke'">-</span>
+                      <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used">+</span>
+                      {{ formatAmount(bonus.originalAmount ?? bonus.amount) }} ₸
+                      <span *ngIf="bonus.remainingAmount != null && bonus.type !== 'manual_revoke'" class="mobile-remaining">(осталось {{ formatAmount(bonus.remainingAmount) }} ₸)</span>
                     </div>
                   </div>
                 </div>
@@ -548,34 +579,40 @@ interface PaymentItem {
                 </div>
               </div>
               <div class="mobile-bonus-details" [class.expanded]="isMobileBonusExpanded(bonus.id)">
-                <div class="mobile-bonus-detail-row">
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.type !== 'manual_revoke'">
                   <span class="mobile-bonus-detail-label">Начислено:</span>
-                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.issuedAt) }}</span>
+                  <span class="mobile-bonus-detail-value">{{ (bonus.used || bonus.type === 'refund') ? '—' : formatDate(bonus.issuedAt) }}</span>
                 </div>
-                <div class="mobile-bonus-detail-row">
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.type !== 'manual_revoke'">
                   <span class="mobile-bonus-detail-label">Истекает:</span>
-                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.expiresAt) }}</span>
+                  <span class="mobile-bonus-detail-value">{{ (bonus.used || bonus.type === 'refund') ? '—' : formatDate(bonus.expiresAt) }}</span>
+                </div>
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.type === 'manual_revoke' && bonus.revokedAt">
+                  <span class="mobile-bonus-detail-label">Дата списания:</span>
+                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.revokedAt) }}</span>
                 </div>
                 <div class="mobile-bonus-detail-row">
                   <span class="mobile-bonus-detail-label">Статус:</span>
                   <span class="mobile-bonus-detail-value">
                     <span *ngIf="bonus.used">Использовано</span>
                     <span *ngIf="bonus.type === 'refund'">Отозвано</span>
-                    <span *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0">
+                    <span *ngIf="bonus.type === 'manual_revoke'">Списано вручную{{ bonus.revokedByUserName ? ': ' + bonus.revokedByUserName : '' }}</span>
+                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount != null">{{ formatAmount(bonus.remainingAmount) }} из {{ formatAmount(bonus.originalAmount ?? bonus.amount) }} ₸</span>
+                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) > 0">
                       {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
                     </span>
-                    <span *ngIf="bonus.type !== 'refund' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0">Истек</span>
+                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) <= 0">Истек</span>
                   </span>
                 </div>
                 <div class="mobile-bonus-detail-row" *ngIf="bonus.refundReason">
-                  <span class="mobile-bonus-detail-label">Причина возврата:</span>
+                  <span class="mobile-bonus-detail-label">{{ bonus.type === 'manual_revoke' ? 'Причина списания:' : 'Причина возврата:' }}</span>
                   <span class="mobile-bonus-detail-value">{{ bonus.refundReason }}</span>
                 </div>
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.initiatedBy">
+                <div class="mobile-bonus-detail-row" *ngIf="bonus.initiatedBy || (bonus.type === 'manual_revoke' && bonus.revokedByUserName)">
                   <span class="mobile-bonus-detail-label">Инициатор:</span>
                   <span class="mobile-bonus-detail-value">
-                    <a *ngIf="bonus.initiatedById" [routerLink]="['/users', bonus.initiatedById]">{{ bonus.initiatedBy }}</a>
-                    <span *ngIf="!bonus.initiatedById">{{ bonus.initiatedBy }}</span>
+                    <a *ngIf="bonus.initiatedById" [routerLink]="['/users', bonus.initiatedById]">{{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}</a>
+                    <span *ngIf="!bonus.initiatedById">{{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : (bonus.initiatedBy || bonus.revokedByUserName) }}</span>
                   </span>
                 </div>
               </div>
@@ -610,7 +647,6 @@ interface PaymentItem {
                 <thead>
                   <tr>
                     <th class="th-id">ID платежа</th>
-                    <th class="th-client">Клиент</th>
                     <th class="th-amount">Сумма</th>
                     <th class="th-bonuses">Бонусы</th>
                     <th class="th-method">Способ оплаты</th>
@@ -623,19 +659,6 @@ interface PaymentItem {
                   <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
                   <td class="td-id">
                     <span class="payment-id clickable" (click)="openPaymentView(payment.id)">{{ payment.id }}</span>
-                  </td>
-                  <td class="td-client">
-                    <div class="client-cell">
-                      <div class="client-avatar">
-                        {{ getInitials(payment.clientName || '') }}
-                      </div>
-                      <div class="client-info">
-                        <a [routerLink]="['/clients', payment.clientId]" class="client-name-link">
-                          <span class="client-name">{{ payment.clientName || '—' }}</span>
-                        </a>
-                        <span class="client-phone">{{ payment.clientPhone || '—' }}</span>
-                      </div>
-                    </div>
                   </td>
                   <td class="td-amount">
                     <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
@@ -1608,6 +1631,40 @@ interface PaymentItem {
 
     .bonuses-table tbody tr.refund:hover {
       background: transparent;
+    }
+
+    .bonuses-table tbody tr.manual-revoke {
+      background: transparent;
+    }
+
+    .bonuses-table tbody tr.manual-revoke:hover {
+      background: transparent;
+    }
+
+    .manual-revoke-audit,
+    .remaining-amount {
+      font-size: 0.875rem;
+      color: #475569;
+    }
+
+    .bonus-expiry-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      align-items: flex-start;
+    }
+
+    .bonus-expiry-cell .expires-in-badge {
+      flex-shrink: 0;
+    }
+
+    .bonus-empty-cell {
+      color: #94a3b8;
+    }
+
+    .bonus-remaining-badges {
+      display: flex;
+      align-items: center;
     }
 
     .bonuses-table tbody tr:last-child td {
@@ -2761,7 +2818,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   editedPersonal = {
     firstName: '',
     lastName: '',
-    type: 'individual' as 'individual' | 'business'
+    type: 'individual' as 'individual' | 'business',
+    dateOfBirth: null as string | null
   };
   
   isEditingContacts = false;
@@ -2779,12 +2837,17 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
     id: string;
     type: string;
     amount: number;
+    originalAmount?: number;
+    remainingAmount?: number;
     issuedAt: Date;
     expiresAt: Date;
     used?: boolean;
     refundReason?: string;
     initiatedBy?: string;
     initiatedById?: string;
+    /** For manual revoke: who and when */
+    revokedByUserName?: string;
+    revokedAt?: Date;
   }> = [];
 
   // Раскрытые строки бонусов
@@ -2879,7 +2942,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
           email: client.email,
           tags: client.tags || [],
           comment: client.notes,
-          type: client.clientType === 'BUSINESS' ? 'business' : 'individual'
+          type: client.clientType === 'BUSINESS' ? 'business' : 'individual',
+          dateOfBirth: client.dateOfBirth ?? null
         };
 
         // Map payments - extract content from paginated response
@@ -2909,25 +2973,32 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
         const bonusHistoryArray = bonusHistory?.content || [];
         this.bonusesDetails = bonusHistoryArray.map(b => {
           try {
-            // Map eventType to type for UI
             let type = 'purchase';
-            if (b.grantReason === 'WELCOME') type = 'welcome';
+            if (b.eventType === 'MANUAL_REVOKE') type = 'manual_revoke';
+            else if (b.grantReason === 'WELCOME') type = 'welcome';
             else if (b.eventType === 'GRANTED') type = 'purchase';
             else if (b.eventType === 'USED') type = 'purchase';
             else if (b.eventType === 'REVOKED') type = 'refund';
             else if (b.eventType === 'EXPIRED') type = 'loyalty';
 
-            return {
+            const base: typeof this.bonusesDetails[0] = {
               id: String(b.id),
-              type: type,
+              type,
               amount: b.bonusAmount,
               issuedAt: new Date(b.createdAt),
-              expiresAt: b.expiresAt ? new Date(b.expiresAt) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Default 90 days if no expiry
+              expiresAt: b.expiresAt ? new Date(b.expiresAt) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
               used: b.eventType === 'USED',
               refundReason: b.revokeReason || undefined,
-              initiatedBy: undefined, // Not available in API response
-              initiatedById: undefined // Not available in API response
+              initiatedBy: b.initiatedByUserName ?? b.revokedByUserName ?? undefined,
+              initiatedById: b.initiatedByUserId != null ? String(b.initiatedByUserId) : undefined
             };
+            if (b.originalAmount != null) base.originalAmount = b.originalAmount;
+            if (b.remainingAmount != null) base.remainingAmount = b.remainingAmount;
+            if (b.eventType === 'MANUAL_REVOKE') {
+              base.revokedByUserName = b.revokedByUserName ?? undefined;
+              base.revokedAt = b.revokedAt ? new Date(b.revokedAt) : new Date(b.createdAt);
+            }
+            return base;
           } catch (error) {
             console.error('Error mapping bonus:', b, error);
             return null;
@@ -3000,7 +3071,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
           email: client.email,
           tags: client.tags || [],
           comment: client.notes,
-          type: client.clientType === 'BUSINESS' ? 'business' : 'individual'
+          type: client.clientType === 'BUSINESS' ? 'business' : 'individual',
+          dateOfBirth: client.dateOfBirth ?? null
         };
         this.isLoading = false;
         this.cdr.detectChanges();
@@ -3050,23 +3122,31 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
         this.bonusesDetails = bonusHistoryArray.map(b => {
           try {
             let type = 'purchase';
-            if (b.grantReason === 'WELCOME') type = 'welcome';
+            if (b.eventType === 'MANUAL_REVOKE') type = 'manual_revoke';
+            else if (b.grantReason === 'WELCOME') type = 'welcome';
             else if (b.eventType === 'GRANTED') type = 'purchase';
             else if (b.eventType === 'USED') type = 'purchase';
             else if (b.eventType === 'REVOKED') type = 'refund';
             else if (b.eventType === 'EXPIRED') type = 'loyalty';
 
-            return {
+            const base: typeof this.bonusesDetails[0] = {
               id: String(b.id),
-              type: type,
+              type,
               amount: b.bonusAmount,
               issuedAt: new Date(b.createdAt),
               expiresAt: b.expiresAt ? new Date(b.expiresAt) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
               used: b.eventType === 'USED',
               refundReason: b.revokeReason || undefined,
-              initiatedBy: undefined,
-              initiatedById: undefined
+              initiatedBy: b.initiatedByUserName ?? b.revokedByUserName ?? undefined,
+              initiatedById: b.initiatedByUserId != null ? String(b.initiatedByUserId) : undefined
             };
+            if (b.originalAmount != null) base.originalAmount = b.originalAmount;
+            if (b.remainingAmount != null) base.remainingAmount = b.remainingAmount;
+            if (b.eventType === 'MANUAL_REVOKE') {
+              base.revokedByUserName = b.revokedByUserName ?? undefined;
+              base.revokedAt = b.revokedAt ? new Date(b.revokedAt) : new Date(b.createdAt);
+            }
+            return base;
           } catch (error) {
             console.error('Error mapping bonus:', b, error);
             return null;
@@ -3358,7 +3438,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editedPersonal = {
       firstName: this.client.firstName,
       lastName: this.client.lastName,
-      type: this.client.type
+      type: this.client.type,
+      dateOfBirth: this.client.dateOfBirth ?? null
     };
     this.isEditingPersonal = true;
   }
@@ -3368,17 +3449,18 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isSavingPersonal = true;
     
     // Build complete payload with all fields, only changing edited ones
+    const dateOfBirth = this.editedPersonal.dateOfBirth ?? this.clientDetails.dateOfBirth;
     const requestPayload: UpdateClientRequest = {
       phone: this.clientDetails.phone,
-      name: this.editedPersonal.firstName, // Changed field
-      surname: this.editedPersonal.lastName, // Changed field
-      dateOfBirth: this.clientDetails.dateOfBirth,
+      name: this.editedPersonal.firstName,
+      surname: this.editedPersonal.lastName?.trim() || undefined,
+      dateOfBirth: (dateOfBirth != null && String(dateOfBirth).trim() !== '') ? String(dateOfBirth).trim() : (null as string | null),
       notes: this.clientDetails.notes,
       tags: this.clientDetails.tags || [],
-      clientType: this.editedPersonal.type === 'business' ? 'BUSINESS' : 'INDIVIDUAL', // Changed field
+      clientType: this.editedPersonal.type === 'business' ? 'BUSINESS' : 'INDIVIDUAL',
       referrerId: this.clientDetails.referrerId
     };
-    
+
     console.log('Update Client (Personal Data) - Request Payload:', {
       clientId: this.clientId,
       payload: requestPayload
@@ -3392,6 +3474,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
         this.client!.firstName = updatedClient.name;
         this.client!.lastName = updatedClient.surname || '';
         this.client!.type = updatedClient.clientType === 'BUSINESS' ? 'business' : 'individual';
+        this.client!.dateOfBirth = updatedClient.dateOfBirth ?? null;
         this.toastService.success('Личные данные успешно обновлены');
         this.isEditingPersonal = false;
         this.isSavingPersonal = false;
@@ -3577,7 +3660,8 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
       loyalty: 'Лояльность',
       refund: 'Отозвано',
       used: 'Использовано',
-      granted: 'Начислено'
+      granted: 'Начислено',
+      manual_revoke: 'Списано вручную'
     };
     return labels[type] || type;
   }

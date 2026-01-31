@@ -13,6 +13,7 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { CreateClientModalComponent } from '../../../../shared/components/create-client-modal/create-client-modal.component';
+import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 
 interface Client {
   id: string;
@@ -36,7 +37,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent, PhoneFormatPipe],
   template: `
     <div class="page-wrapper">
       <div class="clients-container">
@@ -320,7 +321,7 @@ type SortDirection = 'asc' | 'desc';
                 </td>
                 <td class="td-contact">
                   <div class="contact-info">
-                    <span class="contact-phone">{{ client.phone }}</span>
+                    <span class="contact-phone">{{ client.phone | phoneFormat }}</span>
                     <span class="contact-email">{{ client.email || '—' }}</span>
                   </div>
                 </td>
@@ -376,7 +377,7 @@ type SortDirection = 'asc' | 'desc';
                 </div>
                 <div class="card-header-info">
                   <div class="card-name">{{ client.firstName }}{{ client.lastName ? ' ' + client.lastName : '' }}</div>
-                  <div class="card-phone">{{ client.phone }}</div>
+                  <div class="card-phone">{{ client.phone | phoneFormat }}</div>
                 </div>
                 <div class="card-type-badge" [class.business]="client.type === 'business'">
                   <svg viewBox="0 0 24 24" fill="none" *ngIf="client.type === 'business'">

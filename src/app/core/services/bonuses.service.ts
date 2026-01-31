@@ -5,12 +5,16 @@ import { environment } from '../../../environments/environment';
 
 export interface BonusHistoryItem {
   id: number;
-  eventId: string;
+  eventId: string | null;
   clientId: string;
   clientName: string;
-  eventType: 'GRANTED' | 'USED' | 'EXPIRED' | 'REVOKED';
+  eventType: 'GRANTED' | 'USED' | 'EXPIRED' | 'REVOKED' | 'MANUAL_REVOKE';
   bonusAmount: number;
   createdAt: string;
+  /** For GRANTED: original grant amount */
+  originalAmount?: number | null;
+  /** For GRANTED: remaining after consumptions */
+  remainingAmount?: number | null;
   paymentTxId: string | null;
   bonusPercentage: number | null;
   paymentAmount: number | null;
@@ -19,9 +23,15 @@ export interface BonusHistoryItem {
   originalPaymentAmount: number | null;
   finalPaymentAmount: number | null;
   revokeReason: string | null;
-  originalPaymentTxId: string | null; // Original payment that granted the bonus (for REVOKED events)
-  refundTxId: string | null; // Refund transaction that caused the revocation
-  revokedAt: string | null; // When the bonus was revoked
+  originalPaymentTxId: string | null;
+  refundTxId: string | null;
+  revokedAt: string | null;
+  /** For MANUAL_REVOKE: who performed the revoke */
+  revokedByUserId?: number | null;
+  revokedByUserName?: string | null;
+  /** Initiator for any event: who performed the action */
+  initiatedByUserId?: number | null;
+  initiatedByUserName?: string | null;
 }
 
 export interface BonusHistoryResponse {
@@ -40,6 +50,16 @@ export interface BonusBalance {
   totalAccumulated: number;
   totalUsed: number;
   currentBalance: number;
+}
+
+export interface ManualBonusGrantRequest {
+  amount: number;
+  reason?: string;
+}
+
+export interface ManualBonusRevokeRequest {
+  amount: number;
+  reason?: string;
 }
 
 @Injectable({
@@ -65,5 +85,19 @@ export class BonusesService {
    */
   getClientBonusBalance(clientId: string): Observable<BonusBalance> {
     return this.http.get<BonusBalance>(`${this.apiUrl}/client/${clientId}/balance`);
+  }
+
+  /**
+   * Manually grant bonus to a client
+   */
+  grantBonus(clientId: string, request: ManualBonusGrantRequest): Observable<BonusBalance> {
+    return this.http.post<BonusBalance>(`${this.apiUrl}/client/${clientId}/grant`, request);
+  }
+
+  /**
+   * Manually revoke bonus from a client
+   */
+  revokeBonus(clientId: string, request: ManualBonusRevokeRequest): Observable<BonusBalance> {
+    return this.http.post<BonusBalance>(`${this.apiUrl}/client/${clientId}/revoke`, request);
   }
 }

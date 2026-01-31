@@ -10,6 +10,7 @@ import { MessagesService } from '../../../core/services/messages.service';
 import { BonusTypesService } from '../../../core/services/bonus-types.service';
 import { BonusTypeResponse } from '../../../core/models/bonus-type.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { PhoneFormatPipe } from '../../pipes/phone-format.pipe';
 
 interface CreatedClient {
   id: string;
@@ -29,7 +30,8 @@ type ModalStep = 'form' | 'notify';
     CommonModule,
     FormsModule,
     ModalComponent,
-    ButtonComponent
+    ButtonComponent,
+    PhoneFormatPipe
   ],
   template: `
     <app-modal
@@ -57,7 +59,9 @@ type ModalStep = 'form' | 'notify';
             type="tel"
             class="form-input"
             [(ngModel)]="clientPhone"
-            placeholder="8 900 000 00 00">
+            placeholder="+7 (___) ___-__-__"
+            (blur)="normalizePhone()">
+          <div class="input-hint">Пример: +77001234567 или 87001234567</div>
         </div>
 
         <div class="form-group">
@@ -214,7 +218,7 @@ type ModalStep = 'form' | 'notify';
               <svg viewBox="0 0 24 24" fill="none" class="phone-icon">
                 <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              <span class="phone-number">{{ createdClient?.phone }}</span>
+              <span class="phone-number">{{ createdClient?.phone | phoneFormat }}</span>
             </div>
           </div>
 
@@ -876,11 +880,32 @@ export class CreateClientModalComponent implements OnChanges, OnDestroy {
     this.visibleChange.emit(false);
   }
 
+  normalizePhone(): void {
+    if (!this.clientPhone) return;
+    
+    // Remove spaces, dashes, parentheses
+    let phone = this.clientPhone.trim().replace(/[\s\-\(\)]/g, '');
+    
+    // Handle different formats: 8xxx -> +7xxx, 7xxx -> +7xxx
+    if (phone.startsWith('8') && phone.length >= 11) {
+      phone = '+7' + phone.substring(1);
+    } else if (phone.startsWith('7') && !phone.startsWith('+') && phone.length >= 11) {
+      phone = '+' + phone;
+    } else if (!phone.startsWith('+') && phone.length >= 10) {
+      phone = '+' + phone;
+    }
+    
+    this.clientPhone = phone;
+  }
+
   createClient(): void {
     if (!this.clientPhone || !this.clientName) {
       this.toastService.error('Заполните обязательные поля');
       return;
     }
+
+    // Normalize phone before creating
+    this.normalizePhone();
 
     this.isLoading = true;
 
@@ -902,7 +927,7 @@ export class CreateClientModalComponent implements OnChanges, OnDestroy {
     }
 
     const createRequest: CreateClientRequest = {
-      phone: this.clientPhone.trim(),
+      phone: this.clientPhone,
       name: name,
       surname: surname || undefined,
       dateOfBirth: this.clientBirthday || null,

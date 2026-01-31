@@ -12,6 +12,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 
 interface User {
   id: string;
@@ -42,7 +43,7 @@ interface UserPayment {
 @Component({
   selector: 'app-user-profile-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent, NotFoundStateComponent, PaymentViewModalComponent],
+  imports: [CommonModule, RouterModule, BadgeComponent, LoaderComponent, NotFoundStateComponent, PaymentViewModalComponent, PhoneFormatPipe],
   template: `
     <div class="page-wrapper">
       <div class="profile-container-wrapper">
@@ -81,7 +82,7 @@ interface UserPayment {
                 </app-badge>
               </div>
               <p class="profile-email">{{ user.email }}</p>
-              <p class="profile-phone" *ngIf="user.phoneNumber">{{ user.phoneNumber }}</p>
+              <p class="profile-phone" *ngIf="user.phoneNumber">{{ user.phoneNumber | phoneFormat }}</p>
               <div class="role-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

@@ -13,6 +13,7 @@ import { LoaderComponent } from '../../../../shared/components/loader/loader.com
 import { ToastService } from '../../../../core/services/toast.service';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
+import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 import { Subject, takeUntil } from 'rxjs';
 
 interface UserPayment {
@@ -34,7 +35,7 @@ interface UserPayment {
 @Component({
   selector: 'app-account-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, LoaderComponent, PaymentViewModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, IconButtonComponent, LoaderComponent, PaymentViewModalComponent, PhoneFormatPipe],
   template: `
     <div class="page-wrapper">
       <div class="profile-container-wrapper">
@@ -64,7 +65,7 @@ interface UserPayment {
                 </app-badge>
               </div>
               <p class="profile-email">{{ profile.email }}</p>
-              <p class="profile-phone" *ngIf="profile.phone">{{ profile.phone }}</p>
+              <p class="profile-phone" *ngIf="profile.phone">{{ profile.phone | phoneFormat }}</p>
               <div class="role-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -127,7 +128,7 @@ interface UserPayment {
             </div>
             <div class="info-row">
               <span class="info-label">Телефон:</span>
-              <span class="info-value" *ngIf="!isEditingPersonal">{{ profile.phone || '—' }}</span>
+              <span class="info-value" *ngIf="!isEditingPersonal">{{ (profile.phone | phoneFormat) || '—' }}</span>
               <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.phone" type="tel" placeholder="Введите телефон">
             </div>
             <div class="info-row">

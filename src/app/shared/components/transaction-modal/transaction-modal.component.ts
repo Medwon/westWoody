@@ -5,7 +5,8 @@ import { timeout, catchError, of } from 'rxjs';
 import { ModalComponent } from '../modal/modal.component';
 import { ButtonComponent } from '../button/button.component';
 import { DialogComponent } from '../dialog/dialog.component';
-import { ClientsService, ClientByPhoneResponse, CreateClientRequest } from '../../../core/services/clients.service';
+import { PhoneFormatPipe } from '../../pipes/phone-format.pipe';
+import { ClientsService, ClientByPhoneResponse, CreateClientRequest, FrequentClientDto } from '../../../core/services/clients.service';
 import { PaymentsService, DraftPaymentResponse } from '../../../core/services/payments.service';
 import { MessageTemplatesService } from '../../../core/services/message-templates.service';
 import { MessagesService } from '../../../core/services/messages.service';
@@ -43,7 +44,8 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
     FormsModule,
     ModalComponent,
     ButtonComponent,
-    DialogComponent
+    DialogComponent,
+    PhoneFormatPipe
   ],
   template: `
     <app-modal
@@ -60,7 +62,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             type="tel"
             class="search-input"
             [(ngModel)]="searchPhone"
-            placeholder="8 900 000 00 00"
+            placeholder="+7 (___) ___-__-__"
             [disabled]="isLoading"
             (keypress)="onSearchKeypress($event)">
           <button class="search-btn" (click)="handleSearch()" [disabled]="isLoading">
@@ -75,10 +77,38 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          Введите номер для поиска или создания клиента
+          Пример: +77001234567 или 87001234567
         </div>
         <div class="loading-indicator" *ngIf="isLoading && currentStep === 'search'">
           <span>Поиск клиента...</span>
+        </div>
+
+        <!-- Frequent Clients Section -->
+        <div class="frequent-clients-section" *ngIf="!isLoading && frequentClients.length > 0">
+          <div class="frequent-clients-divider">
+            <span class="divider-line"></span>
+            <span class="divider-text">Частые клиенты</span>
+            <span class="divider-line"></span>
+          </div>
+          <div class="frequent-clients-list">
+            <div 
+              class="frequent-client-card" 
+              *ngFor="let client of frequentClients"
+              (click)="selectFrequentClient(client)">
+              <div class="frequent-client-avatar">
+                {{ getClientInitials(client) }}
+              </div>
+              <div class="frequent-client-info">
+                <span class="frequent-client-name">{{ client.name }}{{ client.surname ? ' ' + client.surname : '' }}</span>
+                <span class="frequent-client-phone">{{ client.phone | phoneFormat }}</span>
+              </div>
+              <button class="frequent-client-arrow" type="button">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -409,7 +439,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
               <svg viewBox="0 0 24 24" fill="none" class="phone-icon">
                 <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              <span class="phone-number">{{ getPhoneForMessage() }}</span>
+              <span class="phone-number">{{ getPhoneForMessage() | phoneFormat }}</span>
             </div>
           </div>
 
@@ -1412,6 +1442,125 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       border-radius: 8px;
     }
 
+    /* Frequent Clients Section */
+    .frequent-clients-section {
+      margin-top: 1.5rem;
+      animation: slideDown 0.3s ease;
+    }
+
+    .frequent-clients-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    .divider-text {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .frequent-clients-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .frequent-client-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .frequent-client-card:hover {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      transform: translateX(4px);
+    }
+
+    .frequent-client-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #16A34A 0%, #22c55e 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .frequent-client-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .frequent-client-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #1f2937;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .frequent-client-phone {
+      font-size: 0.85rem;
+      color: #475569;
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+    }
+
+    .frequent-client-arrow {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .frequent-client-arrow svg {
+      width: 20px;
+      height: 20px;
+      color: #94a3b8;
+      transition: all 0.2s ease;
+    }
+
+    .frequent-client-card:hover .frequent-client-arrow {
+      background: #dcfce7;
+    }
+
+    .frequent-client-card:hover .frequent-client-arrow svg {
+      color: #16A34A;
+    }
+
     /* Payment Method Radio Group */
     .payment-method-radio-group {
       display: flex;
@@ -1544,6 +1693,10 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   
   // Welcome bonus amount for new clients
   welcomeBonusAmount: number = 0;
+  
+  // Frequent clients
+  frequentClients: FrequentClientDto[] = [];
+  isLoadingFrequentClients = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
@@ -1551,6 +1704,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       if (changes['visible'].currentValue) {
         this.loadAvailableTags();
         this.loadWelcomeBonusAmount();
+        this.loadFrequentClients();
       }
     }
   }
@@ -1586,6 +1740,38 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
         this.availableTags = [];
       }
     });
+  }
+
+  loadFrequentClients(): void {
+    this.isLoadingFrequentClients = true;
+    this.clientsService.getFrequentClients(5)
+      .pipe(
+        timeout(5000),
+        catchError((err) => {
+          console.warn('Error loading frequent clients:', err);
+          return of([] as FrequentClientDto[]);
+        })
+      )
+      .subscribe({
+        next: (clients) => {
+          this.frequentClients = clients || [];
+          this.isLoadingFrequentClients = false;
+        }
+      });
+  }
+
+  selectFrequentClient(client: FrequentClientDto): void {
+    // Set the phone and trigger search
+    this.searchPhone = client.phone;
+    this.handleSearch();
+  }
+
+  getClientInitials(client: FrequentClientDto): string {
+    const name = client.name || '';
+    const surname = client.surname || '';
+    const firstInitial = name.charAt(0).toUpperCase();
+    const secondInitial = surname ? surname.charAt(0).toUpperCase() : '';
+    return firstInitial + secondInitial || firstInitial;
   }
 
   ngOnDestroy(): void {
@@ -1675,9 +1861,24 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   handleSearch(): void {
-    const cleanPhone = this.searchPhone.trim();
+    if (!this.searchPhone.trim()) {
+      this.toastService.error('Введите номер телефона');
+      return;
+    }
+
+    // Normalize phone number - remove spaces, dashes, parentheses
+    let phone = this.searchPhone.trim().replace(/[\s\-\(\)]/g, '');
     
-    if (cleanPhone.length < 3) {
+    // Handle different formats: 8xxx -> +7xxx, 7xxx -> +7xxx
+    if (phone.startsWith('8') && phone.length >= 11) {
+      phone = '+7' + phone.substring(1);
+    } else if (phone.startsWith('7') && !phone.startsWith('+') && phone.length >= 11) {
+      phone = '+' + phone;
+    } else if (!phone.startsWith('+') && phone.length >= 10) {
+      phone = '+' + phone;
+    }
+    
+    if (phone.length < 10) {
       this.toastService.error('Введите корректный номер телефона');
       return;
     }
@@ -1685,14 +1886,14 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.isLoading = true;
     
     // Search client by phone
-    this.clientsService.getClientByPhone(cleanPhone).subscribe({
+    this.clientsService.getClientByPhone(phone).subscribe({
       next: (response) => {
         // Client found - map to Client interface
         this.foundClient = {
           id: response.clientId,
           name: response.name,
           surname: response.surname || '',
-          phone: cleanPhone,
+          phone: phone,
           balance: response.currentBonusBalance || 0, // Use currentBonusBalance from API
           type: response.clientType === 'BUSINESS' ? 'business' : 'individual', // Use clientType from API
           tags: response.tags || [],
@@ -1706,6 +1907,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       error: (err) => {
         // Client not found (404) - show create client form
         if (err.status === 404) {
+          // Update searchPhone with normalized value for display
+          this.searchPhone = phone;
           this.isLoading = false;
           this.currentStep = 'new';
         } else {
@@ -2276,6 +2479,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.isLoading = false;
     this.showCancelConfirmation = false;
     this.selectedPaymentMethod = 'CASH';
+    // Don't reset frequentClients here - they'll be reloaded when modal opens
   }
 }
 

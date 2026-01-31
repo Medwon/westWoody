@@ -60,7 +60,7 @@ export interface ClientDetails {
 export interface UpdateClientRequest {
   phone?: string;
   name?: string;
-  surname?: string;
+  surname?: string | null;
   dateOfBirth?: string | null;
   notes?: string | null;
   tags?: string[];
@@ -110,6 +110,13 @@ export interface CreateClientResponse {
   dateOfBirth: string | null;
   referrerId: string | null;
   createdAt: string;
+}
+
+export interface FrequentClientDto {
+  clientId: string;
+  phone: string;
+  name: string;
+  surname: string | null;
 }
 
 @Injectable({
@@ -216,5 +223,52 @@ export class ClientsService {
     console.log('Client ID:', clientId);
     console.log('============================');
     return this.http.delete<void>(`${this.apiUrl}/${clientId}`);
+  }
+
+  /**
+   * Get frequent clients (most transactions)
+   */
+  getFrequentClients(limit: number = 5): Observable<FrequentClientDto[]> {
+    return this.http.get<FrequentClientDto[]>(`${this.apiUrl}/frequent?limit=${limit}`);
+  }
+
+  /**
+   * Search client by phone number for bonus management
+   * Returns full client details in a unified format
+   */
+  searchClientByPhone(phoneNumber: string): Observable<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string | null;
+    type: 'individual' | 'business';
+    tags: string[];
+  } | null> {
+    return new Observable(observer => {
+      this.getClientByPhone(phoneNumber).subscribe({
+        next: (response) => {
+          // Convert ClientByPhoneResponse to the expected format
+          observer.next({
+            id: response.clientId,
+            firstName: response.name,
+            lastName: response.surname,
+            phone: phoneNumber,
+            email: null,
+            type: response.clientType === 'BUSINESS' ? 'business' : 'individual',
+            tags: response.tags || []
+          });
+          observer.complete();
+        },
+        error: (err) => {
+          if (err.status === 404) {
+            observer.next(null);
+            observer.complete();
+          } else {
+            observer.error(err);
+          }
+        }
+      });
+    });
   }
 }

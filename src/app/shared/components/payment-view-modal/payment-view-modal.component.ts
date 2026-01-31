@@ -173,6 +173,87 @@ import { ToastService } from '../../../core/services/toast.service';
 
           </div>
         </div>
+
+        <!-- Actions Section -->
+        <div class="actions-section" *ngIf="canShowActions()">
+          <div class="actions-divider"></div>
+          
+          <div class="actions-buttons">
+            <button class="action-btn delete-btn" (click)="toggleDeleteConfirmation()" [disabled]="isDeleting || isRefunding">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Удалить платеж</span>
+            </button>
+            
+            <button class="action-btn refund-btn" (click)="toggleRefundConfirmation()" [disabled]="isDeleting || isRefunding" *ngIf="canRefund()">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M3 10h10a5 5 0 010 10H9M3 10l4-4M3 10l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Возврат платежа</span>
+            </button>
+          </div>
+
+          <!-- Delete Confirmation Area -->
+          <div class="confirmation-area delete-confirmation" *ngIf="showDeleteConfirmation">
+            <div class="confirmation-warning">
+              <svg viewBox="0 0 24 24" fill="none" class="warning-icon">
+                <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <div class="warning-text">
+                <strong>Вы уверены, что хотите удалить этот платеж?</strong>
+                <p *ngIf="isCompletedPayment() && hasGrantedBonuses()">
+                  Бонусные транзакции, начисленные за этот платеж, также будут удалены.
+                </p>
+                <p *ngIf="isRefundPayment()">
+                  Оригинальный платеж и все связанные бонусные транзакции также будут удалены.
+                </p>
+                <p *ngIf="isRefundedPayment()">
+                  Транзакция возврата и все связанные бонусные транзакции также будут удалены.
+                </p>
+                <p>Это действие нельзя отменить.</p>
+              </div>
+            </div>
+            <div class="delete-confirm-input">
+              <label>Введите <strong>удалить</strong> для подтверждения:</label>
+              <input 
+                type="text" 
+                [(ngModel)]="deleteConfirmText" 
+                placeholder="удалить"
+                class="confirm-text-input"
+                (keyup.enter)="confirmDelete()">
+            </div>
+            <div class="confirmation-actions">
+              <button class="confirm-btn danger" (click)="confirmDelete()" [disabled]="isDeleting || !isDeleteConfirmValid()">
+                {{ isDeleting ? 'Удаление...' : 'Удалить' }}
+              </button>
+              <button class="confirm-btn cancel" (click)="cancelDeleteConfirmation()" [disabled]="isDeleting">
+                Отмена
+              </button>
+            </div>
+          </div>
+
+          <!-- Refund Confirmation Area -->
+          <div class="confirmation-area refund-confirmation" *ngIf="showRefundConfirmation">
+            <div class="refund-form">
+              <label class="refund-label">Причина возврата (необязательно)</label>
+              <textarea 
+                class="refund-input"
+                [(ngModel)]="refundNotes"
+                placeholder="Укажите причину возврата..."
+                rows="2"></textarea>
+            </div>
+            <div class="confirmation-actions">
+              <button class="confirm-btn warning" (click)="confirmRefund()" [disabled]="isRefunding">
+                {{ isRefunding ? 'Возврат...' : 'Подтвердить возврат' }}
+              </button>
+              <button class="confirm-btn cancel" (click)="showRefundConfirmation = false" [disabled]="isRefunding">
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="loading-state" *ngIf="isLoading">
@@ -385,13 +466,13 @@ import { ToastService } from '../../../core/services/toast.service';
     .edit-method-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 6px;
       color: #64748b;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
@@ -404,8 +485,8 @@ import { ToastService } from '../../../core/services/toast.service';
     }
 
     .edit-method-btn svg {
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
     }
 
     .method-selector {
@@ -521,6 +602,249 @@ import { ToastService } from '../../../core/services/toast.service';
       to { transform: rotate(360deg); }
     }
 
+    /* Actions Section */
+    .actions-section {
+      margin-top: 1rem;
+      padding: 0 1.5rem 1.5rem;
+    }
+
+    .actions-divider {
+      height: 2px;
+      background: #f1f5f9;
+      margin-bottom: 1.5rem;
+    }
+
+    .actions-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1.5px solid transparent;
+    }
+
+    .action-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-btn.delete-btn {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+
+    .action-btn.delete-btn:hover:not(:disabled) {
+      background: #fee2e2;
+      border-color: #f87171;
+    }
+
+    .action-btn.refund-btn {
+      background: #fefce8;
+      color: #ca8a04;
+      border-color: #fef08a;
+    }
+
+    .action-btn.refund-btn:hover:not(:disabled) {
+      background: #fef9c3;
+      border-color: #facc15;
+    }
+
+    /* Confirmation Areas */
+    .confirmation-area {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      border-radius: 12px;
+      animation: slideDown 0.2s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .delete-confirmation {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .refund-confirmation {
+      background: #fefce8;
+      border: 1px solid #fef08a;
+    }
+
+    .confirmation-warning {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .warning-icon {
+      width: 24px;
+      height: 24px;
+      color: #dc2626;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .refund-confirmation .warning-icon {
+      color: #ca8a04;
+    }
+
+    .warning-text {
+      flex: 1;
+    }
+
+    .warning-text strong {
+      display: block;
+      color: #991b1b;
+      margin-bottom: 0.5rem;
+    }
+
+    .refund-confirmation .warning-text strong {
+      color: #854d0e;
+    }
+
+    .warning-text p {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.875rem;
+      color: #b91c1c;
+    }
+
+    .refund-confirmation .warning-text p {
+      color: #a16207;
+    }
+
+    .delete-confirm-input {
+      margin-bottom: 1rem;
+    }
+
+    .delete-confirm-input label {
+      display: block;
+      font-size: 0.875rem;
+      color: #991b1b;
+      margin-bottom: 0.5rem;
+    }
+
+    .delete-confirm-input label strong {
+      font-weight: 700;
+      color: #7f1d1d;
+    }
+
+    .confirm-text-input {
+      width: 100%;
+      padding: 0.625rem 0.75rem;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      background: white;
+    }
+
+    .confirm-text-input:focus {
+      outline: none;
+      border-color: #f87171;
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+    }
+
+    .refund-form {
+      margin-bottom: 1.25rem;
+    }
+
+    .refund-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #854d0e;
+      margin-bottom: 0.5rem;
+    }
+
+    .refund-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #fef08a;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      resize: vertical;
+      background: white;
+    }
+
+    .refund-input:focus {
+      outline: none;
+      border-color: #facc15;
+      box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2);
+    }
+
+    .confirmation-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .confirm-btn {
+      padding: 0.625rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .confirm-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .confirm-btn.danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .confirm-btn.danger:hover:not(:disabled) {
+      background: #b91c1c;
+    }
+
+    .confirm-btn.warning {
+      background: #ca8a04;
+      color: white;
+    }
+
+    .confirm-btn.warning:hover:not(:disabled) {
+      background: #a16207;
+    }
+
+    .confirm-btn.cancel {
+      background: white;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .confirm-btn.cancel:hover:not(:disabled) {
+      background: #f8fafc;
+    }
+
     @media (max-width: 768px) {
       .payment-info-grid {
         grid-template-columns: 1fr;
@@ -532,6 +856,27 @@ import { ToastService } from '../../../core/services/toast.service';
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+      }
+
+      .actions-section {
+        padding: 0 1rem 1rem;
+      }
+
+      .actions-buttons {
+        flex-direction: column;
+      }
+
+      .action-btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .confirmation-actions {
+        flex-direction: column;
+      }
+
+      .confirm-btn {
+        width: 100%;
       }
     }
   `]
@@ -545,6 +890,7 @@ export class PaymentViewModalComponent implements OnInit, OnChanges {
   @Input() paymentSearchResult: PaymentSearchResult | null = null; // Optional: if we already have search result data
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() paymentUpdated = new EventEmitter<void>();
+  @Output() paymentDeleted = new EventEmitter<string>();
   @Output() refundedPaymentClick = new EventEmitter<string>();
 
   paymentData: PaymentTransactionDto | null = null;
@@ -553,6 +899,14 @@ export class PaymentViewModalComponent implements OnInit, OnChanges {
   isEditingPaymentMethod = false;
   selectedPaymentMethod: 'CASH' | 'CARD' | 'TRANSFER' = 'CASH';
   isSaving = false;
+
+  // Delete/Refund actions
+  showDeleteConfirmation = false;
+  showRefundConfirmation = false;
+  isDeleting = false;
+  isRefunding = false;
+  refundNotes = '';
+  deleteConfirmText = '';
 
   ngOnInit(): void {
     if (this.paymentSearchResult) {
@@ -644,6 +998,107 @@ export class PaymentViewModalComponent implements OnInit, OnChanges {
     this.visible = false;
     this.visibleChange.emit(false);
     this.isEditingPaymentMethod = false;
+    this.showDeleteConfirmation = false;
+    this.showRefundConfirmation = false;
+    this.refundNotes = '';
+    this.deleteConfirmText = '';
+  }
+
+  // Actions logic
+  canShowActions(): boolean {
+    if (!this.paymentData) return false;
+    // Show actions for all payments (COMPLETED, REFUND, REFUNDED)
+    return true;
+  }
+
+  isRefundedPayment(): boolean {
+    if (!this.paymentData) return false;
+    return this.paymentData.status?.toUpperCase() === 'REFUNDED';
+  }
+
+  canRefund(): boolean {
+    if (!this.paymentData) return false;
+    // Can only refund completed payments (not refund transactions or already refunded)
+    return this.isCompletedPayment();
+  }
+
+  isCompletedPayment(): boolean {
+    if (!this.paymentData) return false;
+    return this.paymentData.status?.toUpperCase() === 'COMPLETED';
+  }
+
+  isRefundPayment(): boolean {
+    if (!this.paymentData) return false;
+    return this.paymentData.status?.toUpperCase() === 'REFUND';
+  }
+
+  hasGrantedBonuses(): boolean {
+    if (!this.bonusInfo) return false;
+    return this.bonusInfo.bonusGranted > 0;
+  }
+
+  toggleDeleteConfirmation(): void {
+    this.showDeleteConfirmation = !this.showDeleteConfirmation;
+    this.showRefundConfirmation = false;
+    if (!this.showDeleteConfirmation) {
+      this.deleteConfirmText = '';
+    }
+  }
+
+  cancelDeleteConfirmation(): void {
+    this.showDeleteConfirmation = false;
+    this.deleteConfirmText = '';
+  }
+
+  isDeleteConfirmValid(): boolean {
+    return this.deleteConfirmText.toLowerCase().trim() === 'удалить';
+  }
+
+  toggleRefundConfirmation(): void {
+    this.showRefundConfirmation = !this.showRefundConfirmation;
+    this.showDeleteConfirmation = false;
+  }
+
+  confirmDelete(): void {
+    if (!this.paymentData?.txId || !this.isDeleteConfirmValid()) return;
+
+    this.isDeleting = true;
+    this.paymentsService.deletePayment(this.paymentData.txId).subscribe({
+      next: () => {
+        this.toastService.success('Платеж успешно удален');
+        this.paymentDeleted.emit(this.paymentData!.txId);
+        this.isDeleting = false;
+        this.deleteConfirmText = '';
+        this.onClose();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при удалении платежа';
+        this.toastService.error(errorMessage);
+        this.isDeleting = false;
+      }
+    });
+  }
+
+  confirmRefund(): void {
+    if (!this.paymentData?.txId) return;
+
+    this.isRefunding = true;
+    this.paymentsService.refundPayment(this.paymentData.txId, { notes: this.refundNotes }).subscribe({
+      next: () => {
+        this.toastService.success('Платеж успешно возвращен');
+        this.paymentUpdated.emit();
+        this.isRefunding = false;
+        this.showRefundConfirmation = false;
+        this.refundNotes = '';
+        // Reload payment data to show updated status
+        this.loadPayment();
+      },
+      error: (err) => {
+        const errorMessage = err.error?.message || 'Ошибка при возврате платежа';
+        this.toastService.error(errorMessage);
+        this.isRefunding = false;
+      }
+    });
   }
 
   formatAmount(amount: number): string {

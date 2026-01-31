@@ -15,6 +15,7 @@ import { ModalComponent } from '../../../../shared/components/modal/modal.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 
 interface User {
   id: string;
@@ -39,7 +40,8 @@ interface User {
     ModalComponent,
     ButtonComponent,
     PaginatedTableWrapperComponent,
-    LoaderComponent
+    LoaderComponent,
+    PhoneFormatPipe
   ],
   template: `
     <div class="page-wrapper">
