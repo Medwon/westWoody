@@ -1588,10 +1588,19 @@ export class ClientsPageComponent implements OnInit {
     }
   }
 
+  normalizePhoneNumber(phoneNumber: String) {
+    phoneNumber.trim().replace(/[\s\-\(\)]/g, '');
+    if (phoneNumber.startsWith('8')) {
+      phoneNumber = '+7' + phoneNumber.substring(1);
+    } else if (!phoneNumber.startsWith('+')) {
+      phoneNumber = '+' + phoneNumber;
+    }
+  }
+
   buildSearchRequest() {
     const request: any = {
       name: this.searchName.trim() || '',
-      phone: this.searchPhone.trim() || '',
+      phone: this.normalizePhoneNumber(this.searchPhone),
       email: this.searchEmail.trim() || '',
       lastVisitFrom: this.dateFrom ? `${this.dateFrom}T00:00:00` : null,
       lastVisitTo: this.dateTo ? `${this.dateTo}T23:59:59` : null,
