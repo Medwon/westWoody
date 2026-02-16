@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { AnalyticsService } from '../../../../core/services/analytics.service';
@@ -38,6 +38,11 @@ interface Payment {
 
 type SortField = 'clientName' | 'amount' | 'date' | 'paymentMethod';
 type SortDirection = 'asc' | 'desc';
+
+function clampPaymentPageSize(size: number): number {
+  const valid = [15, 30, 50, 100];
+  return valid.includes(size) ? size : 15;
+}
 
 @Component({
   selector: 'app-payments-page',
@@ -129,7 +134,8 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
                 <input 
                   type="text" 
-                  [(ngModel)]="searchPaymentId" 
+                  [(ngModel)]="searchPaymentId"
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по ID платежа..."
                   class="filter-input">
               </div>
@@ -145,6 +151,7 @@ type SortDirection = 'asc' | 'desc';
                 <input 
                   type="text" 
                   [(ngModel)]="searchClientName" 
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по клиенту..."
                   class="filter-input">
               </div>
@@ -158,7 +165,8 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
                 <input 
                   type="text" 
-                  [(ngModel)]="searchPhone" 
+                  [(ngModel)]="searchPhone"
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по телефону..."
                   class="filter-input">
               </div>
@@ -1307,6 +1315,7 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   private toastService = inject(ToastService);
   private transactionModalService = inject(TransactionModalService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private destroy$ = new Subject<void>();
 
   // Dashboard data
@@ -1351,15 +1360,33 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
       { label: 'Главная', route: '/home' },
       { label: 'Платежи' }
     ]);
-    
+
+    // Initial pagination from URL
+    const params = this.route.snapshot.queryParams;
+    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
+    const sizeFromUrl = clampPaymentPageSize(+(params['size'] ?? 0) || 15);
+    this.currentPage = pageFromUrl - 1;
+    this.pageSize = sizeFromUrl;
+
     this.loadDashboardData();
     this.loadPayments();
+
+    // React to query param changes (browser back/forward or programmatic navigate)
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const p = Math.max(1, +(params['page'] ?? 1) || 1);
+      const s = clampPaymentPageSize(+(params['size'] ?? 0) || 15);
+      const pageIndex = p - 1;
+      if (this.currentPage !== pageIndex || this.pageSize !== s) {
+        this.currentPage = pageIndex;
+        this.pageSize = s;
+        this.loadPayments();
+      }
+    });
 
     // Subscribe to transaction completion events
     this.transactionModalService.transactionComplete$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        // Reload payments and dashboard when on /payments route
         const currentUrl = this.router.url;
         if (currentUrl === '/payments' || currentUrl.startsWith('/payments')) {
           this.loadDashboardData();
@@ -1533,14 +1560,23 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
-    this.currentPage = 0; // Reset to first page when filters change
+    this.currentPage = 0;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     this.loadPayments();
   }
 
   onPageChange(page: number): void {
-    this.currentPage = page - 1; // Pagination component uses 1-based, API uses 0-based
-    this.loadPayments();
-    // Scroll to top of table
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     const tableContainer = document.querySelector('.table-container');
     if (tableContainer) {
       tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1548,8 +1584,12 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   }
 
   onPageSizeChange(): void {
-    this.currentPage = 0; // Reset to first page when changing page size
-    this.loadPayments();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   getTotalPages(): number {
@@ -1581,6 +1621,12 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
     this.sortField = 'date';
     this.sortDirection = 'desc';
     this.currentPage = 0;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     this.loadPayments();
   }
 

@@ -15,6 +15,7 @@ import { ToastComponent } from '../toast/toast.component';
         [message]="toast.message"
         [type]="toast.type"
         [duration]="toast.duration"
+        [action]="toast.action"
         (closed)="removeToast(toast.id)">
       </app-toast>
     </div>

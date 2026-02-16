@@ -3,11 +3,17 @@ import { BehaviorSubject, Observable } from 'rxjs';
 
 export type ToastType = 'success' | 'error';
 
+export interface ToastAction {
+  label: string;
+  callback: () => void;
+}
+
 export interface Toast {
   id: string;
   message: string;
   type: ToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 @Injectable({
@@ -37,6 +43,26 @@ export class ToastService {
 
   error(message: string, duration: number = this.defaultDuration): void {
     this.show(message, 'error', duration);
+  }
+
+  /**
+   * Show a toast with an optional action button (e.g. "Undo").
+   */
+  showWithAction(
+    message: string,
+    action: ToastAction,
+    type: ToastType = 'success',
+    duration: number = this.defaultDuration
+  ): void {
+    const toast: Toast = {
+      id: this.generateId(),
+      message,
+      type,
+      duration,
+      action
+    };
+    const currentToasts = this.toastsSubject.value;
+    this.toastsSubject.next([...currentToasts, toast]);
   }
 
   remove(id: string): void {

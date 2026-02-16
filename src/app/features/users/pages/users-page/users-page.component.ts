@@ -40,8 +40,7 @@ interface User {
     ModalComponent,
     ButtonComponent,
     PaginatedTableWrapperComponent,
-    LoaderComponent,
-    PhoneFormatPipe
+    LoaderComponent
   ],
   template: `
     <div class="page-wrapper">
@@ -252,7 +251,7 @@ interface User {
           <input
             type="tel"
             formControlName="phoneNumber"
-            placeholder="+7 (777) 123-45-67"
+            placeholder="+7 (___) ___-__-__"
             class="form-input"
             [class.error]="addUserForm.get('phoneNumber')?.invalid && addUserForm.get('phoneNumber')?.touched">
           <span *ngIf="addUserForm.get('phoneNumber')?.invalid && addUserForm.get('phoneNumber')?.touched" class="error-message">

@@ -97,7 +97,8 @@ export class MessageTemplatesService {
   getPopulatedTemplate(
     type: string,
     clientId: string,
-    paymentTxId?: string
+    paymentTxId?: string,
+    expiryDate?: string // YYYY-MM-DD for BONUS_EXPIRY (resolve vars for that date)
   ): Observable<{ id: number; name: string; type: string; populatedContent: string }> {
     let params = new HttpParams()
       .set('type', type)
@@ -105,6 +106,9 @@ export class MessageTemplatesService {
     
     if (paymentTxId) {
       params = params.set('paymentTxId', paymentTxId);
+    }
+    if (expiryDate) {
+      params = params.set('expiryDate', expiryDate);
     }
     
     return this.http.get<{ id: number; name: string; type: string; populatedContent: string }>(`${this.apiUrl}/populated`, { params });

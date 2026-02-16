@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { timeout, catchError, of } from 'rxjs';
+import { timeout, catchError, of, take } from 'rxjs';
 import { ModalComponent } from '../modal/modal.component';
 import { ButtonComponent } from '../button/button.component';
 import { DialogComponent } from '../dialog/dialog.component';
@@ -13,6 +13,7 @@ import { MessagesService } from '../../../core/services/messages.service';
 import { BonusTypesService } from '../../../core/services/bonus-types.service';
 import { BonusTypeResponse } from '../../../core/models/bonus-type.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { TransactionModalService } from '../../../core/services/transaction-modal.service';
 
 interface Client {
   id: string;
@@ -1647,6 +1648,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   private messagesService = inject(MessagesService);
   private bonusTypesService = inject(BonusTypesService);
   private toastService = inject(ToastService);
+  private transactionModalService = inject(TransactionModalService);
 
   @Input() visible = false;
   @Input() welcomeMessageTemplates: any[] = []; // Шаблоны приветственных сообщений
@@ -1705,6 +1707,17 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
         this.loadAvailableTags();
         this.loadWelcomeBonusAmount();
         this.loadFrequentClients();
+        // Check if initial phone is provided
+        this.transactionModalService.initialPhone$.pipe(take(1)).subscribe(phone => {
+          if (phone) {
+            this.searchPhone = phone;
+            // Auto-search if phone is provided
+            setTimeout(() => this.handleSearch(), 100);
+          } else {
+            this.searchPhone = '';
+            this.currentStep = 'search';
+          }
+        });
       }
     }
   }

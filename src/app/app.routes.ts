@@ -24,6 +24,11 @@ export const routes: Routes = [
         title: 'Home'
       },
       {
+        path: 'bonus-expiring',
+        loadComponent: () => import('./features/bonus-expiring/pages/bonus-expiring-page/bonus-expiring-page.component').then(m => m.BonusExpiringPageComponent),
+        title: 'Bonus Expiring'
+      },
+      {
         path: 'communications',
         title: 'Communications',
         children: [
@@ -45,8 +50,33 @@ export const routes: Routes = [
       },
       {
         path: 'bonus-program',
-        loadComponent: () => import('./features/bonus-program/pages/bonus-program-page/bonus-program-page.component').then(m => m.BonusProgramPageComponent),
-        title: 'Bonus Program'
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/bonus-program/pages/bonus-program-page/bonus-program-page.component').then(m => m.BonusProgramPageComponent),
+            title: 'Reward Programs'
+          },
+          {
+            path: 'programs',
+            loadComponent: () => import('./features/bonus-program/pages/program-types-page/program-types-page.component').then(m => m.ProgramTypesPageComponent),
+            title: 'Create Program'
+          },
+          {
+            path: 'create/:uuid',
+            loadComponent: () => import('./features/bonus-program/pages/create-program-wizard/create-program-wizard.component').then(m => m.CreateProgramWizardComponent),
+            title: 'Create Program'
+          },
+          {
+            path: 'create/:type/:uuid',
+            loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),
+            title: 'Create Reward Program'
+          },
+          {
+            path: 'configure/:type/:uuid',
+            loadComponent: () => import('./features/bonus-program/pages/reward-program-configure-page/reward-program-configure-page.component').then(m => m.RewardProgramConfigurePageComponent),
+            title: 'Configure Reward Program'
+          }
+        ]
       },
       {
         path: 'bonus-management',
@@ -60,6 +90,11 @@ export const routes: Routes = [
       },
       {
         path: 'clients/:id',
+        loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent),
+        title: 'Client'
+      },
+      {
+        path: 'clients/:id/:section',
         loadComponent: () => import('./features/profile/pages/profile-page/profile-page.component').then(m => m.ProfilePageComponent),
         title: 'Client'
       },

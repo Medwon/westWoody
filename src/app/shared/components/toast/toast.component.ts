@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconButtonComponent } from '../icon-button/icon-button.component';
-import { ToastType } from '../../../core/services/toast.service';
+import { ToastType, ToastAction } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-toast',
@@ -21,6 +21,7 @@ import { ToastType } from '../../../core/services/toast.service';
           </svg>
         </div>
         <div class="toast-message">{{ message }}</div>
+        <button *ngIf="action" type="button" class="toast-action-btn" (click)="onAction()">{{ action.label }}</button>
         <app-icon-button
           iconButtonType="ghost"
           size="small"
@@ -104,6 +105,24 @@ import { ToastType } from '../../../core/services/toast.service';
       font-weight: 500;
     }
 
+    .toast-action-btn {
+      flex-shrink: 0;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #16A34A;
+      background: transparent;
+      border: 1px solid #16A34A;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .toast-action-btn:hover {
+      background: #16A34A;
+      color: white;
+    }
+
     :host ::ng-deep app-icon-button {
       flex-shrink: 0;
     }
@@ -119,6 +138,7 @@ export class ToastComponent implements OnInit, OnDestroy {
   @Input() message = '';
   @Input() type: ToastType = 'success';
   @Input() duration = 3000;
+  @Input() action?: ToastAction;
 
   @Output() closed = new EventEmitter<void>();
 
@@ -147,6 +167,11 @@ export class ToastComponent implements OnInit, OnDestroy {
   }
 
   onClose(): void {
+    this.close();
+  }
+
+  onAction(): void {
+    this.action?.callback();
     this.close();
   }
 

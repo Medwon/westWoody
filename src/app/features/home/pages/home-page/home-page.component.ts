@@ -9,6 +9,7 @@ import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
 import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { BonusesService, BonusesExpiringSoon } from '../../../../core/services/bonuses.service';
 import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -68,6 +69,26 @@ interface RecentPayment {
           </svg>
           <span class="create-label">Новая транзакция</span>
         </app-button>
+      </div>
+
+      <!-- Bonuses expiring soon card (only when there are expiring bonuses) -->
+      <div class="expiring-bonuses-card" *ngIf="expiringSoon && expiringSoon.clientCount > 0">
+        <div class="expiring-bonuses-content">
+          <div class="expiring-bonuses-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div class="expiring-bonuses-stats">
+            <span class="expiring-bonuses-label">Бонусы истекают в ближайшие 7 дней</span>
+            <span class="expiring-bonuses-value">{{ expiringSoon.clientCount }} {{ expiringSoon.clientCount === 1 ? 'клиент' : expiringSoon.clientCount < 5 ? 'клиента' : 'клиентов' }} · {{ formatAmount(expiringSoon.totalAmount) }} ₸</span>
+          </div>
+          <a routerLink="/bonus-expiring" class="expiring-bonuses-link" title="Перейти к списку">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
       </div>
 
       <!-- KPI Cards -->
@@ -464,6 +485,79 @@ interface RecentPayment {
     .new-transaction-btn .btn-icon {
       width: 18px;
       height: 18px;
+    }
+
+    /* Expiring bonuses card */
+    .expiring-bonuses-card {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #fcd34d;
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .expiring-bonuses-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .expiring-bonuses-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(217, 119, 6, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .expiring-bonuses-icon svg {
+      width: 24px;
+      height: 24px;
+      color: #d97706;
+    }
+
+    .expiring-bonuses-stats {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .expiring-bonuses-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #92400e;
+    }
+
+    .expiring-bonuses-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #78350f;
+    }
+
+    .expiring-bonuses-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(217, 119, 6, 0.2);
+      color: #b45309;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .expiring-bonuses-link:hover {
+      background: rgba(217, 119, 6, 0.3);
+      color: #92400e;
+    }
+
+    .expiring-bonuses-link svg {
+      width: 20px;
+      height: 20px;
     }
 
     /* KPI Cards */
@@ -1198,6 +1292,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   transactionModalService = inject(TransactionModalService);
   private analyticsService = inject(AnalyticsService);
+  private bonusesService = inject(BonusesService);
   private paymentsService = inject(PaymentsService);
   private toastService = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
@@ -1223,6 +1318,9 @@ export class HomePageComponent implements OnInit, OnDestroy {
   // KPI Cards Data (initialized empty, filled from real analytics API to avoid mock flicker)
   kpiCards: KpiCard[] = [];
 
+  // Bonuses expiring soon (for home card; null until loaded)
+  expiringSoon: BonusesExpiringSoon | null = null;
+
   // Recent Payments Data
   recentPayments: RecentPayment[] = [];
 
@@ -1240,6 +1338,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.loadAnalyticsData();
     this.loadChartData();
     this.loadRecentPayments();
+    this.loadExpiringBonuses();
 
     // Subscribe to transaction completion events
     this.transactionModalService.transactionComplete$
@@ -1251,6 +1350,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
           this.loadAnalyticsData();
           this.loadChartData();
           this.loadRecentPayments();
+          this.loadExpiringBonuses();
         }
       });
   }
@@ -1332,6 +1432,20 @@ export class HomePageComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading analytics data:', error);
         this.isLoading = false;
+      }
+    });
+  }
+
+  loadExpiringBonuses(): void {
+    this.bonusesService.getBonusesExpiringSoon().pipe(
+      catchError((err) => {
+        console.error('Error loading expiring bonuses:', err);
+        return of({ clientCount: 0, totalAmount: 0, clients: [] });
+      })
+    ).subscribe({
+      next: (data) => {
+        this.expiringSoon = data.clientCount > 0 ? data : null;
+        this.cdr.markForCheck();
       }
     });
   }

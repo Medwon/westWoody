@@ -17,9 +17,11 @@ import { RefundConfirmationModalComponent, Payment } from '../../../../shared/co
 import { PaginatedTableWrapperComponent } from '../../../../shared/components/paginated-table-wrapper/paginated-table-wrapper.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NotFoundStateComponent } from '../../../../shared/components/not-found-state/not-found-state.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { AdjustBonusModalComponent } from '../../../../shared/components/adjust-bonus-modal/adjust-bonus-modal.component';
+import { InlineTagsComponent, TagsChangeEvent } from '../../../../shared/components/inline-tags/inline-tags.component';
+import { SplitButtonComponent, SplitButtonItem } from '../../../../shared/components/split-button/split-button.component';
 import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 
 interface Client {
@@ -52,7 +54,7 @@ interface PaymentItem {
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, ButtonComponent, NotFoundStateComponent, PaymentViewModalComponent, PhoneFormatPipe],
+  imports: [CommonModule, FormsModule, BadgeComponent, IconButtonComponent, RefundConfirmationModalComponent, RouterModule, PaginatedTableWrapperComponent, LoaderComponent, NotFoundStateComponent, PaymentViewModalComponent, AdjustBonusModalComponent, InlineTagsComponent, SplitButtonComponent, PhoneFormatPipe],
   template: `
     <div class="page-wrapper">
       <div class="profile-container-wrapper">
@@ -61,740 +63,656 @@ interface PaymentItem {
           <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
         </div>
 
-      <!-- Not Found State -->
-      <app-not-found-state
-        *ngIf="!isLoading && clientNotFound"
-        title="Клиент не найден"
-        description="К сожалению, запрашиваемый клиент не существует или был удален."
-        backLink="/clients"
-        backText="Вернуться к клиентам">
-      </app-not-found-state>
+        <!-- Not Found State -->
+        <app-not-found-state
+          *ngIf="!isLoading && clientNotFound"
+          title="Клиент не найден"
+          description="К сожалению, запрашиваемый клиент не существует или был удален."
+          backLink="/clients"
+          backText="Вернуться к клиентам">
+        </app-not-found-state>
 
-        <div class="profile-container" *ngIf="client && !isLoading && !clientNotFound">
-        
-        <!-- Profile Header Card -->
-        <div class="profile-header-card">
-          <!-- Delete Button -->
-          <button class="delete-client-btn" (click)="openDeleteModal()" title="Удалить клиента">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <div class="profile-header-content">
-            <div class="avatar-wrapper">
-              <div class="avatar-large">
-                {{ getInitials() }}
-              </div>
-            </div>
-            <div class="profile-main-info">
-              <div class="name-row">
-                <h1 class="profile-name">{{ getFullName() }}</h1>
-                <span class="client-type-badge" [class.business]="client.type === 'business'">
-                  <svg *ngIf="client.type === 'business'" viewBox="0 0 24 24" fill="none">
-                    <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" stroke-width="1.5"/>
-                  </svg>
-                  <svg *ngIf="client.type === 'individual'" viewBox="0 0 24 24" fill="none">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
-                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
-                  </svg>
-                  {{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}
-                </span>
-              </div>
-              <p class="profile-phone">{{ client.phone | phoneFormat }}</p>
-              <div class="tags-row">
-                <div class="tags-container">
-                  <span class="client-tag" *ngFor="let tag of client.tags; let i = index">
-                    {{ tag }}
-                    <button class="remove-tag-btn" *ngIf="isEditingTags" (click)="removeTag(i)">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </span>
-                  <div class="add-tag-wrapper" *ngIf="isEditingTags">
-                    <input 
-                      type="text" 
-                      [(ngModel)]="newTagInput" 
-                      (keydown.enter)="addTag()"
-                      (focus)="showTagsDropdown = true"
-                      placeholder="Новый тэг..."
-                      class="add-tag-input">
-                    <button class="add-tag-confirm-btn" (click)="addTag()" *ngIf="newTagInput.trim()">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12l5 5L20 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <!-- Tags Dropdown -->
-                <div class="tags-dropdown" *ngIf="isEditingTags && showTagsDropdown && availableTags.length > 0">
-                  <div class="tags-dropdown-header">
-                    <span>Популярные тэги</span>
-                    <button type="button" class="tags-dropdown-close" (click)="showTagsDropdown = false">×</button>
-                  </div>
-                  <div class="tags-dropdown-list">
-                    <button 
-                      type="button"
-                      class="tag-option" 
-                      *ngFor="let tag of getFilteredTags()"
-                      (click)="addTagFromDropdown(tag)">
-                      {{ tag }}
-                    </button>
-                    <div class="tags-dropdown-empty" *ngIf="getFilteredTags().length === 0 && availableTags.length > 0">
-                      Все популярные теги уже добавлены
-                    </div>
-                  </div>
-                </div>
-                <button class="edit-tags-btn" *ngIf="!isEditingTags" (click)="startEditTags()">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
-                <div class="tags-actions" *ngIf="isEditingTags">
-                  <button class="save-tags-btn" (click)="saveTags()" [disabled]="isSavingTags">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12l5 5L20 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button class="cancel-tags-btn" (click)="cancelEditTags()" [disabled]="isSavingTags">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="profile-layout" *ngIf="client && !isLoading && !clientNotFound">
+          <!-- Sidebar -->
+          <div class="profile-sidebar">
+            <!-- Back Button -->
+            <a [routerLink]="['/clients']" class="back-link">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Клиенты</span>
+            </a>
 
-        <!-- Comment Card -->
-        <div class="comment-card">
-          <div class="comment-header">
-            <div class="comment-title">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Client Type Badge -->
+            <div class="client-type-badge-sidebar" [class.business]="client.type === 'business'">
+              <svg *ngIf="client.type === 'business'" viewBox="0 0 24 24" fill="none">
+                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              <span>Комментарий о клиенте</span>
-            </div>
-            <button class="edit-comment-btn" *ngIf="!isEditingComment" (click)="startEditComment()">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg *ngIf="client.type === 'individual'" viewBox="0 0 24 24" fill="none">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-            </button>
-            <div class="comment-actions" *ngIf="isEditingComment">
-              <button class="save-btn" (click)="saveComment()" [disabled]="isSavingComment">Сохранить</button>
-              <button class="cancel-btn" (click)="cancelEditComment()" [disabled]="isSavingComment">Отмена</button>
+              {{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}
             </div>
-          </div>
-          <div class="comment-body">
-            <p *ngIf="!isEditingComment" class="comment-text">{{ client.comment || 'Нет комментария' }}</p>
-            <textarea 
-              *ngIf="isEditingComment" 
-              [(ngModel)]="editedComment" 
-              class="comment-textarea"
-              placeholder="Введите комментарий о клиенте..."
-              rows="3"></textarea>
-          </div>
-        </div>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon transactions">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ clientTotals.totalPayments }}</span>
-              <span class="stat-label">Транзакций</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon total-sum">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatAmount(clientTotals.totalRevenue) }} ₸</span>
-              <span class="stat-label">Общая сумма</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon bonuses-earned">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesGranted) }}</span>
-              <span class="stat-label">Бонусов начислено</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon bonuses-used">
-              <svg viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesUsed) }}</span>
-              <span class="stat-label">Бонусов использовано</span>
-            </div>
-          </div>
-        </div>
+            <!-- Client Name -->
+            <h1 class="client-name-sidebar">{{ getFullName() }}</h1>
+            <p class="client-phone-sidebar">{{ client.phone | phoneFormat }}</p>
 
-        <!-- Profile Details -->
-        <div class="details-grid">
-          <!-- Personal Info Card -->
-          <div class="details-card">
-            <div class="card-header">
-              <div class="card-header-left">
-                <div class="card-icon">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <h3 class="card-title">Личные данные</h3>
-              </div>
-              <button class="card-edit-btn" *ngIf="!isEditingPersonal" (click)="startEditPersonal()">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Tags (inline, auto-save) -->
+            <div class="tags-section-sidebar">
+              <app-inline-tags
+                [tags]="client.tags"
+                [availableTags]="availableTags"
+                label="Теги"
+                (tagsChange)="onInlineTagsChange($event)">
+              </app-inline-tags>
+            </div>
+
+            <!-- Primary client actions (split button) -->
+            <div class="split-button-wrap">
+              <app-split-button
+                mainLabel="Создать платеж"
+                [items]="splitButtonItems"
+                (mainClick)="openCreatePayment()"
+                (itemSelect)="onSplitButtonItemSelect($event)">
+                <svg mainIcon viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-              </button>
-              <div class="card-actions" *ngIf="isEditingPersonal">
-                <button class="save-btn" (click)="savePersonal()" [disabled]="isSavingPersonal">Сохранить</button>
-                <button class="cancel-btn" (click)="cancelEditPersonal()" [disabled]="isSavingPersonal">Отмена</button>
-              </div>
+              </app-split-button>
             </div>
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">Имя</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.firstName }}</span>
-                <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.firstName">
-              </div>
-              <div class="info-row">
-                <span class="info-label">Фамилия</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.lastName }}</span>
-                <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.lastName">
-              </div>
-              <div class="info-row">
-                <span class="info-label">Дата рождения</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.dateOfBirth ? formatDate(client.dateOfBirth) : '—' }}</span>
-                <input class="info-input" *ngIf="isEditingPersonal" type="date" [(ngModel)]="editedPersonal.dateOfBirth">
-              </div>
-              <div class="info-row">
-                <span class="info-label">Тип клиента</span>
-                <span class="info-value" *ngIf="!isEditingPersonal">{{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}</span>
-                <select class="info-select" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.type">
-                  <option value="individual">Индивидуальный</option>
-                  <option value="business">Бизнес</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <!-- Contact Info Card -->
-          <div class="details-card">
-            <div class="card-header">
-              <div class="card-header-left">
-                <div class="card-icon">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <h3 class="card-title">Контакты</h3>
-              </div>
-              <button class="card-edit-btn" *ngIf="!isEditingContacts" (click)="startEditContacts()">
+            <!-- Navigation Menu (scrollable, routable) -->
+            <nav class="profile-nav profile-nav-scroll">
+              <a 
+                routerLink="/clients/{{ client.id }}/general"
+                class="nav-item" 
+                [class.active]="activeView === 'general'"
+                routerLinkActive="active">
                 <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-              </button>
-              <div class="card-actions" *ngIf="isEditingContacts">
-                <button class="save-btn" (click)="saveContacts()" [disabled]="isSavingContacts">Сохранить</button>
-                <button class="cancel-btn" (click)="cancelEditContacts()" [disabled]="isSavingContacts">Отмена</button>
-              </div>
-            </div>
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">Телефон</span>
-                <span class="info-value" *ngIf="!isEditingContacts">{{ client.phone | phoneFormat }}</span>
-                <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.phone" type="tel">
-              </div>
-              <div class="info-row">
-                <span class="info-label">Email</span>
-                <span class="info-value email" *ngIf="!isEditingContacts">{{ client.email || '—' }}</span>
-                <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.email" type="email" [disabled]="true" placeholder="Email недоступен для редактирования">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bonuses Details Card -->
-        <div class="bonuses-details-card">
-          <div class="card-header" (click)="toggleBonusesExpanded()">
-            <div class="card-header-left">
-              <div class="card-icon">
+                <span>Общее</span>
+              </a>
+              <a 
+                routerLink="/clients/{{ client.id }}/wallet"
+                class="nav-item" 
+                [class.active]="activeView === 'wallet'"
+                routerLinkActive="active">
                 <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M21 4H3a2 2 0 00-2 2v12a2 2 0 002 2h18a2 2 0 002-2V6a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M1 10h22" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-              </div>
-              <div class="card-title-section">
-                <h3 class="card-title">Детали бонусов</h3>
-                <div class="bonuses-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">Осталось:</span>
-                    <span class="stat-value active">{{ formatAmount(bonusBalance) }} ₸</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Использовано:</span>
-                    <span class="stat-value used">{{ formatAmount(getUsedBonusesTotal()) }} ₸</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Сгорело:</span>
-                    <span class="stat-value expired">{{ formatAmount(getExpiredBonusesTotal()) }} ₸</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button class="collapse-btn" [class.collapsed]="!isBonusesExpanded">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="bonuses-content" *ngIf="isBonusesExpanded">
-            <app-paginated-table-wrapper
-              [paginationEnabled]="true"
-              [data]="bonusesDetails"
-              [defaultPageSize]="10"
-              paginationKey="bonuses"
-              #paginatedBonuses>
-              <div class="table-container" *ngIf="bonusesDetails.length > 0">
-                <table class="bonuses-table">
-                  <thead>
-                    <tr>
-                      <th>Тип бонуса</th>
-                      <th>Сумма начисления</th>
-                      <th>Остаток бонуса</th>
-                      <th>Начислено</th>
-                      <th>Истекает</th>
-                      <th>Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <ng-container *ngFor="let bonus of paginatedBonuses.paginatedData">
-                    <tr
-                        [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund' && bonus.type !== 'manual_revoke'"
-                        [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
-                        [class.used]="bonus.used"
-                        [class.refund]="bonus.type === 'refund'"
-                        [class.manual-revoke]="bonus.type === 'manual_revoke'">
-                      <td>
-                        <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
-                          {{ getBonusTypeLabel(bonus.type) }}
-                        </span>
-                      </td>
-                      <td>
-                        <div class="bonus-info">
-                          <app-badge
-                            *ngIf="bonus.used"
-                            badgeType="bonusUsed"
-                            size="medium"
-                            icon="check"
-                            class="bonus-badge">
-                            -{{ formatAmount(bonus.amount) }}
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type === 'refund'"
-                            badgeType="refund"
-                            size="medium"
-                            icon="refund"
-                            class="bonus-badge">
-                            {{ formatAmount(bonus.amount) }}
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type === 'manual_revoke'"
-                            badgeType="refund"
-                            size="medium"
-                            icon="refund"
-                            class="bonus-badge">
-                            -{{ formatAmount(bonus.amount) }} ₸
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
-                            badgeType="bonusExpired"
-                            size="medium"
-                            icon="expired"
-                            class="bonus-badge">
-                            {{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
-                            badgeType="bonusGranted"
-                            size="medium"
-                            icon="star"
-                            class="bonus-badge">
-                            +{{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
-                          </app-badge>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="bonus-remaining-badges">
-                          <span *ngIf="bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
-                          <app-badge
-                            *ngIf="bonus.used"
-                            badgeType="bonusUsed"
-                            size="medium"
-                            icon="used">
-                            Использовано
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type === 'refund'"
-                            badgeType="refund"
-                            size="medium"
-                            icon="refund">
-                            Отозвано
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount != null"
-                            [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 0 ? 'bonusExpired' : (getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success')"
-                            size="medium">
-                            {{ formatAmount(bonus.remainingAmount) }}{{ bonus.originalAmount != null ? ' из ' + formatAmount(bonus.originalAmount) : '' }} ₸
-                          </app-badge>
-                          <app-badge
-                            *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) <= 0"
-                            badgeType="bonusExpired"
-                            size="medium"
-                            icon="expired">
-                            Истек
-                          </app-badge>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="bonus-date">{{ (bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke') ? '—' : formatDate(bonus.issuedAt) }}</span>
-                      </td>
-                      <td>
-                        <span *ngIf="!(bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke')" class="bonus-expiry-cell">
-                          <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
-                          <app-badge
-                            *ngIf="getDaysUntilExpiry(bonus.expiresAt) > 0"
-                            [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
-                            size="medium"
-                            class="expires-in-badge">
-                            {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
-                          </app-badge>
-                        </span>
-                        <span *ngIf="bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
-                      </td>
-                      <td>
-                        <div class="actions-cell">
-                          <app-icon-button
-                            iconButtonType="ghost"
-                            size="medium"
-                            class = "view-svg-btn"
-                            [tooltip]="isBonusRowExpanded(bonus.id) ? 'Скрыть детали' : 'Показать детали'"
-                            (onClick)="toggleBonusRow(bonus.id)">
-                            <svg [class.rotated]="isBonusRowExpanded(bonus.id)" viewBox="0 0 24 24" fill="none">
-                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                          </app-icon-button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr *ngIf="isBonusRowExpanded(bonus.id)" class="bonus-details-row">
-                      <td colspan="6" class="bonus-details-cell">
-                        <div class="bonus-details-content">
-                          <div class="bonus-details-grid">
-                            <div class="refund-reason-section">
-                              <span class="refund-reason-label">Причина возврата:</span>
-                              <div class="refund-reason-text" *ngIf="bonus.refundReason">
-                                {{ bonus.refundReason }}
-                              </div>
-                              <div class="refund-reason-empty" *ngIf="!bonus.refundReason">
-                                Причина не указана
-                              </div>
-                            </div>
-                            <div class="bonus-initiated-by-section">
-                              <span class="refund-reason-label">Инициатор:</span>
-                              <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
-                                 [routerLink]="['/users', bonus.initiatedById]" 
-                                 class="bonus-initiated-by-link">
-                                {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
-                              </a>
-                              <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
-                                {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
-                              </div>
-                              <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
-                                Не указан
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </ng-container>
-                  </tbody>
-                </table>
-              </div>
-              <div class="empty-state" *ngIf="bonusesDetails.length === 0">
+                <span>Кошелек</span>
+                <span class="nav-badge nav-badge-soon">Скоро</span>
+              </a>
+              <a 
+                routerLink="/clients/{{ client.id }}/bonus-details"
+                class="nav-item" 
+                [class.active]="activeView === 'bonus-details'"
+                routerLinkActive="active">
                 <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-                <span>Нет активных бонусов</span>
-              </div>
-            </app-paginated-table-wrapper>
-          </div>
-
-          <!-- Mobile Bonus Cards -->
-          <div class="mobile-bonuses-cards" *ngIf="isBonusesExpanded && bonusesDetails.length > 0">
-            <div class="mobile-bonus-card" *ngFor="let bonus of bonusesDetails">
-              <div class="mobile-bonus-card-header" (click)="toggleMobileBonusCard(bonus.id)">
-                <div class="mobile-bonus-card-main">
-                  <div>
-                    <div class="mobile-bonus-type">{{ getBonusTypeLabel(bonus.type) }}</div>
-                    <div class="mobile-bonus-amount">
-                      <span *ngIf="bonus.used">-</span>
-                      <span *ngIf="bonus.type === 'refund'"></span>
-                      <span *ngIf="bonus.type === 'manual_revoke'">-</span>
-                      <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used">+</span>
-                      {{ formatAmount(bonus.originalAmount ?? bonus.amount) }} ₸
-                      <span *ngIf="bonus.remainingAmount != null && bonus.type !== 'manual_revoke'" class="mobile-remaining">(осталось {{ formatAmount(bonus.remainingAmount) }} ₸)</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="mobile-bonus-expand" [class.expanded]="isMobileBonusExpanded(bonus.id)">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-              </div>
-              <div class="mobile-bonus-details" [class.expanded]="isMobileBonusExpanded(bonus.id)">
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.type !== 'manual_revoke'">
-                  <span class="mobile-bonus-detail-label">Начислено:</span>
-                  <span class="mobile-bonus-detail-value">{{ (bonus.used || bonus.type === 'refund') ? '—' : formatDate(bonus.issuedAt) }}</span>
-                </div>
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.type !== 'manual_revoke'">
-                  <span class="mobile-bonus-detail-label">Истекает:</span>
-                  <span class="mobile-bonus-detail-value">{{ (bonus.used || bonus.type === 'refund') ? '—' : formatDate(bonus.expiresAt) }}</span>
-                </div>
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.type === 'manual_revoke' && bonus.revokedAt">
-                  <span class="mobile-bonus-detail-label">Дата списания:</span>
-                  <span class="mobile-bonus-detail-value">{{ formatDate(bonus.revokedAt) }}</span>
-                </div>
-                <div class="mobile-bonus-detail-row">
-                  <span class="mobile-bonus-detail-label">Статус:</span>
-                  <span class="mobile-bonus-detail-value">
-                    <span *ngIf="bonus.used">Использовано</span>
-                    <span *ngIf="bonus.type === 'refund'">Отозвано</span>
-                    <span *ngIf="bonus.type === 'manual_revoke'">Списано вручную{{ bonus.revokedByUserName ? ': ' + bonus.revokedByUserName : '' }}</span>
-                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount != null">{{ formatAmount(bonus.remainingAmount) }} из {{ formatAmount(bonus.originalAmount ?? bonus.amount) }} ₸</span>
-                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) > 0">
-                      {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
-                    </span>
-                    <span *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) <= 0">Истек</span>
-                  </span>
-                </div>
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.refundReason">
-                  <span class="mobile-bonus-detail-label">{{ bonus.type === 'manual_revoke' ? 'Причина списания:' : 'Причина возврата:' }}</span>
-                  <span class="mobile-bonus-detail-value">{{ bonus.refundReason }}</span>
-                </div>
-                <div class="mobile-bonus-detail-row" *ngIf="bonus.initiatedBy || (bonus.type === 'manual_revoke' && bonus.revokedByUserName)">
-                  <span class="mobile-bonus-detail-label">Инициатор:</span>
-                  <span class="mobile-bonus-detail-value">
-                    <a *ngIf="bonus.initiatedById" [routerLink]="['/users', bonus.initiatedById]">{{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}</a>
-                    <span *ngIf="!bonus.initiatedById">{{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : (bonus.initiatedBy || bonus.revokedByUserName) }}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payments Table Card (Full Width) -->
-        <div class="payments-card">
-          <div class="card-header">
-            <div class="card-header-left">
-              <div class="card-icon">
+                <span>Детали бонусов</span>
+              </a>
+              <a 
+                routerLink="/clients/{{ client.id }}/payment-details"
+                class="nav-item" 
+                [class.active]="activeView === 'payment-details'"
+                routerLinkActive="active">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-              </div>
-              <h3 class="card-title">История платежей</h3>
-            </div>
-            <span class="payments-count">{{ payments.length }} платежей</span>
-          </div>
+                <span>Детали платежей</span>
+              </a>
+              <a 
+                routerLink="/clients/{{ client.id }}/audit-logs"
+                class="nav-item" 
+                [class.active]="activeView === 'audit-logs'"
+                routerLinkActive="active">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <span>Журнал аудита</span>
+                <span class="nav-badge nav-badge-soon">Скоро</span>
+              </a>
+            </nav>
 
-          <!-- Payments Table with Pagination -->
-          <app-paginated-table-wrapper
-            [paginationEnabled]="true"
-            [data]="payments"
-            [defaultPageSize]="15"
-            paginationKey="payments"
-            #paginatedTable>
-            
-            <div class="table-container">
-              <table class="payments-table">
-                <thead>
-                  <tr>
-                    <th class="th-id">ID платежа</th>
-                    <th class="th-amount">Сумма</th>
-                    <th class="th-bonuses">Бонусы</th>
-                    <th class="th-method">Способ оплаты</th>
-                    <th class="th-status">Статус</th>
-                    <th class="th-date">Дата и время</th>
-                    <th class="th-actions">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
-                  <td class="td-id">
-                    <span class="payment-id clickable" (click)="openPaymentView(payment.id)">{{ payment.id }}</span>
-                  </td>
-                  <td class="td-amount">
-                    <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
-                  </td>
-                  <td class="td-bonuses">
-                    <div class="bonus-info">
-                      <app-badge 
-                        *ngIf="payment.bonusEarned > 0"
-                        badgeType="bonusGranted" 
-                        size="medium"
-                        icon="star"
-                        class="bonus-badge">
-                        +{{ formatAmount(payment.bonusEarned) }}
-                      </app-badge>
-                      <app-badge 
-                        *ngIf="payment.bonusUsed > 0"
-                        badgeType="bonusUsed" 
-                        size="medium"
-                        icon="check"
-                        class="bonus-badge">
-                        -{{ formatAmount(payment.bonusUsed) }}
-                      </app-badge>
-                      <app-badge 
-                        *ngIf="payment.bonusRevoked > 0"
-                        badgeType="refund" 
-                        size="medium"
-                        icon="refund"
-                        class="bonus-badge">
-                        -{{ formatAmount(payment.bonusRevoked) }}
-                      </app-badge>
-                      <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
-                    </div>
-                  </td>
-                  <td class="td-method">
-                    <app-badge 
-                      badgeType="paymentMethod" 
-                      size="medium"
-                      [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
-                    </app-badge>
-                  </td>
-                  <td class="td-status">
-                    <app-badge 
-                      [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
-                      size="medium"
-                      [icon]="payment.isRefund ? 'refund' : 'payment'">
-                      {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
-                    </app-badge>
-                  </td>
-                  <td class="td-date">
-                    <div class="date-info">
-                      <span class="date-text">{{ payment.date }}</span>
-                      <span class="time-text">{{ payment.time }}</span>
-                    </div>
-                  </td>
-                  <td class="td-actions">
-                    <div class="actions-cell">
-                      <app-icon-button
-                        iconButtonType="refund"
-                        size="small"
-                        tooltip="Возврат"
-                        [disabled]="payment.isRefund"
-                        (onClick)="openRefundModal(payment)">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                          <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </app-icon-button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div class="empty-state" *ngIf="payments.length === 0">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
-                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+            <button 
+              class="nav-item delete-nav-item" 
+              (click)="openDeleteModal()">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span>Платежи не найдены</span>
-            </div>
+              <span>Удалить клиента</span>
+            </button>
           </div>
-          </app-paginated-table-wrapper>
 
-          <!-- Mobile Payment Cards -->
-          <div class="mobile-payments-cards" *ngIf="payments.length > 0">
-            <div class="mobile-payment-card" *ngFor="let payment of paginatedTable.paginatedData">
-              <div class="mobile-payment-card-header" (click)="toggleMobilePaymentCard(payment.id)">
-                <div class="mobile-payment-card-main">
-                  <div>
-                    <div class="mobile-payment-id clickable" (click)="openPaymentView(payment.id); $event.stopPropagation()">{{ payment.id }}</div>
-                    <div class="mobile-payment-amount">{{ formatAmount(payment.amount) }} ₸</div>
+          <!-- Main Content Area -->
+          <div class="profile-content">
+            <!-- General View -->
+            <div class="view-content" *ngIf="activeView === 'general'">
+              <!-- KPIs Section (on top) -->
+              <div class="content-card">
+                <div class="card-header">
+                  <h3 class="card-title">Показатели</h3>
+                </div>
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-icon transactions">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ clientTotals.totalPayments }}</span>
+                      <span class="stat-label">Транзакций</span>
+                    </div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-icon total-sum">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ formatAmount(clientTotals.totalRevenue) }} ₸</span>
+                      <span class="stat-label">Общая сумма</span>
+                    </div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-icon bonuses-earned">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesGranted) }}</span>
+                      <span class="stat-label">Бонусов начислено</span>
+                    </div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-icon bonuses-used">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ formatAmount(clientTotals.totalBonusesUsed) }}</span>
+                      <span class="stat-label">Бонусов использовано</span>
+                    </div>
                   </div>
                 </div>
-                <div class="mobile-payment-expand" [class.expanded]="isMobilePaymentExpanded(payment.id)">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+              </div>
+
+              <!-- Personal Data + Contact in one row -->
+              <div class="details-grid details-grid-general">
+                <div class="content-card">
+                  <div class="card-header">
+                    <h3 class="card-title">Личные данные</h3>
+                    <button class="card-edit-btn" *ngIf="!isEditingPersonal" (click)="startEditPersonal()">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <div class="card-actions" *ngIf="isEditingPersonal">
+                      <button class="save-btn" (click)="savePersonal()" [disabled]="isSavingPersonal">Сохранить</button>
+                      <button class="cancel-btn" (click)="cancelEditPersonal()" [disabled]="isSavingPersonal">Отмена</button>
+                    </div>
+                  </div>
+                  <div class="info-list">
+                    <div class="info-row">
+                      <span class="info-label">{{ ((!isEditingPersonal && client.type === 'business') || (isEditingPersonal && editedPersonal.type === 'business')) ? 'Название' : 'Имя' }}</span>
+                      <span class="info-value" *ngIf="!isEditingPersonal">{{ client.firstName }}</span>
+                      <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.firstName">
+                    </div>
+                    <div class="info-row" *ngIf="((!isEditingPersonal && client.type !== 'business') || (isEditingPersonal && editedPersonal.type !== 'business'))">
+                      <span class="info-label">Фамилия</span>
+                      <span class="info-value" *ngIf="!isEditingPersonal">{{ client.lastName }}</span>
+                      <input class="info-input" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.lastName">
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Дата рождения</span>
+                      <span class="info-value" *ngIf="!isEditingPersonal">{{ client.dateOfBirth ? formatDate(client.dateOfBirth) : '—' }}</span>
+                      <input class="info-input" *ngIf="isEditingPersonal" type="date" [(ngModel)]="editedPersonal.dateOfBirth">
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Тип клиента</span>
+                      <span class="info-value" *ngIf="!isEditingPersonal">{{ client.type === 'business' ? 'Бизнес' : 'Индивидуальный' }}</span>
+                      <select class="info-select" *ngIf="isEditingPersonal" [(ngModel)]="editedPersonal.type">
+                        <option value="individual">Индивидуальный</option>
+                        <option value="business">Бизнес</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="content-card">
+                  <div class="card-header">
+                    <h3 class="card-title">Контакты</h3>
+                    <button class="card-edit-btn" *ngIf="!isEditingContacts" (click)="startEditContacts()">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <div class="card-actions" *ngIf="isEditingContacts">
+                      <button class="save-btn" (click)="saveContacts()" [disabled]="isSavingContacts">Сохранить</button>
+                      <button class="cancel-btn" (click)="cancelEditContacts()" [disabled]="isSavingContacts">Отмена</button>
+                    </div>
+                  </div>
+                  <div class="info-list">
+                    <div class="info-row">
+                      <span class="info-label">Телефон</span>
+                      <span class="info-value" *ngIf="!isEditingContacts">{{ client.phone | phoneFormat }}</span>
+                      <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.phone" type="tel">
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Email</span>
+                      <span class="info-value email" *ngIf="!isEditingContacts">{{ client.email || '—' }}</span>
+                      <input class="info-input" *ngIf="isEditingContacts" [(ngModel)]="editedContacts.email" type="email" [disabled]="true" placeholder="Email недоступен для редактирования">
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="mobile-payment-details" [class.expanded]="isMobilePaymentExpanded(payment.id)">
-                <div class="mobile-payment-detail-row">
-                  <span class="mobile-payment-detail-label">Дата:</span>
-                  <span class="mobile-payment-detail-value">{{ payment.date }}</span>
-                </div>
-                <div class="mobile-payment-detail-row">
-                  <span class="mobile-payment-detail-label">Время:</span>
-                  <span class="mobile-payment-detail-value">{{ payment.time }}</span>
-                </div>
-                <div class="mobile-payment-detail-row" *ngIf="payment.bonusEarned > 0">
-                  <span class="mobile-payment-detail-label">Бонусов начислено:</span>
-                  <span class="mobile-payment-detail-value">+{{ formatAmount(payment.bonusEarned) }}</span>
-                </div>
-                <div class="mobile-payment-detail-row" *ngIf="payment.bonusUsed > 0">
-                  <span class="mobile-payment-detail-label">Бонусов использовано:</span>
-                  <span class="mobile-payment-detail-value">-{{ formatAmount(payment.bonusUsed) }}</span>
-                </div>
-                <div class="mobile-payment-detail-row">
-                  <span class="mobile-payment-detail-label">Способ оплаты:</span>
-                  <span class="mobile-payment-detail-value">{{ getPaymentMethodLabel(payment.paymentMethod) }}</span>
-                </div>
-                <div class="mobile-payment-detail-row">
-                  <span class="mobile-payment-detail-label">Статус:</span>
-                  <span class="mobile-payment-detail-value">{{ payment.isRefund ? 'Возврат' : 'Оплачено' }}</span>
-                </div>
-                <div class="mobile-payment-detail-row" *ngIf="!payment.isRefund">
-                  <button class="mobile-refund-btn" (click)="openRefundModal(payment); $event.stopPropagation()">
+
+              <!-- Comment Section (below) -->
+              <div class="content-card">
+                <div class="card-header">
+                  <h3 class="card-title">Комментарий</h3>
+                  <button class="card-edit-btn" *ngIf="!isEditingComment" (click)="startEditComment()">
                     <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    Возврат
                   </button>
+                  <div class="card-actions" *ngIf="isEditingComment">
+                    <button class="save-btn" (click)="saveComment()" [disabled]="isSavingComment">Сохранить</button>
+                    <button class="cancel-btn" (click)="cancelEditComment()" [disabled]="isSavingComment">Отмена</button>
+                  </div>
                 </div>
+                <div class="comment-body">
+                  <p *ngIf="!isEditingComment" class="comment-text">{{ client.comment || 'Нет комментария' }}</p>
+                  <textarea 
+                    *ngIf="isEditingComment" 
+                    [(ngModel)]="editedComment" 
+                    class="comment-textarea"
+                    placeholder="Введите комментарий о клиенте..."
+                    rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wallet View (Coming Soon) -->
+            <div class="view-content" *ngIf="activeView === 'wallet'">
+              <div class="coming-soon-card">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M21 4H3a2 2 0 00-2 2v12a2 2 0 002 2h18a2 2 0 002-2V6a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M1 10h22" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <h2>Скоро</h2>
+                <p>Раздел "Кошелек" находится в разработке</p>
+              </div>
+            </div>
+
+            <!-- Bonus Details View -->
+            <div class="view-content" *ngIf="activeView === 'bonus-details'">
+              <div class="content-card bonuses-details-card">
+                <div class="card-header bonuses-card-header">
+                  <div class="card-header-left">
+                    <div class="card-icon">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div class="card-title-section">
+                      <h3 class="card-title">Детали бонусов</h3>
+                      <div class="bonuses-stats">
+                        <div class="stat-item">
+                          <span class="stat-label">Осталось:</span>
+                          <span class="stat-value active">{{ formatAmount(bonusBalance) }} ₸</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Использовано:</span>
+                          <span class="stat-value used">{{ formatAmount(getUsedBonusesTotal()) }} ₸</span>
+                        </div>
+                        <div class="stat-item">
+                          <span class="stat-label">Сгорело:</span>
+                          <span class="stat-value expired">{{ formatAmount(getExpiredBonusesTotal()) }} ₸</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bonuses-content">
+                  <app-paginated-table-wrapper
+                    [paginationEnabled]="true"
+                    [data]="bonusesDetails"
+                    [defaultPageSize]="10"
+                    paginationKey="bonuses"
+                    #paginatedBonuses>
+                    <div class="table-container" *ngIf="bonusesDetails.length > 0">
+                      <table class="bonuses-table">
+                        <thead>
+                          <tr>
+                            <th>Тип бонуса</th>
+                            <th>Сумма начисления</th>
+                            <th>Остаток бонуса</th>
+                            <th>Начислено</th>
+                            <th>Истекает</th>
+                            <th>Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <ng-container *ngFor="let bonus of paginatedBonuses.paginatedData">
+                          <tr
+                              [class.expired]="getDaysUntilExpiry(bonus.expiresAt) <= 0 && !bonus.used && bonus.type !== 'refund' && bonus.type !== 'manual_revoke'"
+                              [class.expiring-soon]="getDaysUntilExpiry(bonus.expiresAt) <= 7 && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                              [class.used]="bonus.used"
+                              [class.refund]="bonus.type === 'refund'"
+                              [class.manual-revoke]="bonus.type === 'manual_revoke'">
+                            <td>
+                              <span class="bonus-type-badge" [class]="'bonus-type-' + bonus.type">
+                                {{ getBonusTypeLabel(bonus.type) }}
+                              </span>
+                            </td>
+                            <td>
+                              <div class="bonus-info">
+                                <app-badge
+                                  *ngIf="bonus.used"
+                                  badgeType="bonusUsed"
+                                  size="medium"
+                                  icon="check"
+                                  class="bonus-badge">
+                                  -{{ formatAmount(bonus.amount) }}
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type === 'refund'"
+                                  badgeType="refund"
+                                  size="medium"
+                                  icon="refund"
+                                  class="bonus-badge">
+                                  {{ formatAmount(bonus.amount) }}
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type === 'manual_revoke'"
+                                  badgeType="refund"
+                                  size="medium"
+                                  icon="refund"
+                                  class="bonus-badge">
+                                  -{{ formatAmount(bonus.amount) }} ₸
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                                  badgeType="bonusExpired"
+                                  size="medium"
+                                  icon="expired"
+                                  class="bonus-badge">
+                                  {{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && getDaysUntilExpiry(bonus.expiresAt) > 0"
+                                  badgeType="bonusGranted"
+                                  size="medium"
+                                  icon="star"
+                                  class="bonus-badge">
+                                  +{{ formatAmount(bonus.originalAmount ?? bonus.amount) }}
+                                </app-badge>
+                              </div>
+                            </td>
+                            <td>
+                              <div class="bonus-remaining-badges">
+                                <span *ngIf="bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
+                                <app-badge
+                                  *ngIf="bonus.used"
+                                  badgeType="bonusUsed"
+                                  size="medium"
+                                  icon="used">
+                                  Использовано
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type === 'refund'"
+                                  badgeType="refund"
+                                  size="medium"
+                                  icon="refund">
+                                  Отозвано
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount != null"
+                                  [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 0 ? 'bonusExpired' : (getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success')"
+                                  size="medium">
+                                  {{ formatAmount(bonus.remainingAmount) }}{{ bonus.originalAmount != null ? ' из ' + formatAmount(bonus.originalAmount) : '' }} ₸
+                                </app-badge>
+                                <app-badge
+                                  *ngIf="bonus.type !== 'refund' && bonus.type !== 'manual_revoke' && !bonus.used && bonus.remainingAmount == null && getDaysUntilExpiry(bonus.expiresAt) <= 0"
+                                  badgeType="bonusExpired"
+                                  size="medium"
+                                  icon="expired">
+                                  Истек
+                                </app-badge>
+                              </div>
+                            </td>
+                            <td>
+                              <span class="bonus-date">{{ (bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke') ? '—' : formatDate(bonus.issuedAt) }}</span>
+                            </td>
+                            <td>
+                              <span *ngIf="!(bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke')" class="bonus-expiry-cell">
+                                <span class="bonus-expiry-date">{{ formatDate(bonus.expiresAt) }}</span>
+                                <app-badge
+                                  *ngIf="getDaysUntilExpiry(bonus.expiresAt) > 0"
+                                  [badgeType]="getDaysUntilExpiry(bonus.expiresAt) <= 7 ? 'warning' : 'success'"
+                                  size="medium"
+                                  class="expires-in-badge">
+                                  {{ getDaysUntilExpiry(bonus.expiresAt) }} {{ getDaysText(getDaysUntilExpiry(bonus.expiresAt)) }}
+                                </app-badge>
+                              </span>
+                              <span *ngIf="bonus.used || bonus.type === 'refund' || bonus.type === 'manual_revoke'" class="bonus-empty-cell">—</span>
+                            </td>
+                            <td>
+                              <div class="actions-cell">
+                                <app-icon-button
+                                  iconButtonType="ghost"
+                                  size="medium"
+                                  class="view-svg-btn"
+                                  [tooltip]="isBonusRowExpanded(bonus.id) ? 'Скрыть детали' : 'Показать детали'"
+                                  (onClick)="toggleBonusRow(bonus.id)">
+                                  <svg [class.rotated]="isBonusRowExpanded(bonus.id)" viewBox="0 0 24 24" fill="none">
+                                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                  </svg>
+                                </app-icon-button>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr *ngIf="isBonusRowExpanded(bonus.id)" class="bonus-details-row">
+                            <td colspan="6" class="bonus-details-cell">
+                              <div class="bonus-details-content">
+                                <div class="bonus-details-grid">
+                                  <div class="refund-reason-section">
+                                    <span class="refund-reason-label">Причина возврата:</span>
+                                    <div class="refund-reason-text" *ngIf="bonus.refundReason">
+                                      {{ bonus.refundReason }}
+                                    </div>
+                                    <div class="refund-reason-empty" *ngIf="!bonus.refundReason">
+                                      Причина не указана
+                                    </div>
+                                  </div>
+                                  <div class="bonus-initiated-by-section">
+                                    <span class="refund-reason-label">Инициатор:</span>
+                                    <a *ngIf="bonus.initiatedBy && bonus.initiatedById" 
+                                       [routerLink]="['/users', bonus.initiatedById]" 
+                                       class="bonus-initiated-by-link">
+                                      {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
+                                    </a>
+                                    <div class="bonus-initiated-by-text" *ngIf="bonus.initiatedBy && !bonus.initiatedById">
+                                      {{ bonus.initiatedBy === 'SYSTEM' ? 'Система' : bonus.initiatedBy }}
+                                    </div>
+                                    <div class="bonus-initiated-by-empty" *ngIf="!bonus.initiatedBy">
+                                      Не указан
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </ng-container>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="empty-state" *ngIf="bonusesDetails.length === 0">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                      <span>Нет активных бонусов</span>
+                    </div>
+                  </app-paginated-table-wrapper>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Details View -->
+            <div class="view-content" *ngIf="activeView === 'payment-details'">
+              <div class="content-card payments-card">
+                <div class="card-header">
+                  <div class="card-header-left">
+                    <div class="card-icon">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 class="card-title">История платежей</h3>
+                  </div>
+                  <span class="payments-count">{{ payments.length }} платежей</span>
+                </div>
+
+                <!-- Payments Table with Pagination -->
+                <app-paginated-table-wrapper
+                  [paginationEnabled]="true"
+                  [data]="payments"
+                  [defaultPageSize]="15"
+                  paginationKey="payments"
+                  #paginatedTable>
+                  
+                  <div class="table-container">
+                    <table class="payments-table">
+                      <thead>
+                        <tr>
+                          <th class="th-id">ID платежа</th>
+                          <th class="th-amount">Сумма</th>
+                          <th class="th-bonuses">Бонусы</th>
+                          <th class="th-method">Способ оплаты</th>
+                          <th class="th-status">Статус</th>
+                          <th class="th-date">Дата и время</th>
+                          <th class="th-actions">Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let payment of paginatedTable.paginatedData" class="payment-row">
+                        <td class="td-id">
+                          <span class="payment-id clickable" (click)="openPaymentView(payment.id)">{{ payment.id }}</span>
+                        </td>
+                        <td class="td-amount">
+                          <span class="amount-value">{{ formatAmount(payment.amount) }} ₸</span>
+                        </td>
+                        <td class="td-bonuses">
+                          <div class="bonus-info">
+                            <app-badge 
+                              *ngIf="payment.bonusEarned > 0"
+                              badgeType="bonusGranted" 
+                              size="medium"
+                              icon="star"
+                              class="bonus-badge">
+                              +{{ formatAmount(payment.bonusEarned) }}
+                            </app-badge>
+                            <app-badge 
+                              *ngIf="payment.bonusUsed > 0"
+                              badgeType="bonusUsed" 
+                              size="medium"
+                              icon="check"
+                              class="bonus-badge">
+                              -{{ formatAmount(payment.bonusUsed) }}
+                            </app-badge>
+                            <app-badge 
+                              *ngIf="payment.bonusRevoked > 0"
+                              badgeType="refund" 
+                              size="medium"
+                              icon="refund"
+                              class="bonus-badge">
+                              -{{ formatAmount(payment.bonusRevoked) }}
+                            </app-badge>
+                            <span class="bonus-none" *ngIf="payment.bonusEarned === 0 && payment.bonusUsed === 0 && payment.bonusRevoked === 0">—</span>
+                          </div>
+                        </td>
+                        <td class="td-method">
+                          <app-badge 
+                            badgeType="paymentMethod" 
+                            size="medium"
+                            [paymentMethod]="getPaymentMethodForBadge(payment.paymentMethod)">
+                          </app-badge>
+                        </td>
+                        <td class="td-status">
+                          <app-badge 
+                            [badgeType]="payment.isRefund ? 'refund' : 'payment'" 
+                            size="medium"
+                            [icon]="payment.isRefund ? 'refund' : 'payment'">
+                            {{ payment.isRefund ? 'Возврат' : 'Оплачено' }}
+                          </app-badge>
+                        </td>
+                        <td class="td-date">
+                          <div class="date-info">
+                            <span class="date-text">{{ payment.date }}</span>
+                            <span class="time-text">{{ payment.time }}</span>
+                          </div>
+                        </td>
+                        <td class="td-actions">
+                          <div class="actions-cell">
+                            <app-icon-button
+                              iconButtonType="refund"
+                              size="small"
+                              tooltip="Возврат"
+                              [disabled]="payment.isRefund"
+                              (onClick)="openRefundModal(payment)">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                              </svg>
+                            </app-icon-button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div class="empty-state" *ngIf="payments.length === 0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+                      <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span>Платежи не найдены</span>
+                  </div>
+                </div>
+                </app-paginated-table-wrapper>
+              </div>
+            </div>
+
+            <!-- Audit Logs View (Coming Soon) -->
+            <div class="view-content" *ngIf="activeView === 'audit-logs'">
+              <div class="coming-soon-card">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <h2>Скоро</h2>
+                <p>Раздел "Журнал аудита" находится в разработке</p>
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -805,6 +723,15 @@ interface PaymentItem {
       (visibleChange)="closeRefundModal()"
       (confirm)="confirmRefund($event.refundReason || '')">
     </app-refund-confirmation-modal>
+
+    <!-- Adjust Bonus Modal -->
+    <app-adjust-bonus-modal
+      [visible]="showAdjustBonusModal"
+      [clientId]="client?.id ?? null"
+      [bonusBalance]="bonusBalance"
+      (visibleChange)="showAdjustBonusModal = $event"
+      (bonusAdjusted)="onBonusAdjusted()">
+    </app-adjust-bonus-modal>
 
     <!-- Payment View Modal -->
     <app-payment-view-modal
@@ -865,7 +792,6 @@ interface PaymentItem {
           </div>
         </div>
       </div>
-      </div>
     </div>
 
   `,
@@ -880,6 +806,309 @@ interface PaymentItem {
     .profile-container-wrapper {
       position: relative;
       min-height: 400px;
+    }
+
+    .profile-layout {
+      display: flex;
+      gap: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Sidebar Styles */
+    .profile-sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+      max-height: calc(100vh - 4rem);
+      position: sticky;
+      top: 2rem;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      isolation: isolate;
+    }
+
+    .profile-nav-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .back-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      padding: 0.5rem;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .back-link:hover {
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+
+    .back-link svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .client-type-badge-sidebar {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.75rem;
+      background: #f0fdf4;
+      color: #16A34A;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .client-type-badge-sidebar.business {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .client-type-badge-sidebar svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .client-name-sidebar {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0 0 0.25rem 0;
+      line-height: 1.3;
+    }
+
+    .client-phone-sidebar {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin: 0 0 1rem 0;
+      line-height: 1.3;
+    }
+
+    .tags-section-sidebar {
+      margin-bottom: 1.5rem;
+    }
+
+    .tags-section-sidebar .inline-tags {
+      --tag-transition: 0.12s ease;
+    }
+
+    .client-tag-sidebar {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.65rem;
+      background: #dcfce7;
+      color: #16A34A;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .no-tags {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    .split-button-wrap {
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .profile-nav a.nav-item {
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: #64748b;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+
+    .nav-item.active {
+      background: #f0fdf4;
+      color: #16A34A;
+      font-weight: 600;
+    }
+
+    .nav-item.delete-nav-item {
+      color: #dc2626;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .nav-item.delete-nav-item:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    .nav-badge-soon {
+      background: #fef08a;
+      color: #854d0e;
+    }
+
+    /* Content Area Styles */
+    .profile-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .view-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .details-grid-general {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .content-card {
+      position: relative;
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+    }
+
+    .coming-soon-card {
+      background: white;
+      border-radius: 16px;
+      padding: 4rem 2rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .coming-soon-card svg {
+      width: 64px;
+      height: 64px;
+      color: #94a3b8;
+    }
+
+    .coming-soon-card h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    .coming-soon-card p {
+      font-size: 1rem;
+      color: #64748b;
+      margin: 0;
+    }
+
+    /* Sidebar responsive: stack on smaller screens */
+    @media (max-width: 1024px) {
+      .profile-layout {
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .profile-sidebar {
+        width: 100%;
+        position: static;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .profile-sidebar {
+        padding: 1rem;
+        max-height: none;
+      }
+
+      .profile-nav-scroll {
+        overflow: visible;
+        max-height: none;
+      }
+
+      .profile-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .nav-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+      }
+
+      .nav-item.delete-nav-item {
+        width: 100%;
+        margin-top: 0.5rem;
+        padding-top: 0.75rem;
+      }
+    }
+
+    .tags-container-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
     }
 
     .profile-container {
@@ -1473,31 +1702,27 @@ interface PaymentItem {
       color: #64748b;
     }
 
-    /* Bonuses Details Card */
+    /* Bonuses Details Card (same padding/margins as payments card) */
     .bonuses-details-card {
       background: white;
       border-radius: 16px;
+      padding: 1.5rem;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       border: 1px solid #e5e7eb;
-      margin-bottom: 1rem;
-      overflow: hidden;
     }
 
-    .bonuses-details-card .card-header {
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s ease;
-      padding: 1.5rem;
-      margin-bottom: 0;
-      border-bottom: none;
+    .bonuses-details-card .bonuses-card-header {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .bonuses-details-card .bonuses-card-header .card-header-left {
+      flex: 1;
     }
 
     .bonuses-content {
-      padding: 0 1.5rem 1.5rem 1.5rem;
-    }
-
-    .bonuses-details-card .card-header:hover {
-      background: #f8fafc;
+      padding: 0;
     }
     .card-title-section {
       display: flex;
@@ -1555,10 +1780,6 @@ interface PaymentItem {
 
     .collapse-btn.collapsed svg {
       transform: rotate(-90deg);
-    }
-
-    .bonuses-content {
-      padding: 0 1.5rem 1.5rem;
     }
 
     .bonuses-content .table-container {
@@ -2378,7 +2599,8 @@ interface PaymentItem {
         gap: 1rem;
       }
 
-      .details-grid {
+      .details-grid,
+      .details-grid-general {
         grid-template-columns: 1fr;
         gap: 1rem;
       }
@@ -2800,6 +3022,9 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   // Bonus balance
   bonusBalance = 0;
 
+  // View management
+  activeView: 'general' | 'wallet' | 'bonus-details' | 'payment-details' | 'audit-logs' = 'general';
+
   isEditingComment = false;
   editedComment = '';
   isSavingComment = false;
@@ -2864,6 +3089,13 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   showRefundModal = false;
   selectedPaymentForRefund: Payment | null = null;
 
+  showAdjustBonusModal = false;
+
+  splitButtonItems: SplitButtonItem[] = [
+    { id: 'create-payment', label: 'Создать платеж' },
+    { id: 'adjust-bonus', label: 'Регулировать бонус' }
+  ];
+
   // Payment view modal
   showPaymentViewModal = false;
   selectedPaymentTxId: string | null = null;
@@ -2884,6 +3116,13 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.route.params.subscribe(params => {
       this.clientId = params['id'];
+      const section = params['section'] as string | undefined;
+      const validSections = ['general', 'wallet', 'bonus-details', 'payment-details', 'audit-logs'];
+      if (section && validSections.includes(section)) {
+        this.activeView = section as typeof this.activeView;
+      } else if (this.clientId && !section) {
+        this.router.navigate(['/clients', this.clientId, 'general'], { replaceUrl: true });
+      }
       if (this.clientId) {
         this.loadClientData();
       }
@@ -3453,7 +3692,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
     const requestPayload: UpdateClientRequest = {
       phone: this.clientDetails.phone,
       name: this.editedPersonal.firstName,
-      surname: this.editedPersonal.lastName?.trim() || undefined,
+      surname: this.editedPersonal.type === 'business' ? null : (this.editedPersonal.lastName?.trim() || undefined),
       dateOfBirth: (dateOfBirth != null && String(dateOfBirth).trim() !== '') ? String(dateOfBirth).trim() : (null as string | null),
       notes: this.clientDetails.notes,
       tags: this.clientDetails.tags || [],
@@ -3751,6 +3990,58 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // Delete client methods
+  openCreatePayment(): void {
+    if (this.client) {
+      this.transactionModalService.open(this.client.phone);
+    }
+  }
+
+  openAdjustBonusModal(): void {
+    this.showAdjustBonusModal = true;
+  }
+
+  onSplitButtonItemSelect(id: string): void {
+    if (id === 'create-payment') this.openCreatePayment();
+    else if (id === 'adjust-bonus') this.openAdjustBonusModal();
+  }
+
+  onInlineTagsChange(ev: TagsChangeEvent): void {
+    if (!this.client || !this.clientId) return;
+    const previousTags = [...this.client.tags];
+    this.client.tags = ev.tags;
+    this.clientsService.updateClientTags(this.clientId, { tags: ev.tags }).subscribe({
+      next: () => {
+        if (ev.removedTag) {
+          const removedTag = ev.removedTag;
+          this.toastService.showWithAction(
+            'Тег удалён',
+            {
+              label: 'Отмена',
+              callback: () => {
+                const restored = [...this.client!.tags, removedTag];
+                this.client!.tags = restored;
+                this.clientsService.updateClientTags(this.clientId!, { tags: restored }).subscribe({
+                  next: () => {},
+                  error: () => this.toastService.error('Не удалось восстановить тег')
+                });
+              }
+            },
+            'success',
+            4000
+          );
+        }
+      },
+      error: (err) => {
+        if (this.client) this.client.tags = previousTags;
+        this.toastService.error(err?.error?.message || 'Ошибка при обновлении тегов');
+      }
+    });
+  }
+
+  onBonusAdjusted(): void {
+    this.loadClientData();
+  }
+
   openDeleteModal(): void {
     this.showDeleteModal = true;
     this.deleteStep = 1;

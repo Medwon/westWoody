@@ -1,6 +1,6 @@
-import { Component, Input, Output, EventEmitter, signal, effect, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { IconButtonComponent } from '../../shared/components/icon-button/icon-button.component';
@@ -761,7 +761,7 @@ export interface SidebarMenuItem {
     }
   `]
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   isCollapsed = signal(false);
   isClosed = signal(false);
   isMobile = false;
@@ -801,7 +801,7 @@ export class SidebarComponent {
       ]
     },
     { 
-      label: 'Бонусная программа', 
+      label: 'Программа вознаграждений', 
       iconPath: '<path d="M20 12v10H4V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c-2.5-2.5-5-3-5-5a2.5 2.5 0 0 1 5 0c0 2-2.5 2.5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c2.5-2.5 5-3 5-5a2.5 2.5 0 0 0-5 0c0 2 2.5 2.5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
       route: '/bonus-program',
       exact: false
@@ -809,8 +809,18 @@ export class SidebarComponent {
     { 
       label: 'Управление бонусами', 
       iconPath: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>', 
-      route: '/bonus-management',
-      exact: false
+      children: [
+        {
+          label: 'Начисление / списание',
+          iconPath: '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+          route: '/bonus-management'
+        },
+        {
+          label: 'Бонусы истекают скоро',
+          iconPath: '<path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+          route: '/bonus-expiring'
+        }
+      ]
     },
     { 
       label: 'Пользователи', 
@@ -826,6 +836,20 @@ export class SidebarComponent {
   @Output() closedChange = new EventEmitter<boolean>();
   @Output() createClick = new EventEmitter<void>();
   @Output() logoutClick = new EventEmitter<void>();
+
+  private router = inject(Router);
+
+  ngOnInit(): void {
+    this.expandManageBonusesIfOnChildRoute();
+    this.router.events.subscribe(() => this.expandManageBonusesIfOnChildRoute());
+  }
+
+  private expandManageBonusesIfOnChildRoute(): void {
+    const path = this.router.url.split('?')[0];
+    if (path === '/bonus-management' || path === '/bonus-expiring') {
+      this.expandedMenus['Управление бонусами'] = true;
+    }
+  }
 
   constructor(private sanitizer: DomSanitizer) {
     if (typeof window !== 'undefined') {

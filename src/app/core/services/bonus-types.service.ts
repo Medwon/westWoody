@@ -62,4 +62,15 @@ export class BonusTypesService {
   getBonusTypesByFlow(flow: string): Observable<BonusTypeResponse> {
     return this.http.get<BonusTypeResponse>(`${this.apiUrl}/flow/${flow}`);
   }
+
+  /** Stats for reward program config page: active count, avg reward cost % (30 days), expiration. */
+  getRewardConfigStats(): Observable<RewardConfigStats> {
+    return this.http.get<RewardConfigStats>(`${this.apiUrl}/reward-config-stats`);
+  }
+}
+
+export interface RewardConfigStats {
+  activeRewardsCount: number;
+  avgRewardCostPercent30Days: number | null;
+  expirationDays: number | null;
 }

@@ -16,15 +16,24 @@ export class TransactionModalService {
   private visibleSource = new BehaviorSubject<boolean>(false);
   visible$: Observable<boolean> = this.visibleSource.asObservable();
 
+  private initialPhoneSource = new BehaviorSubject<string | null>(null);
+  initialPhone$: Observable<string | null> = this.initialPhoneSource.asObservable();
+
   private transactionCompleteSource = new Subject<TransactionResult>();
   transactionComplete$: Observable<TransactionResult> = this.transactionCompleteSource.asObservable();
 
-  open(): void {
+  open(phone?: string): void {
+    if (phone) {
+      this.initialPhoneSource.next(phone);
+    } else {
+      this.initialPhoneSource.next(null);
+    }
     this.visibleSource.next(true);
   }
 
   close(): void {
     this.visibleSource.next(false);
+    this.initialPhoneSource.next(null);
   }
 
   toggle(): void {

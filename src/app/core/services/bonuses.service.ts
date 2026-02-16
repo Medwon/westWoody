@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface BonusHistoryItem {
@@ -62,6 +63,43 @@ export interface ManualBonusRevokeRequest {
   reason?: string;
 }
 
+export interface BonusExpiringItem {
+  grantId: number;
+  remainingAmount: number;
+  originalAmount: number;
+  expiresAt: string;
+  daysLeft: number;
+  grantReason: string | null;
+}
+
+/** One row per expiry date: grouped amount and notified status */
+export interface ExpiryGroup {
+  expiryDate: string; // YYYY-MM-DD
+  daysLeft: number;
+  totalRemainingAmount: number;
+  notifiedAt: string | null; // ISO timestamp when WhatsApp was sent; null if not yet notified
+  items: BonusExpiringItem[];
+}
+
+export interface ClientBonusExpiring {
+  clientId: string;
+  clientName: string;
+  phone: string;
+  expiryGroups: ExpiryGroup[];
+}
+
+export interface RecordBonusExpiryNotifiedRequest {
+  clientId: string;
+  expiryDate: string; // YYYY-MM-DD
+  messageRecordId?: number | null;
+}
+
+export interface BonusesExpiringSoon {
+  clientCount: number;
+  totalAmount: number;
+  clients: ClientBonusExpiring[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -69,6 +107,22 @@ export class BonusesService {
   private readonly apiUrl = `${environment.apiUrl}/bonuses`;
 
   constructor(private http: HttpClient) {}
+
+  /**
+   * Get clients whose bonuses expire within 7 days (summary + list)
+   */
+  getBonusesExpiringSoon(): Observable<BonusesExpiringSoon> {
+    return this.http.get<BonusesExpiringSoon>(`${this.apiUrl}/expiring-soon`);
+  }
+
+  /**
+   * Record that the client was notified (WhatsApp) about bonuses expiring on the given date.
+   */
+  recordBonusExpiryNotified(request: RecordBonusExpiryNotifiedRequest): Observable<void> {
+    return this.http.post(`${this.apiUrl}/expiring-soon/notified`, request, { responseType: 'text' }).pipe(
+      map(() => undefined)
+    );
+  }
 
   /**
    * Get client bonus history with pagination

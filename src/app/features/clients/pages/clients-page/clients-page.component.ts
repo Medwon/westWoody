@@ -1,8 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { AnalyticsService } from '../../../../core/services/analytics.service';
 import { ClientsService, ClientSearchResult } from '../../../../core/services/clients.service';
@@ -33,6 +33,11 @@ interface Client {
 
 type SortField = 'name' | 'phone' | 'totalAmount' | 'bonusBalance' | 'lastVisit' | 'createdAt' | 'totalTransactions';
 type SortDirection = 'asc' | 'desc';
+
+const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
+function clampPageSize(size: number): number {
+  return PAGE_SIZE_OPTIONS.includes(size) ? size : PAGE_SIZE_OPTIONS[0];
+}
 
 @Component({
   selector: 'app-clients-page',
@@ -127,7 +132,8 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
                 <input 
                   type="text" 
-                  [(ngModel)]="searchName" 
+                  [(ngModel)]="searchName"
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по имени..."
                   class="filter-input">
               </div>
@@ -141,7 +147,8 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
                 <input 
                   type="text" 
-                  [(ngModel)]="searchPhone" 
+                  [(ngModel)]="searchPhone"
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по телефону..."
                   class="filter-input">
               </div>
@@ -156,7 +163,8 @@ type SortDirection = 'asc' | 'desc';
                 </svg>
                 <input 
                   type="text" 
-                  [(ngModel)]="searchEmail" 
+                  [(ngModel)]="searchEmail"
+                  (keydown.enter)="applyFilters()"
                   placeholder="Поиск по email..."
                   class="filter-input">
               </div>
@@ -194,6 +202,7 @@ type SortDirection = 'asc' | 'desc';
                   <input 
                     type="text" 
                     [(ngModel)]="tagSearchInput"
+                    (keydown.enter)="applyFilters()"
                     (focus)="showTagDropdown = true"
                     (input)="filterAvailableTags()"
                     placeholder="Добавить тэг..."
@@ -278,8 +287,8 @@ type SortDirection = 'asc' | 'desc';
           <span class="results-count">Найдено: {{ totalClientsFound }} клиентов</span>
         </div>
 
-        <!-- Clients Table with Pagination -->
-        <div>
+        <!-- Clients Table with Pagination (same layout as payments page) -->
+        <div class="table-and-pagination-wrapper">
           <!-- Desktop Table View -->
           <div class="table-container desktop-view">
             <table class="clients-table">
@@ -423,32 +432,31 @@ type SortDirection = 'asc' | 'desc';
               Сбросить фильтры
             </app-button>
           </div>
-        </div>
 
-        <!-- Backend Pagination (Desktop only) -->
-        <div class="pagination-container desktop-view" *ngIf="!isLoading && totalClientsFound > 0">
-          <div class="pagination-left">
-            <div class="pagination-info">
-              <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalClientsFound) }} из {{ totalClientsFound }}</span>
+          <!-- Backend Pagination (Desktop only, same as payments page) -->
+          <div class="pagination-container desktop-view" *ngIf="!isLoading && totalClientsFound > 0">
+            <div class="pagination-left">
+              <div class="pagination-info">
+                <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalClientsFound) }} из {{ totalClientsFound }}</span>
+              </div>
+              <div class="page-size-filter-section">
+                <label class="page-size-label">Строк на странице:</label>
+                <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
+                  <option [value]="15">15</option>
+                  <option [value]="30">30</option>
+                  <option [value]="50">50</option>
+                  <option [value]="100">100</option>
+                </select>
+              </div>
             </div>
-            <div class="page-size-filter-section">
-              <label class="page-size-label">Строк на странице:</label>
-              <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
-                <option [value]="15">15</option>
-                <option [value]="30">30</option>
-                <option [value]="50">50</option>
-                <option [value]="100">100</option>
-              </select>
+            <div class="pagination-right" *ngIf="getTotalPages() > 1">
+              <app-pagination
+                [currentPage]="currentPage + 1"
+                [totalPages]="getTotalPages()"
+                (pageChange)="onPageChange($event)">
+              </app-pagination>
             </div>
           </div>
-          <div class="pagination-right" *ngIf="getTotalPages() > 1">
-            <app-pagination
-              [currentPage]="currentPage + 1"
-              [totalPages]="getTotalPages()"
-              (pageChange)="onPageChange($event)">
-            </app-pagination>
-          </div>
-        </div>
         </div>
       </div>
     </div>
@@ -934,6 +942,13 @@ type SortDirection = 'asc' | 'desc';
       font-weight: 500;
     }
 
+    /* Table + Pagination wrapper (same structure as payments page) */
+    .table-and-pagination-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
     /* Table Container */
     .table-container {
       background: white;
@@ -1363,31 +1378,44 @@ type SortDirection = 'asc' | 'desc';
       .desktop-view {
         display: block !important;
       }
+
+      /* Pagination bar must stay flex so left/right alignment works */
+      .pagination-container.desktop-view {
+        display: flex !important;
+      }
     }
 
-    /* Pagination Container */
+    /* Pagination Container (same layout as payments page) */
     .pagination-container {
       display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
       justify-content: space-between;
       align-items: center;
+      width: 100%;
       padding: 1rem;
       background: white;
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       gap: 1rem;
       margin-top: 1rem;
+      box-sizing: border-box;
     }
 
     .pagination-left {
       display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 1.5rem;
-      flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     .pagination-right {
       display: flex;
       align-items: center;
+      flex-shrink: 0;
+      margin-left: auto;
     }
 
     .pagination-info {
@@ -1437,11 +1465,14 @@ type SortDirection = 'asc' | 'desc';
     }
   `]
 })
-export class ClientsPageComponent implements OnInit {
+export class ClientsPageComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private analyticsService = inject(AnalyticsService);
   private clientsService = inject(ClientsService);
   private toastService = inject(ToastService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private destroy$ = new Subject<void>();
 
   // Dashboard data
   totalClients = 0;
@@ -1486,10 +1517,34 @@ export class ClientsPageComponent implements OnInit {
       { label: 'Главная', route: '/home' },
       { label: 'Клиенты' }
     ]);
-    
+
+    // Initial pagination from URL
+    const params = this.route.snapshot.queryParams;
+    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
+    const sizeFromUrl = clampPageSize(+(params['size'] ?? 0) || 15);
+    this.currentPage = pageFromUrl - 1;
+    this.pageSize = sizeFromUrl;
+
     this.loadDashboardData();
-    this.loadClients();
     this.loadTags();
+    this.loadClients();
+
+    // React to query param changes (browser back/forward or programmatic navigate)
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const p = Math.max(1, +(params['page'] ?? 1) || 1);
+      const s = clampPageSize(+(params['size'] ?? 0) || 15);
+      const pageIndex = p - 1;
+      if (this.currentPage !== pageIndex || this.pageSize !== s) {
+        this.currentPage = pageIndex;
+        this.pageSize = s;
+        this.loadClients();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadTags(): void {
@@ -1588,19 +1643,10 @@ export class ClientsPageComponent implements OnInit {
     }
   }
 
-  normalizePhoneNumber(phoneNumber: String) {
-    phoneNumber.trim().replace(/[\s\-\(\)]/g, '');
-    if (phoneNumber.startsWith('8')) {
-      phoneNumber = '+7' + phoneNumber.substring(1);
-    } else if (!phoneNumber.startsWith('+')) {
-      phoneNumber = '+' + phoneNumber;
-    }
-  }
-
   buildSearchRequest() {
     const request: any = {
       name: this.searchName.trim() || '',
-      phone: this.normalizePhoneNumber(this.searchPhone),
+      phone: this.searchPhone.trim() || '',
       email: this.searchEmail.trim() || '',
       lastVisitFrom: this.dateFrom ? `${this.dateFrom}T00:00:00` : null,
       lastVisitTo: this.dateTo ? `${this.dateTo}T23:59:59` : null,
@@ -1667,16 +1713,25 @@ export class ClientsPageComponent implements OnInit {
   }
 
   applyFilters(): void {
-    this.currentPage = 0; // Reset to first page when filters change
-    this.mobilePage = 0; // Reset mobile pagination
-    this.mobileClients = []; // Clear mobile clients
+    this.currentPage = 0;
+    this.mobilePage = 0;
+    this.mobileClients = [];
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     this.loadClients();
   }
 
   onPageChange(page: number): void {
-    this.currentPage = page - 1; // Pagination component uses 1-based, API uses 0-based
-    this.loadClients();
-    // Scroll to top of table
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     const tableContainer = document.querySelector('.table-container');
     if (tableContainer) {
       tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1684,8 +1739,12 @@ export class ClientsPageComponent implements OnInit {
   }
 
   onPageSizeChange(): void {
-    this.currentPage = 0; // Reset to first page when changing page size
-    this.loadClients();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   getTotalPages(): number {
@@ -1763,8 +1822,14 @@ export class ClientsPageComponent implements OnInit {
     this.sortField = 'lastVisit';
     this.sortDirection = 'desc';
     this.currentPage = 0;
-    this.mobilePage = 0; // Reset mobile pagination
-    this.mobileClients = []; // Clear mobile clients
+    this.mobilePage = 0;
+    this.mobileClients = [];
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { page: 1, size: this.pageSize },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
     this.loadClients();
   }
 
