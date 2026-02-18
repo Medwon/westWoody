@@ -39,7 +39,7 @@ export interface BreadcrumbItem {
     }
 
     .breadcrumb-item:not(.last):hover {
-      color: #007bff;
+      color: #16a34a;
     }
 
     .breadcrumb-item:not(.last)::after {

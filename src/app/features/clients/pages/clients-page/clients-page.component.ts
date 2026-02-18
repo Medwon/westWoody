@@ -372,6 +372,20 @@ function clampPageSize(size: number): number {
                   </div>
                 </td>
               </tr>
+                <tr *ngIf="clients.length === 0" class="empty-row">
+                  <td colspan="7" class="empty-state-cell">
+                    <div class="empty-state">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+                      </svg>
+                      <span>Клиенты не найдены</span>
+                      <app-button buttonType="primary" size="medium" (onClick)="clearFilters()">
+                        Сбросить фильтры
+                      </app-button>
+                    </div>
+                  </td>
+                </tr>
             </tbody>
           </table>
           </div>
@@ -421,17 +435,16 @@ function clampPageSize(size: number): number {
             <div class="mobile-loading" *ngIf="isLoadingMore">
               <app-loader></app-loader>
             </div>
-          </div>
-
-          <div class="empty-state" *ngIf="clients.length === 0 && mobileClients.length === 0">
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-            <span>Клиенты не найдены</span>
-            <app-button buttonType="primary" size="small" (onClick)="clearFilters()">
-              Сбросить фильтры
-            </app-button>
+            <div class="empty-state mobile-empty-state" *ngIf="mobileClients.length === 0 && !isLoading">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <span>Клиенты не найдены</span>
+              <app-button buttonType="primary" size="medium" (onClick)="clearFilters()">
+                Сбросить фильтры
+              </app-button>
+            </div>
           </div>
 
           <!-- Backend Pagination (Desktop only, same as payments page) -->
@@ -1176,6 +1189,20 @@ function clampPageSize(size: number): number {
       margin-bottom: 1rem;
     }
 
+    .empty-row td.empty-state-cell {
+      padding: 0;
+      border-bottom: none;
+      vertical-align: middle;
+    }
+
+    .empty-row .empty-state {
+      min-height: 200px;
+    }
+
+    .mobile-empty-state {
+      padding: 2rem 1rem;
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
       .dashboard-grid {
@@ -1382,7 +1409,7 @@ function clampPageSize(size: number): number {
 
       /* Pagination bar must stay flex so left/right alignment works */
       .pagination-container.desktop-view {
-        display: flex !important;
+        display: flex;
       }
     }
 

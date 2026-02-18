@@ -59,17 +59,26 @@
   justify-content: center;
 }
 
+.report-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.report-period {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
 .report-title {
   font-size: 1.25rem;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 0.25rem 0;
-}
-
-.report-period {
-  font-size: 0.8125rem;
-  color: #64748b;
-  margin: 0 0 1.25rem 0;
+  margin: 0;
 }
 
 // Card groups like main menu

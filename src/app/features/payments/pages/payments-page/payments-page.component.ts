@@ -437,7 +437,9 @@ function clampPaymentPageSize(size: number): number {
               <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
             </svg>
             <span>Платежи не найдены</span>
-            <button class="reset-btn" (click)="clearFilters()">Сбросить фильтры</button>
+            <app-button buttonType="primary" size="medium" (onClick)="clearFilters()">
+              Сбросить фильтры
+            </app-button>
           </div>
         </div>
 
@@ -1205,7 +1207,7 @@ function clampPaymentPageSize(size: number): number {
     }
 
     .reset-btn:hover {
-      background: #14532d;
+      background: #15803D;
     }
 
     /* Pagination Container */
@@ -1299,11 +1301,18 @@ function clampPaymentPageSize(size: number): number {
 
       .table-container {
         overflow-x: auto;
+        
       }
 
       .payments-table {
         min-width: 900px;
       }
+        .loading-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 3rem;
+    }
     }
 
   `]

@@ -27,8 +27,10 @@
 
   <ng-container *ngIf="!isLoading && report">
     <div class="report-content">
-      <h2 class="report-title">{{ report.bonusTypeName }}</h2>
-      <p class="report-period">{{ formatPeriod(report.periodFrom, report.periodTo) }}</p>
+      <div class="report-title-row">
+        <h2 class="report-title">{{ report.bonusTypeName }}</h2>
+        <p class="report-period">{{ formatPeriod(report.periodFrom, report.periodTo) }}</p>
+      </div>
 
       <!-- Row 1: Транзакции | Продажи | Средний чек | В обороте/Потрачено (one row) -->
       <div class="report-card-groups report-row-one">

@@ -132,7 +132,7 @@ export class BonusTypeReportPageComponent implements OnInit {
           const [y, m] = this.selectedMonthForBar.split('-').map(Number);
           const from = new Date(y, m - 1, 1, 0, 0, 0);
           const to = new Date(y, m, 0, 23, 59, 59);
-          this.loadReportForRange(from.toISOString().slice(0, 19), to.toISOString().slice(0, 19));
+          this.loadReportForRange(this.toLocalISOString(from, '00:00:00'), this.toLocalISOString(to, '23:59:59'));
         } else {
           this.loadReport();
         }
@@ -180,7 +180,7 @@ export class BonusTypeReportPageComponent implements OnInit {
     const [y, m] = yearMonth.split('-').map(Number);
     const from = new Date(y, m - 1, 1, 0, 0, 0);
     const to = new Date(y, m, 0, 23, 59, 59);
-    this.loadReportForRange(from.toISOString().slice(0, 19), to.toISOString().slice(0, 19));
+    this.loadReportForRange(this.toLocalISOString(from, '00:00:00'), this.toLocalISOString(to, '23:59:59'));
   }
 
   private loadReportForRange(from: string, to: string): void {
@@ -204,13 +204,13 @@ export class BonusTypeReportPageComponent implements OnInit {
     let from: Date;
     switch (this.period) {
       case '3m':
-        from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate(), 0, 0, 0);
+        from = new Date(now.getFullYear(), now.getMonth() - 3, 1, 0, 0, 0);
         break;
       case '6m':
-        from = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate(), 0, 0, 0);
+        from = new Date(now.getFullYear(), now.getMonth() - 6, 1, 0, 0, 0);
         break;
       case '1y':
-        from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0);
+        from = new Date(now.getFullYear() - 1, now.getMonth(), 1, 0, 0, 0);
         break;
       case 'all':
         from = new Date(2000, 0, 1, 0, 0, 0);
@@ -219,9 +219,17 @@ export class BonusTypeReportPageComponent implements OnInit {
         from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
     }
     return {
-      from: from.toISOString().slice(0, 19),
-      to: to.toISOString().slice(0, 19)
+      from: this.toLocalISOString(from, '00:00:00'),
+      to: this.toLocalISOString(to, '23:59:59')
     };
+  }
+
+  /** Формат даты без перевода в UTC, чтобы первый день месяца отображался корректно (01.02, а не 31.01). */
+  private toLocalISOString(d: Date, time: string): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}T${time}`;
   }
 
   private loadReport(): void {
