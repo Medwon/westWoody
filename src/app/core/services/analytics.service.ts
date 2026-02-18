@@ -99,11 +99,58 @@ export interface ClientTotalsResponse {
   totalBonusesUsed: number;
 }
 
+/** KPI Dashboard (kpi-analytics) */
+export interface KpiDashboardResponse {
+  period: { from: string; to: string };
+  revenue: {
+    totalRevenue: number;
+    incrementalRevenue: number;
+    incrementalRevenuePercentage: number;
+  };
+  uplift: {
+    aovUplift: number;
+    avgCheckWithBonus: number;
+    avgCheckRegular: number;
+  };
+  retention: {
+    retentionRate: number;
+    returningClientsCount: number;
+    totalActiveClients: number;
+  };
+  efficiency: {
+    redemptionRate: number;
+    effectiveDiscount: number;
+    burnRate: number;
+    burnedAmount: number;
+  };
+}
+
+export interface TopCustomerResponse {
+  id: number;
+  clientId: string;
+  name: string;
+  totalSpent: number;
+  paymentsCount: number;
+  averageOrderValue: number;
+}
+
+export interface BonusesInCirculationResponse {
+  amount: number;
+}
+
+export interface SalesByLoyaltyResponse {
+  loyaltyCount: number;
+  nonLoyaltyCount: number;
+  loyaltyPercent: number;
+  nonLoyaltyPercent: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AnalyticsService {
   private readonly apiUrl = `${environment.apiUrl}/analytics`;
+  private readonly kpiApiUrl = `${environment.apiUrl}/kpi-analytics`;
 
   constructor(private http: HttpClient) {}
 
@@ -210,4 +257,79 @@ export class AnalyticsService {
   getClientTotals(clientId: string): Observable<ClientTotalsResponse> {
     return this.http.get<ClientTotalsResponse>(`${this.apiUrl}/clients/${clientId}/totals`);
   }
+
+  /**
+   * Get KPI dashboard metrics for period [from, to] (ISO-8601).
+   */
+  getKpiDashboard(from: string, to: string): Observable<KpiDashboardResponse> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<KpiDashboardResponse>(`${this.kpiApiUrl}/dashboard-metrics`, { params });
+  }
+
+  /**
+   * Get top 10 customers by total spent.
+   */
+  getTopCustomers(): Observable<TopCustomerResponse[]> {
+    return this.http.get<TopCustomerResponse[]>(`${this.apiUrl}/top-customers`);
+  }
+
+  /**
+   * Get total bonuses in circulation (active, usable by clients).
+   */
+  getBonusesInCirculation(): Observable<BonusesInCirculationResponse> {
+    return this.http.get<BonusesInCirculationResponse>(`${this.apiUrl}/bonuses/in-circulation`);
+  }
+
+  /**
+   * Get all-time sales split: loyalty (bonus used) vs non-loyalty.
+   */
+  getSalesByLoyalty(): Observable<SalesByLoyaltyResponse> {
+    return this.http.get<SalesByLoyaltyResponse>(`${this.apiUrl}/bonuses/sales-by-loyalty`);
+  }
+
+  /**
+   * Get KPI report for a bonus type (or all when bonusTypeId is null) in period [from, to] (ISO-8601).
+   */
+  getBonusTypeReport(bonusTypeId: number | null, from: string, to: string): Observable<BonusTypeReportResponse> {
+    let params = new HttpParams().set('from', from).set('to', to);
+    if (bonusTypeId != null) {
+      params = params.set('bonusTypeId', bonusTypeId.toString());
+    }
+    return this.http.get<BonusTypeReportResponse>(`${this.apiUrl}/bonus-type-report`, { params });
+  }
+}
+
+export interface MonthlyReportPoint {
+  month: string;
+  yearMonth: string;
+  avgCheckWithBonus: number;
+  avgCheckWithoutBonus: number;
+  transactionCountWithBonus: number;
+  transactionCountWithoutBonus: number;
+  /** Total revenue for the month (optional for backward compatibility). */
+  revenue?: number;
+}
+
+export interface BonusTypeReportResponse {
+  bonusTypeId: number | null;
+  bonusTypeName: string;
+  periodFrom: string;
+  periodTo: string;
+  transactionCount: number;
+  transactionCountWithoutBonus: number;
+  avgCheckWithBonus: number;
+  avgCheckWithoutBonus: number;
+  totalGranted: number;
+  inCirculation: number;
+  burnedAmount: number;
+  spentAmount: number;
+  redemptionRatePercent: number;
+  effectiveDiscountPercent: number;
+  burnRatePercent: number;
+  aovUpliftPercent: number;
+  incrementalRevenuePercent: number;
+  retentionRatePercent: number;
+  conversionRatePercent: number;
+  cac: number;
+  monthlyData: MonthlyReportPoint[] | null;
 }

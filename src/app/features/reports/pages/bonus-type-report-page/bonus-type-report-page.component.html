@@ -1,0 +1,272 @@
+<div class="report-page">
+  <div class="report-header">
+    <div class="report-controls">
+      <div class="control-group">
+        <label class="control-label">Тип бонуса</label>
+        <select class="control-select" [ngModel]="selectedBonusTypeId ?? 'all'" (ngModelChange)="onBonusTypeChange($event)">
+          <option value="all">Общая статистика</option>
+          <option *ngFor="let bt of bonusTypes" [value]="bt.id">{{ bt.name }}</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="control-label">Период</label>
+        <select class="control-select" [ngModel]="period" (ngModelChange)="onPeriodChange($event)">
+          <option value="1m">За месяц</option>
+          <option value="3m">За 3 месяца</option>
+          <option value="6m">За 6 месяцев</option>
+          <option value="1y">За год</option>
+          <option value="all">За все время</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-loading-container" *ngIf="isLoading">
+    <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
+  </div>
+
+  <ng-container *ngIf="!isLoading && report">
+    <div class="report-content">
+      <h2 class="report-title">{{ report.bonusTypeName }}</h2>
+      <p class="report-period">{{ formatPeriod(report.periodFrom, report.periodTo) }}</p>
+
+      <!-- Row 1: Транзакции | Продажи | Средний чек | В обороте/Потрачено (one row) -->
+      <div class="report-card-groups report-row-one">
+        <section class="report-card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-transactions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <h3 class="card-group-title">Транзакции</h3>
+          </div>
+          <div class="metric-list">
+            <div class="metric-row">
+              <span class="metric-label">Кол-во транзакций</span>
+              <span class="metric-value">{{ displayTransactionCount | number }}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Средний чек с бонусом</span>
+              <span class="metric-value">{{ formatMoney(report.avgCheckWithBonus) }} ₸</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Средний чек без бонусов</span>
+              <span class="metric-value">{{ formatMoney(report.avgCheckWithoutBonus) }} ₸</span>
+            </div>
+          </div>
+        </section>
+        <div class="report-chart-card donut-chart-card">
+          <h3 class="chart-title">Продажи</h3>
+          <div class="donut-container">
+            <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutSalesDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutSalesDash()" [attr.stroke-dashoffset]="getDonutSalesOffset()" transform="rotate(-90 50 50)"/>
+            </svg>
+          </div>
+          <div class="donut-legend donut-legend-right">
+            <div class="legend-item">
+              <span class="legend-color loyalty"></span>
+              <span class="legend-label">С бонусами</span>
+              <span class="legend-value">{{ donutSalesWithPercent | number:'1.0-0' }}%</span>
+              <span class="legend-count">{{ report.transactionCount | number }}</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color non-loyalty"></span>
+              <span class="legend-label">Без бонусов</span>
+              <span class="legend-value">{{ donutSalesWithoutPercent | number:'1.0-0' }}%</span>
+              <span class="legend-count">{{ (report.transactionCountWithoutBonus ?? 0) | number }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="report-chart-card avg-check-chart-card">
+          <h3 class="chart-title">Средний чек</h3>
+          <div class="avg-check-chart-inner">
+            <div class="avg-check-y-axis">
+              <span *ngFor="let label of getAvgCheckAxisLabels()">{{ label }}</span>
+            </div>
+            <div class="avg-check-chart-area">
+              <div class="avg-check-grid" aria-hidden="true">
+                <span *ngFor="let label of getAvgCheckAxisLabels(); let i = index" class="avg-check-grid-line" [style.top.%]="(i / 4) * 100"></span>
+              </div>
+              <div class="avg-check-bars-row">
+                <div class="avg-check-bar-track">
+                  <div class="avg-check-bar-fill with-bonus" [style.height.%]="(report.avgCheckWithBonus / maxAvgForBarRounded) * 100"></div>
+                </div>
+                <div class="avg-check-bar-track">
+                  <div class="avg-check-bar-fill without-bonus" [style.height.%]="(report.avgCheckWithoutBonus / maxAvgForBarRounded) * 100"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="avg-check-legend-inline">
+            <span class="leg green">С бонусом</span>
+            <span class="leg grey">Без бонуса</span>
+          </div>
+        </div>
+        <div class="report-chart-card donut-chart-card donut-in-circulation">
+          <h3 class="chart-title">В обороте / Потрачено</h3>
+          <div class="donut-container">
+            <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutBonusDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutBonusSpentDash()" [attr.stroke-dashoffset]="getDonutBonusOffset()" transform="rotate(-90 50 50)"/>
+            </svg>
+          </div>
+          <div class="donut-legend donut-legend-right">
+            <div class="legend-item">
+              <span class="legend-color loyalty"></span>
+              <span class="legend-label">В обороте</span>
+              <span class="legend-value">{{ donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
+              <span class="legend-count">{{ formatMoney(report.inCirculation) }} ₸</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color non-loyalty"></span>
+              <span class="legend-label">Потрачено</span>
+              <span class="legend-value">{{ 100 - donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
+              <span class="legend-count">{{ formatMoney(report.spentAmount) }} ₸</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Бонусы | Эффективность | Средний чек и выручка по месяцам (monthly chart on the right) -->
+      <div class="report-card-groups report-row-two">
+        <section class="report-card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-bonus">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <h3 class="card-group-title">Бонусы</h3>
+          </div>
+          <div class="metric-list">
+            <div class="metric-row">
+              <span class="metric-label">Сумма выделенных</span>
+              <span class="metric-value">{{ formatMoney(report.totalGranted) }} ₸</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">В обороте</span>
+              <span class="metric-value">{{ formatMoney(report.inCirculation) }} ₸</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Сгоревшие</span>
+              <span class="metric-value">{{ formatMoney(report.burnedAmount) }} ₸</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Потраченные</span>
+              <span class="metric-value">{{ formatMoney(report.spentAmount) }} ₸</span>
+            </div>
+          </div>
+        </section>
+        <section class="report-card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-kpi">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            </div>
+            <h3 class="card-group-title">Эффективность</h3>
+          </div>
+          <div class="metric-list">
+            <div class="metric-row"><span class="metric-label">Redemption rate</span><span class="metric-value">{{ formatPct(report.redemptionRatePercent) }}%</span></div>
+            <div class="metric-row"><span class="metric-label">Effective discount</span><span class="metric-value">{{ formatPct(report.effectiveDiscountPercent) }}%</span></div>
+            <div class="metric-row"><span class="metric-label">Burn rate</span><span class="metric-value">{{ formatPct(report.burnRatePercent) }}%</span></div>
+            <div class="metric-row"><span class="metric-label">AOV uplift</span><span class="metric-value">{{ formatPct(report.aovUpliftPercent) }}%</span></div>
+            <div class="metric-row"><span class="metric-label">Incremental revenue</span><span class="metric-value">{{ formatPct(report.incrementalRevenuePercent) }}%</span></div>
+          </div>
+          <div class="block-extra" *ngIf="showRetention">
+            <span class="metric-label">Retention rate</span>
+            <span class="metric-value">{{ formatPct(report.retentionRatePercent) }}%</span>
+          </div>
+          <div class="block-extra" *ngIf="showReferral">
+            <span class="metric-label">Conversion Rate</span>
+            <span class="metric-value">{{ formatPct(report.conversionRatePercent) }}%</span>
+            <span class="metric-label">CAC</span>
+            <span class="metric-value">{{ formatMoney(report.cac) }} ₸</span>
+          </div>
+        </section>
+        <section class="report-block monthly-block report-monthly-inline" *ngIf="monthlyChartData?.length">
+        <div class="block-header">
+          <div class="block-icon block-icon-chart">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+          </div>
+          <h3 class="block-title">Средний чек и выручка по месяцам</h3>
+          <div class="month-chart-year-select">
+            <select class="control-select year-select" [ngModel]="chartYear" (ngModelChange)="onChartYearChange($event)">
+              <option *ngFor="let y of availableChartYears" [value]="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="monthly-chart" *ngIf="!isMonthlyChartLoading">
+          <div class="monthly-chart-inner">
+            <div class="monthly-y-axis-left">
+              <span *ngFor="let label of getMonthlyLeftAxisLabels()">{{ label }}</span>
+            </div>
+            <div class="monthly-chart-area">
+              <div class="monthly-chart-grid" aria-hidden="true">
+                <span *ngFor="let label of getMonthlyLeftAxisLabels(); let i = index" class="monthly-grid-line" [style.top.%]="(i / 4) * 100"></span>
+              </div>
+              <div class="monthly-bars">
+                <div *ngFor="let point of monthlyChartData" class="month-cell">
+                  <div class="month-bars-group" [class.selected]="isMonthSelected(point)">
+                    <div class="month-bar-clickable with-bonus"
+                         [style.height.%]="monthlyChartMax ? (point.avgCheckWithBonus / monthlyChartMax) * 100 : 0"
+                         (click)="selectMonth(point.yearMonth)">
+                      <div class="month-bar-tooltip">
+                        <div class="tooltip-title">{{ point.month }}</div>
+                        <div class="tooltip-row">Выручка: {{ formatMoneyShort(point.revenue ?? 0) }}</div>
+                        <div class="tooltip-row">Средний чек с бонусом: {{ formatMoneyShort(point.avgCheckWithBonus) }}</div>
+                        <div class="tooltip-row">Средний чек без бонусов: {{ formatMoneyShort(point.avgCheckWithoutBonus) }}</div>
+                      </div>
+                    </div>
+                    <div class="month-bar-clickable without-bonus"
+                         [style.height.%]="monthlyChartMax ? (point.avgCheckWithoutBonus / monthlyChartMax) * 100 : 0"
+                         (click)="selectMonth(point.yearMonth)">
+                      <div class="month-bar-tooltip">
+                        <div class="tooltip-title">{{ point.month }}</div>
+                        <div class="tooltip-row">Выручка: {{ formatMoneyShort(point.revenue ?? 0) }}</div>
+                        <div class="tooltip-row">Средний чек с бонусом: {{ formatMoneyShort(point.avgCheckWithBonus) }}</div>
+                        <div class="tooltip-row">Средний чек без бонусов: {{ formatMoneyShort(point.avgCheckWithoutBonus) }}</div>
+                      </div>
+                    </div>
+                    <div class="month-bar-clickable revenue"
+                         [style.height.%]="monthlyRevenueMax ? (point.revenue ?? 0) / monthlyRevenueMax * 100 : 0"
+                         (click)="selectMonth(point.yearMonth)">
+                      <div class="month-bar-tooltip">
+                        <div class="tooltip-title">{{ point.month }}</div>
+                        <div class="tooltip-row">Выручка: {{ formatMoneyShort(point.revenue ?? 0) }}</div>
+                        <div class="tooltip-row">Средний чек с бонусом: {{ formatMoneyShort(point.avgCheckWithBonus) }}</div>
+                        <div class="tooltip-row">Средний чек без бонусов: {{ formatMoneyShort(point.avgCheckWithoutBonus) }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="month-label">{{ point.month }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="monthly-y-axis-right">
+              <span *ngFor="let label of getMonthlyRightAxisLabels()">{{ label }}</span>
+            </div>
+          </div>
+          <div class="monthly-legend">
+            <span class="leg green">Средний чек с бонусом</span>
+            <span class="leg grey">Средний чек без бонусов</span>
+            <span class="leg blue">Выручка за месяц</span>
+          </div>
+        </div>
+        <div class="monthly-chart-loading" *ngIf="isMonthlyChartLoading">
+          <app-loader [visible]="true" [overlay]="false" type="logo" size="small"></app-loader>
+        </div>
+        </section>
+      </div>
+    </div>
+  </ng-container>
+
+  <div *ngIf="!isLoading && !report && !errorMessage" class="report-empty">
+    <p>Выберите тип бонуса для просмотра отчёта.</p>
+  </div>
+  <div *ngIf="errorMessage" class="report-error">
+    <p>{{ errorMessage }}</p>
+  </div>
+</div>

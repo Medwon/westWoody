@@ -224,6 +224,7 @@ function clampPageSize(size: number): number {
               <label class="filter-label">Сортировка:</label>
               <select [(ngModel)]="sortField" class="sort-select">
                 <option value="name">По имени</option>
+                <option value="totalAmount">По сумме трат</option>
                 <option value="lastVisit">По последнему визиту</option>
                 <option value="createdAt">По дате регистрации</option>
               </select>
@@ -1490,7 +1491,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   selectedTags: string[] = [];
   tagSearchInput = '';
   showTagDropdown = false;
-  sortField: 'name' | 'createdAt' | 'lastVisit' = 'lastVisit';
+  sortField: 'name' | 'createdAt' | 'lastVisit' | 'totalAmount' = 'lastVisit';
   sortDirection: SortDirection = 'desc';
   filterType: 'all' | 'individual' | 'business' = 'all';
 
@@ -1518,12 +1519,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
       { label: 'Клиенты' }
     ]);
 
-    // Initial pagination from URL
-    const params = this.route.snapshot.queryParams;
-    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
-    const sizeFromUrl = clampPageSize(+(params['size'] ?? 0) || 15);
-    this.currentPage = pageFromUrl - 1;
-    this.pageSize = sizeFromUrl;
+    this.applyStateFromQueryParams(this.route.snapshot.queryParams);
 
     this.loadDashboardData();
     this.loadTags();
@@ -1531,14 +1527,49 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
 
     // React to query param changes (browser back/forward or programmatic navigate)
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
-      const p = Math.max(1, +(params['page'] ?? 1) || 1);
-      const s = clampPageSize(+(params['size'] ?? 0) || 15);
-      const pageIndex = p - 1;
-      if (this.currentPage !== pageIndex || this.pageSize !== s) {
-        this.currentPage = pageIndex;
-        this.pageSize = s;
-        this.loadClients();
-      }
+      this.applyStateFromQueryParams(params);
+      this.loadClients();
+    });
+  }
+
+  private applyStateFromQueryParams(params: Record<string, string | undefined>): void {
+    this.searchName = params['name'] ?? '';
+    this.searchPhone = params['phone'] ?? '';
+    this.searchEmail = params['email'] ?? '';
+    this.dateFrom = params['dateFrom'] ?? '';
+    this.dateTo = params['dateTo'] ?? '';
+    const tagsParam = params['tags'];
+    this.selectedTags = tagsParam ? tagsParam.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const sortParam = params['sort'];
+    this.sortField = (sortParam === 'name' || sortParam === 'createdAt' || sortParam === 'lastVisit' || sortParam === 'totalAmount') ? sortParam : 'lastVisit';
+    const orderParam = params['order'];
+    this.sortDirection = (orderParam === 'asc' || orderParam === 'desc') ? orderParam : 'desc';
+    const typeParam = params['type'];
+    this.filterType = (typeParam === 'individual' || typeParam === 'business') ? typeParam : 'all';
+    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
+    const sizeFromUrl = clampPageSize(+(params['size'] ?? 0) || 15);
+    this.currentPage = pageFromUrl - 1;
+    this.pageSize = sizeFromUrl;
+  }
+
+  private updateUrlFromState(): void {
+    const queryParams: Record<string, string | number> = {
+      page: this.currentPage + 1,
+      size: this.pageSize,
+      sort: this.sortField,
+      order: this.sortDirection,
+      type: this.filterType
+    };
+    if (this.searchName.trim()) queryParams['name'] = this.searchName.trim();
+    if (this.searchPhone.trim()) queryParams['phone'] = this.searchPhone.trim();
+    if (this.searchEmail.trim()) queryParams['email'] = this.searchEmail.trim();
+    if (this.dateFrom) queryParams['dateFrom'] = this.dateFrom;
+    if (this.dateTo) queryParams['dateTo'] = this.dateTo;
+    if (this.selectedTags.length > 0) queryParams['tags'] = this.selectedTags.join(',');
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      replaceUrl: true
     });
   }
 
@@ -1660,7 +1691,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
     return request;
   }
 
-  mapSortField(field: 'name' | 'createdAt' | 'lastVisit'): 'name' | 'createdAt' | 'lastVisit' {
+  mapSortField(field: 'name' | 'createdAt' | 'lastVisit' | 'totalAmount'): 'name' | 'createdAt' | 'lastVisit' | 'totalAmount' {
     return field;
   }
 
@@ -1716,22 +1747,13 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
     this.currentPage = 0;
     this.mobilePage = 0;
     this.mobileClients = [];
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
-    this.loadClients();
+    this.updateUrlFromState();
+    // loadClients() will run from queryParams subscription
   }
 
   onPageChange(page: number): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+    this.currentPage = page - 1;
+    this.updateUrlFromState();
     const tableContainer = document.querySelector('.table-container');
     if (tableContainer) {
       tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1739,12 +1761,8 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   }
 
   onPageSizeChange(): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+    this.currentPage = 0;
+    this.updateUrlFromState();
   }
 
   getTotalPages(): number {
@@ -1824,13 +1842,8 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
     this.currentPage = 0;
     this.mobilePage = 0;
     this.mobileClients = [];
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
-    this.loadClients();
+    this.updateUrlFromState();
+    // loadClients() will run from queryParams subscription
   }
 
   // Create client modal methods

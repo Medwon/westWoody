@@ -1361,26 +1361,15 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
       { label: 'Платежи' }
     ]);
 
-    // Initial pagination from URL
-    const params = this.route.snapshot.queryParams;
-    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
-    const sizeFromUrl = clampPaymentPageSize(+(params['size'] ?? 0) || 15);
-    this.currentPage = pageFromUrl - 1;
-    this.pageSize = sizeFromUrl;
+    this.applyStateFromQueryParams(this.route.snapshot.queryParams);
 
     this.loadDashboardData();
     this.loadPayments();
 
     // React to query param changes (browser back/forward or programmatic navigate)
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
-      const p = Math.max(1, +(params['page'] ?? 1) || 1);
-      const s = clampPaymentPageSize(+(params['size'] ?? 0) || 15);
-      const pageIndex = p - 1;
-      if (this.currentPage !== pageIndex || this.pageSize !== s) {
-        this.currentPage = pageIndex;
-        this.pageSize = s;
-        this.loadPayments();
-      }
+      this.applyStateFromQueryParams(params);
+      this.loadPayments();
     });
 
     // Subscribe to transaction completion events
@@ -1398,6 +1387,47 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private applyStateFromQueryParams(params: Record<string, string | undefined>): void {
+    this.searchPaymentId = params['paymentId'] ?? '';
+    this.searchClientName = params['clientName'] ?? '';
+    this.searchPhone = params['phone'] ?? '';
+    this.dateFrom = params['dateFrom'] ?? '';
+    this.dateTo = params['dateTo'] ?? '';
+    const methodParam = params['method'];
+    this.filterPaymentMethod = (methodParam === 'cash' || methodParam === 'card' || methodParam === 'transfer') ? methodParam : 'all';
+    const refundParam = params['refund'];
+    this.filterRefund = (refundParam === 'paid' || refundParam === 'refund') ? refundParam : 'all';
+    const sortParam = params['sort'];
+    this.sortField = (sortParam === 'clientName' || sortParam === 'amount' || sortParam === 'date' || sortParam === 'paymentMethod') ? sortParam : 'date';
+    const orderParam = params['order'];
+    this.sortDirection = (orderParam === 'asc' || orderParam === 'desc') ? orderParam : 'desc';
+    const pageFromUrl = Math.max(1, +(params['page'] ?? 1) || 1);
+    const sizeFromUrl = clampPaymentPageSize(+(params['size'] ?? 0) || 15);
+    this.currentPage = pageFromUrl - 1;
+    this.pageSize = sizeFromUrl;
+  }
+
+  private updateUrlFromState(): void {
+    const queryParams: Record<string, string | number> = {
+      page: this.currentPage + 1,
+      size: this.pageSize,
+      sort: this.sortField,
+      order: this.sortDirection,
+      method: this.filterPaymentMethod,
+      refund: this.filterRefund
+    };
+    if (this.searchPaymentId.trim()) queryParams['paymentId'] = this.searchPaymentId.trim();
+    if (this.searchClientName.trim()) queryParams['clientName'] = this.searchClientName.trim();
+    if (this.searchPhone.trim()) queryParams['phone'] = this.searchPhone.trim();
+    if (this.dateFrom) queryParams['dateFrom'] = this.dateFrom;
+    if (this.dateTo) queryParams['dateTo'] = this.dateTo;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      replaceUrl: true
+    });
   }
 
   loadDashboardData(): void {
@@ -1561,22 +1591,13 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
 
   applyFilters(): void {
     this.currentPage = 0;
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
-    this.loadPayments();
+    this.updateUrlFromState();
+    // loadPayments() will run from queryParams subscription
   }
 
   onPageChange(page: number): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+    this.currentPage = page - 1;
+    this.updateUrlFromState();
     const tableContainer = document.querySelector('.table-container');
     if (tableContainer) {
       tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1584,12 +1605,8 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   }
 
   onPageSizeChange(): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+    this.currentPage = 0;
+    this.updateUrlFromState();
   }
 
   getTotalPages(): number {
@@ -1621,13 +1638,8 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
     this.sortField = 'date';
     this.sortDirection = 'desc';
     this.currentPage = 0;
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { page: 1, size: this.pageSize },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
-    this.loadPayments();
+    this.updateUrlFromState();
+    // loadPayments() will run from queryParams subscription
   }
 
   openRefundModal(payment: Payment): void {

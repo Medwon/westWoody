@@ -49,6 +49,11 @@ export const routes: Routes = [
         ]
       },
       {
+        path: 'reports/bonus-types',
+        loadComponent: () => import('./features/reports/pages/bonus-type-report-page/bonus-type-report-page.component').then(m => m.BonusTypeReportPageComponent),
+        title: 'Отчёт по типам бонусов'
+      },
+      {
         path: 'bonus-program',
         children: [
           {

@@ -3119,6 +3119,51 @@
 					"response": []
 				},
 				{
+					"name": "Get Top Customers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/top-customers",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"top-customers"
+							]
+						},
+						"description": "Returns top 10 customers by total spent (COMPLETED payments only), sorted by totalSpent DESC. Each item: id (numeric client id), clientId (UUID), name, totalSpent, paymentsCount, averageOrderValue."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/analytics/top-customers",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "analytics", "top-customers"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": 1,\n    \"clientId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"name\": \"John Doe\",\n    \"totalSpent\": 1500.50,\n    \"paymentsCount\": 25,\n    \"averageOrderValue\": 60.02\n  }\n]"
+						}
+					]
+				},
+				{
 					"name": "Get Monthly Revenue",
 					"request": {
 						"method": "GET",
@@ -3564,6 +3609,69 @@
 			]
 		},
 		{
+			"name": "KPI Analytics",
+			"item": [
+				{
+					"name": "Get Dashboard Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/kpi-analytics/dashboard-metrics?from=2024-01-01T00:00:00&to=2024-12-31T23:59:59",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"kpi-analytics",
+								"dashboard-metrics"
+							],
+							"query": [
+								{
+									"key": "from",
+									"value": "2024-01-01T00:00:00",
+									"description": "Start of analysis period (ISO-8601, required)"
+								},
+								{
+									"key": "to",
+									"value": "2024-12-31T23:59:59",
+									"description": "End of analysis period (ISO-8601, required)"
+								}
+							]
+						},
+						"description": "Returns high-level KPI dashboard metrics for the given period. All calculations are scoped to [from, to]. Requires SUDO, ADMIN, or MANAGER role.\n\n**Uplift (redemption-based):** Bonus group = transactions with bonusUsed > 0 (redeemed); Regular group = bonusUsed == 0 (accumulation only). avgCheckWithBonus / avgCheckRegular and incremental revenue use these definitions.\n\n**Burn rate:** Bonuses that *expired* in the period (by expiresAt), regardless of creation date. BurnedAmount = sum of (original - consumed) for those grants; BurnRate = (BurnedAmount / TotalBonusGrantedInPeriod) * 100 (can exceed 100% in low-activity months).\n\n**Response:** period, revenue, uplift, retention, efficiency (redemptionRate, effectiveDiscount, burnRate, burnedAmount)."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/kpi-analytics/dashboard-metrics?from=2024-01-01T00:00:00&to=2024-12-31T23:59:59",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "kpi-analytics", "dashboard-metrics"],
+									"query": [{"key": "from", "value": "2024-01-01T00:00:00"}, {"key": "to", "value": "2024-12-31T23:59:59"}]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"period\": {\n    \"from\": \"2024-01-01T00:00:00Z\",\n    \"to\": \"2024-12-31T23:59:59Z\"\n  },\n  \"revenue\": {\n    \"totalRevenue\": 125000.50,\n    \"incrementalRevenue\": 8500.00,\n    \"incrementalRevenuePercentage\": 6.80\n  },\n  \"uplift\": {\n    \"aovUplift\": 12.50,\n    \"avgCheckWithBonus\": 4500.00,\n    \"avgCheckRegular\": 4000.00\n  },\n  \"retention\": {\n    \"retentionRate\": 35.20,\n    \"returningClientsCount\": 88,\n    \"totalActiveClients\": 250\n  },\n  \"efficiency\": {\n    \"redemptionRate\": 72.00,\n    \"effectiveDiscount\": 4.50,\n    \"burnRate\": 8.20,\n    \"burnedAmount\": 1200.00\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
 			"name": "Message Templates",
 			"item": [
 				{
@@ -3894,6 +4002,98 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Backoffice - Tags",
+			"description": "Backoffice endpoints for managing tags. Requires SUDO or ADMIN role.",
+			"item": [
+				{
+					"name": "Get All Tags",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags"
+							]
+						},
+						"description": "Get all tags with their client count. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tag by Name",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags/{{tagName}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags",
+								"{{tagName}}"
+							]
+						},
+						"description": "Get a specific tag by its name. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete All Tags",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags"
+							]
+						},
+						"description": "Delete all tags from the system. Requires SUDO or ADMIN role. WARNING: This will remove all tags from all clients."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tag by Name",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags/{{tagName}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags",
+								"{{tagName}}"
+							]
+						},
+						"description": "Delete a specific tag by its name. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"variable": [
@@ -3954,6 +4154,11 @@
 		},
 		{
 			"key": "resetToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tagName",
 			"value": "",
 			"type": "string"
 		}

@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, forkJoin, catchError, of, tap, Subject, filter, takeUntil } from 'rxjs';
@@ -8,7 +9,7 @@ import { selectUser } from '../../../../core/store/auth/auth.selectors';
 import { AuthUser } from '../../../../core/models/user.model';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { TransactionModalService } from '../../../../core/services/transaction-modal.service';
-import { AnalyticsService } from '../../../../core/services/analytics.service';
+import { AnalyticsService, KpiDashboardResponse, TopCustomerResponse, SalesByLoyaltyResponse } from '../../../../core/services/analytics.service';
 import { BonusesService, BonusesExpiringSoon } from '../../../../core/services/bonuses.service';
 import { PaymentsService, PaymentSearchResult } from '../../../../core/services/payments.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -26,6 +27,7 @@ interface KpiCard {
   label: string;
   change?: string;
   changeType?: 'positive' | 'negative';
+  tooltip?: string;
 }
 
 interface RecentPayment {
@@ -48,16 +50,16 @@ interface RecentPayment {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent, PaymentViewModalComponent, LoaderComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent, PaymentViewModalComponent, LoaderComponent],
   template: `
     <div class="page-wrapper">
       <div class="dashboard">
-        <!-- Loading State -->
-        <div class="page-loading-container" *ngIf="isLoading || isChartLoading || isLoadingPayments">
+        <!-- Loading: только блок аналитики (карточки). График и таблица грузятся отдельно. -->
+        <div class="page-loading-container" *ngIf="isLoading">
           <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
         </div>
         
-        <div *ngIf="!isLoading && !isChartLoading && !isLoadingPayments">
+        <div *ngIf="!isLoading">
           <!-- Header -->
       <div class="dashboard-header">
         <app-button
@@ -91,77 +93,117 @@ interface RecentPayment {
         </div>
       </div>
 
-      <!-- KPI Cards -->
-      <div class="kpi-grid">
-        <div class="kpi-card" *ngFor="let kpi of kpiCards">
-          <div class="kpi-header">
-            <div class="kpi-icon" [style.background]="kpi.iconBg">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" [ngSwitch]="kpi.iconId">
-                <!-- Revenue icon -->
-                <g *ngSwitchCase="'revenue'">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
-                </g>
-                <!-- Bonus icon -->
-                <g *ngSwitchCase="'bonus'">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.5"/>
-                </g>
-                <!-- Clients icon -->
-                <g *ngSwitchCase="'clients'">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.5"/>
-                  <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.5"/>
-                </g>
-                <!-- Transactions icon -->
-                <g *ngSwitchCase="'transactions'">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
-                  <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </g>
-                <!-- Refunds icon -->
-                <g class="refunds-icon"  *ngSwitchCase="'refunds'">
-                  <path _ngcontent-ng-c4142443301="" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-                </g>
-                <!-- Average icon -->
-                <g *ngSwitchCase="'average'">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.5"/>
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                </g>
-                <!-- Today icon -->
-                <g *ngSwitchCase="'today'">
-                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5"/>
-                </g>
-                <!-- Month icon -->
-                <g *ngSwitchCase="'month'">
-                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </g>
-              </svg>
+      <!-- Группы в одну строку с иконками -->
+      <div class="card-groups">
+        <section class="card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-payments">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
             </div>
-            <span class="kpi-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">
-              {{ kpi.change }}
-            </span>
+            <h3 class="card-group-title">Платежи</h3>
           </div>
-          <div class="kpi-value">{{ kpi.value }}</div>
-          <div class="kpi-label">{{ kpi.label }}</div>
-        </div>
+          <div class="metric-list">
+            <div class="metric-row" *ngFor="let kpi of paymentCards">
+              <span class="metric-label">{{ kpi.label }}</span>
+              <span class="metric-right">
+                <span class="metric-value">{{ kpi.value }}</span>
+                <span class="metric-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">{{ kpi.change }}</span>
+              </span>
+            </div>
+          </div>
+        </section>
+        <section class="card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-bonus">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <h3 class="card-group-title">Бонусы</h3>
+          </div>
+          <div class="metric-list">
+            <div class="metric-row" *ngFor="let kpi of bonusCards">
+              <span class="metric-label">{{ kpi.label }}</span>
+              <span class="metric-right">
+                <span class="metric-value">{{ kpi.value }}</span>
+                <span class="metric-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">{{ kpi.change }}</span>
+              </span>
+            </div>
+          </div>
+        </section>
+        <section class="card-group">
+          <div class="card-group-header card-group-header-kpi">
+            <div class="card-group-icon card-group-icon-kpi">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            </div>
+            <h3 class="card-group-title">KPI</h3>
+            <div class="kpi-period-select-wrapper">
+              <select class="kpi-period-select" [ngModel]="kpiPeriod" (ngModelChange)="onKpiPeriodChange($event)">
+                <option value="1m">За месяц</option>
+                <option value="3m">За 3 месяца</option>
+                <option value="6m">За 6 месяцев</option>
+                <option value="1y">За год</option>
+                <option value="all">За все время</option>
+              </select>
+            </div>
+          </div>
+            <div class="metric-list">
+            <div class="metric-row kpi-metric-row" *ngFor="let kpi of kpiMetricCards" [title]="kpi.tooltip">
+              <span class="metric-label">
+                {{ kpi.label }}
+                <span class="metric-tooltip-icon" *ngIf="kpi.tooltip" [title]="kpi.tooltip" tabindex="0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </span>
+              </span>
+              <span class="metric-value">{{ kpi.value }}</span>
+            </div>
+          </div>
+        </section>
+        <section class="card-group">
+          <div class="card-group-header">
+            <div class="card-group-icon card-group-icon-users">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <h3 class="card-group-title">Пользователи</h3>
+          </div>
+          <div class="metric-list">
+            <div class="metric-row" *ngFor="let kpi of userCards">
+              <span class="metric-label">{{ kpi.label }}</span>
+              <span class="metric-right">
+                <span class="metric-value">{{ kpi.value }}</span>
+                <span class="metric-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">{{ kpi.change }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="top-customers-list" *ngIf="topCustomers.length > 0">
+            <div class="top-customers-header">
+              <span class="top-customers-title">Топ клиентов</span>
+              <a [routerLink]="['/clients']" [queryParams]="{ sort: 'totalAmount', order: 'desc' }" class="top-customers-link" title="Смотреть всех клиентов по сумме трат">
+                <svg viewBox="0 0 24 24" fill="none" class="top-customers-arrow">
+                  <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            </div>
+            <ul class="top-customers-ul">
+              <li class="top-customer-item" *ngFor="let c of topCustomers.slice(0, 3)">
+                <a [routerLink]="['/clients', c.clientId]" class="top-customer-link">
+                  <span class="top-customer-name">{{ c.name }}</span>
+                  <span class="top-customer-spent">{{ formatAmount(c.totalSpent) }} ₸</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
       </div>
 
-      <!-- Charts Section -->
+      <!-- Charts Section: line chart + donut -->
       <div class="charts-section">
         <!-- Line Chart -->
         <div class="chart-card line-chart-card">
           <h3 class="chart-title">Выручка за месяц</h3>
           <div class="chart-container">
             <div class="chart-y-axis">
-              <span>30 000</span>
-              <span>25 000</span>
-              <span>20 000</span>
-              <span>15 000</span>
-              <span>10 000</span>
-              <span>5 000</span>
-              <span>0</span>
+              <div class="chart-y-axis-inner">
+                <span *ngFor="let label of getYAxisLabels()">{{ label }}</span>
+              </div>
             </div>
             <div class="chart-area">
               <div class="chart-svg-wrapper">
@@ -218,14 +260,48 @@ interface RecentPayment {
                 </div>
               </div>
               <div class="chart-x-axis">
-                <span *ngFor="let label of getXAxisLabels(); let i = index" [style.left.%]="(getXAxisLabelPositions()[i] / 600) * 100">{{ label }}</span>
+                <span class="chart-x-axis-caption">Дни</span>
+                <div class="chart-x-axis-labels">
+                  <span *ngFor="let label of getXAxisLabels(); let i = index" [style.left.%]="(getXAxisLabelPositions()[i] / 600) * 100">{{ label }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Donut Chart -->
-        
+        <!-- Donut: Sales by Loyalty (Loyalty vs Non-loyalty) -->
+        <div class="chart-card donut-chart-card" *ngIf="salesByLoyalty">
+          <h3 class="chart-title">Продажи</h3>
+          <div class="donut-container">
+            <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="16"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutLoyaltyDash()"
+                stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="16"
+                [attr.stroke-dasharray]="getDonutNonLoyaltyDash()"
+                [attr.stroke-dashoffset]="getDonutNonLoyaltyOffset()" transform="rotate(-90 50 50)"/>
+            </svg>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <span class="legend-color loyalty"></span>
+              <div>
+                <div class="legend-label">С бонусами</div>
+                <div class="legend-value">{{ (salesByLoyalty.loyaltyPercent | number:'1.0-0') }}%</div>
+                <div class="legend-count">{{ salesByLoyalty.loyaltyCount | number }}</div>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color non-loyalty"></span>
+              <div>
+                <div class="legend-label">Без бонусов</div>
+                <div class="legend-value">{{ (salesByLoyalty.nonLoyaltyPercent | number:'1.0-0') }}%</div>
+                <div class="legend-count">{{ salesByLoyalty.nonLoyaltyCount | number }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Recent Payments Table -->
@@ -560,38 +636,268 @@ interface RecentPayment {
       height: 20px;
     }
 
-    /* KPI Cards */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
-      margin-bottom: 2rem;
+    /* Группы: белый фон, иконка, аккуратный контент */
+    .card-groups {
+      display: flex;
+      flex-direction: row;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
     }
 
-    @media (max-width: 1400px) {
-      .kpi-grid {
-        grid-template-columns: repeat(3, 1fr);
+    .card-group {
+      flex: 1;
+      min-width: 0;
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: box-shadow 0.2s ease;
+    }
+
+    .card-group:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.625rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .card-group-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .card-group-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .card-group-icon-payments {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      color: #15803d;
+    }
+
+    .card-group-icon-bonus {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      color: #b45309;
+    }
+
+    .card-group-icon-kpi {
+      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+      color: #4338ca;
+    }
+
+    .card-group-icon-users {
+      background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+      color: #be185d;
+    }
+
+    .card-group-header-kpi {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .card-group-header-kpi .card-group-title {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .kpi-period-select-wrapper {
+      flex-shrink: 0;
+    }
+
+    .kpi-period-select {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #0f172a;
+      cursor: pointer;
+    }
+
+    .kpi-period-select:focus {
+      outline: none;
+      border-color: #22c55e;
+    }
+
+    .metric-tooltip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.25rem;
+      cursor: help;
+      vertical-align: middle;
+      color: #64748b;
+    }
+
+    .metric-tooltip-icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .metric-tooltip-icon:hover {
+      color: #22c55e;
+    }
+
+    .card-group-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+
+    .metric-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+      padding: 0.25rem 0;
+    }
+
+    .metric-label {
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    .metric-right {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.35rem;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .metric-change {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .metric-change.positive {
+      color: #16a34a;
+    }
+
+    .metric-change.negative {
+      color: #dc2626;
+    }
+
+    .top-customers-list {
+      margin-top: 0.625rem;
+      padding-top: 0.625rem;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .top-customers-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .top-customers-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .top-customers-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      text-decoration: none;
+      padding: 0.2rem;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .top-customers-link:hover {
+      color: #16a34a;
+      background: rgba(22, 163, 74, 0.08);
+    }
+
+    .top-customers-arrow {
+      width: 16px;
+      height: 16px;
+    }
+
+    .top-customers-ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .top-customer-item {
+      margin-bottom: 0.125rem;
+    }
+
+    .top-customer-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0;
+      text-decoration: none;
+      color: #0f172a;
+      font-size: 0.8125rem;
+      transition: color 0.15s;
+    }
+
+    .top-customer-link:hover {
+      color: #16a34a;
+    }
+
+    .top-customer-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 70%;
+    }
+
+    .top-customer-spent {
+      font-weight: 600;
+      color: #16a34a;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 900px) {
+      .card-groups {
+        flex-wrap: wrap;
+      }
+      .card-group {
+        min-width: calc(50% - 0.5rem);
       }
     }
 
-    @media (max-width: 1000px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
+    @media (max-width: 500px) {
+      .card-group {
+        min-width: 100%;
       }
-    }
-
-    @media (max-width: 600px) {
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .kpi-card {
-      background: white;
-      border-radius: 16px;
-      padding: 1.5rem;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 3px 6px rgba(0, 0, 0, 0.03);
     }
 
     .kpi-header {
@@ -651,15 +957,15 @@ interface RecentPayment {
 
     /* Charts Section */
     .charts-section {
-      display: grid;
-      // grid-template-columns: 2fr 1fr;
-      // gap: 1.5rem;
+      display: flex;
+      flex-direction: row;
+      gap: 1.5rem;
       margin-bottom: 2rem;
     }
 
     @media (max-width: 1024px) {
       .charts-section {
-        grid-template-columns: 1fr;
+        flex-direction: column;
       }
     }
 
@@ -679,6 +985,8 @@ interface RecentPayment {
 
     /* Line Chart */
     .line-chart-card {
+      flex: 1;
+      min-width: 0;
       min-height: 350px;
       overflow: visible;
     }
@@ -690,12 +998,19 @@ interface RecentPayment {
     }
 
     .chart-y-axis {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      height: 300px;
+      flex-shrink: 0;
       padding-right: 1rem;
       font-size: 0.75rem;
       color: #94a3b8;
+    }
+
+    /* Inner height 250px matches chart area (SVG padding 50 top+bottom); 0 aligns with baseline */
+    .chart-y-axis-inner {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 250px;
     }
 
     .chart-area {
@@ -707,9 +1022,9 @@ interface RecentPayment {
     }
 
     .chart-svg-wrapper {
-      flex: 1;
+      height: 300px;
+      flex-shrink: 0;
       position: relative;
-      min-height: 280px;
       overflow: visible;
     }
 
@@ -847,14 +1162,28 @@ interface RecentPayment {
     }
 
     .chart-x-axis {
-      position: relative;
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
       height: 20px;
       padding-top: 0.5rem;
       font-size: 0.75rem;
       color: #94a3b8;
     }
 
-    .chart-x-axis span {
+    .chart-x-axis-caption {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .chart-x-axis-labels {
+      position: relative;
+      flex: 1;
+      height: 100%;
+    }
+
+    .chart-x-axis-labels span {
       position: absolute;
       transform: translateX(-50%);
     }
@@ -863,6 +1192,9 @@ interface RecentPayment {
     .donut-chart-card {
       display: flex;
       flex-direction: column;
+      min-width: 280px;
+      width: 320px;
+      flex-shrink: 0;
     }
 
     .donut-container {
@@ -870,19 +1202,23 @@ interface RecentPayment {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 1rem;
+      padding: 1.5rem;
+      overflow: visible;
+      min-height: 220px;
     }
 
     .donut-chart {
-      width: 180px;
-      height: 180px;
+      width: 200px;
+      height: 200px;
+      display: block;
+      overflow: visible;
     }
 
     .donut-legend {
       display: flex;
       justify-content: center;
       gap: 2rem;
-      padding-top: 1rem;
+      padding-top: 0.5rem;
     }
 
     .legend-item {
@@ -897,14 +1233,32 @@ interface RecentPayment {
       width: 12px;
       height: 12px;
       border-radius: 3px;
+      flex-shrink: 0;
     }
 
-    .legend-color.active {
-      background: #16A34A;
+    .legend-color.loyalty {
+      background: #22c55e;
     }
 
-    .legend-color.forecast {
-      background: #dcfce7;
+    .legend-color.non-loyalty {
+      background: #e2e8f0;
+    }
+
+    .legend-label {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .legend-value {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+
+    .legend-count {
+      font-size: 0.8125rem;
+      color: #64748b;
+      margin-top: 0.15rem;
     }
 
     /* Table Section */
@@ -1315,8 +1669,24 @@ export class HomePageComponent implements OnInit, OnDestroy {
   isChartLoading = true;
   isLoadingPayments = false;
 
-  // KPI Cards Data (initialized empty, filled from real analytics API to avoid mock flicker)
-  kpiCards: KpiCard[] = [];
+  // Card groups (Платежи, Бонусы, KPI, Пользователи)
+  paymentCards: KpiCard[] = [];
+  bonusCards: KpiCard[] = [];
+  kpiMetricCards: KpiCard[] = [];
+  userCards: KpiCard[] = [];
+  topCustomers: TopCustomerResponse[] = [];
+
+  // Bonuses in circulation (for Бонусы group)
+  bonusesInCirculationAmount: number | null = null;
+
+  // Sales by loyalty (for donut chart)
+  salesByLoyalty: SalesByLoyaltyResponse | null = null;
+
+  // KPI period: '1m' | '3m' | '6m' | '1y' | 'all'
+  kpiPeriod: '1m' | '3m' | '6m' | '1y' | 'all' = '1m';
+
+  // Chart Y-axis: max value for dynamic labels
+  chartYAxisMax = 30000;
 
   // Bonuses expiring soon (for home card; null until loaded)
   expiringSoon: BonusesExpiringSoon | null = null;
@@ -1362,76 +1732,74 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   loadAnalyticsData(): void {
     this.isLoading = true;
+    const { from, to } = this.getKpiPeriodRange();
+
     forkJoin({
       monthlyRevenue: this.analyticsService.getMonthlyRevenue().pipe(
-        catchError((error) => {
-          console.error('Error loading monthly revenue:', error);
-          return of({ revenue: 0, changePercent: 0 });
-        }),
-        tap((data) => console.log('Monthly revenue response:', data))
+        catchError(() => of({ revenue: 0, changePercent: 0, amount: 0 }))
       ),
       dailyRevenue: this.analyticsService.getDailyRevenue().pipe(
-        catchError((error) => {
-          console.error('Error loading daily revenue:', error);
-          return of({ revenue: 0, changePercent: 0 });
-        }),
-        tap((data) => console.log('Daily revenue response:', data))
+        catchError(() => of({ revenue: 0, changePercent: 0, amount: 0 }))
       ),
       dailyTransactions: this.analyticsService.getDailyTransactions().pipe(
-        catchError((error) => {
-          console.error('Error loading daily transactions:', error);
-          return of({ count: 0, changeAbsolute: 0 });
-        }),
-        tap((data) => console.log('Daily transactions response:', data))
+        catchError(() => of({ count: 0, changeAbsolute: 0 }))
       ),
       newClients: this.analyticsService.getNewClients('DAILY').pipe(
-        catchError((error) => {
-          console.error('Error loading new clients:', error);
-          return of({ count: 0, changeAbsolute: 0, type: 'NEW' as const, period: 'DAILY' as const });
-        }),
-        tap((data) => console.log('New clients response:', data))
+        catchError(() => of({ count: 0, changeAbsolute: 0, type: 'NEW' as const, period: 'DAILY' as const }))
       ),
       averageCheck: this.analyticsService.getAverageCheck('MONTHLY').pipe(
-        catchError((error) => {
-          console.error('Error loading average check:', error);
-          return of({ averageCheck: 0, changePercent: 0 });
-        }),
-        tap((data) => console.log('Average check response:', data))
+        catchError(() => of({ averageCheck: 0, changePercent: 0, amount: 0 }))
       ),
       bonusesAccrued: this.analyticsService.getBonusesAccrued('MONTHLY').pipe(
-        catchError((error) => {
-          console.error('Error loading bonuses accrued:', error);
-          return of({ amount: 0, changePercentage: 0 });
-        }),
-        tap((data) => console.log('Bonuses accrued response:', data))
+        catchError(() => of({ amount: 0, changePercentage: 0 }))
       ),
       dailyRefunds: this.analyticsService.getDailyRefunds().pipe(
-        catchError((error) => {
-          console.error('Error loading daily refunds:', error);
-          return of({ count: 0, changeAbsolute: 0 });
-        }),
-        tap((data) => console.log('Daily refunds response:', data))
+        catchError(() => of({ count: 0, changeAbsolute: 0 }))
       ),
       activeClients: this.analyticsService.getActiveClients().pipe(
-        catchError((error) => {
-          console.error('Error loading active clients:', error);
-          return of({ count: 0, changeAbsolute: 0 });
-        }),
-        tap((data) => console.log('Active clients response:', data))
+        catchError(() => of({ count: 0, changeAbsolute: 0 }))
+      ),
+      kpiDashboard: this.analyticsService.getKpiDashboard(from, to).pipe(
+        catchError(() => of(null))
+      ),
+      topCustomers: this.analyticsService.getTopCustomers().pipe(
+        catchError(() => of([]))
+      ),
+      bonusesInCirculation: this.analyticsService.getBonusesInCirculation().pipe(
+        catchError(() => of({ amount: 0 }))
+      ),
+      salesByLoyalty: this.analyticsService.getSalesByLoyalty().pipe(
+        catchError(() => of({ loyaltyCount: 0, nonLoyaltyCount: 0, loyaltyPercent: 0, nonLoyaltyPercent: 100 }))
       )
     }).subscribe({
       next: (data) => {
-        console.log('All analytics data received:', data);
-        console.log('Monthly revenue:', data.monthlyRevenue);
-        console.log('Daily revenue:', data.dailyRevenue);
-        console.log('Average check:', data.averageCheck);
-        console.log('Bonuses accrued:', data.bonusesAccrued);
+        this.topCustomers = data.topCustomers || [];
+        this.bonusesInCirculationAmount = data.bonusesInCirculation?.amount ?? 0;
+        this.salesByLoyalty = data.salesByLoyalty ?? null;
         this.updateKpiCards(data);
         this.isLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading analytics data:', error);
         this.isLoading = false;
+        this.bonusesInCirculationAmount = 0;
+        this.salesByLoyalty = null;
+        this.updateKpiCards({
+          monthlyRevenue: { amount: 0 },
+          dailyRevenue: { amount: 0 },
+          dailyTransactions: { count: 0 },
+          newClients: { count: 0, changeAbsolute: 0, type: 'NEW', period: 'DAILY' },
+          averageCheck: { amount: 0 },
+          bonusesAccrued: { amount: 0 },
+          dailyRefunds: { count: 0 },
+          activeClients: { count: 0 },
+          kpiDashboard: null,
+          topCustomers: [],
+          bonusesInCirculation: { amount: 0 },
+          salesByLoyalty: { loyaltyCount: 0, nonLoyaltyCount: 0, loyaltyPercent: 0, nonLoyaltyPercent: 100 }
+        });
+        this.cdr.detectChanges();
       }
     });
   }
@@ -1598,84 +1966,57 @@ export class HomePageComponent implements OnInit, OnDestroy {
   }
 
   updateKpiCards(data: any): void {
-    // Extract values with fallback support
+    const kpi = data.kpiDashboard as KpiDashboardResponse | null;
     const monthlyRevenue = data.monthlyRevenue?.amount ?? data.monthlyRevenue?.revenue ?? 0;
     const monthlyRevenueChange = data.monthlyRevenue?.changePercentage ?? data.monthlyRevenue?.changePercent;
-    
     const dailyRevenue = data.dailyRevenue?.amount ?? data.dailyRevenue?.revenue ?? 0;
     const dailyRevenueChange = data.dailyRevenue?.changePercentage ?? data.dailyRevenue?.changePercent;
-    
     const averageCheck = data.averageCheck?.amount ?? data.averageCheck?.averageCheck ?? 0;
     const averageCheckChange = data.averageCheck?.changePercentage ?? data.averageCheck?.changePercent;
-    
     const bonusesAccrued = data.bonusesAccrued?.amount ?? data.bonusesAccrued?.count ?? 0;
     const bonusesAccruedChange = data.bonusesAccrued?.changePercentage ?? data.bonusesAccrued?.changePercent;
-    
-    this.kpiCards = [
-      {
-        iconId: 'month',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: this.formatCurrency(monthlyRevenue),
-        label: 'Выручка за месяц',
-        change: monthlyRevenueChange != null ? `${monthlyRevenueChange > 0 ? '+' : ''}${monthlyRevenueChange.toFixed(0)}%` : undefined,
-        changeType: monthlyRevenueChange != null && monthlyRevenueChange >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'revenue',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: this.formatCurrency(dailyRevenue),
-        label: 'Выручка за сегодня',
-        change: dailyRevenueChange != null ? `${dailyRevenueChange > 0 ? '+' : ''}${dailyRevenueChange.toFixed(0)}%` : undefined,
-        changeType: dailyRevenueChange != null && dailyRevenueChange >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'transactions',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: (data.dailyTransactions?.count ?? 0).toString(),
-        label: 'Транзакций сегодня',
-        change: data.dailyTransactions?.changeAbsolute != null ? `${data.dailyTransactions.changeAbsolute > 0 ? '+' : ''}${data.dailyTransactions.changeAbsolute}` : undefined,
-        changeType: data.dailyTransactions?.changeAbsolute != null && data.dailyTransactions.changeAbsolute >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'clients',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: (data.newClients?.count ?? 0).toString(),
-        label: 'Новых клиентов',
-        change: data.newClients?.changeAbsolute != null ? `${data.newClients.changeAbsolute > 0 ? '+' : ''}${data.newClients.changeAbsolute}` : undefined,
-        changeType: data.newClients?.changeAbsolute != null && data.newClients.changeAbsolute >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'revenue',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: this.formatCurrency(averageCheck),
-        label: 'Средний чек',
-        change: averageCheckChange != null ? `${averageCheckChange > 0 ? '+' : ''}${averageCheckChange.toFixed(0)}%` : undefined,
-        changeType: averageCheckChange != null && averageCheckChange >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'bonus',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: this.formatCurrency(bonusesAccrued),
-        label: 'Бонусов начислено',
-        change: bonusesAccruedChange != null ? `${bonusesAccruedChange > 0 ? '+' : ''}${bonusesAccruedChange.toFixed(0)}%` : undefined,
-        changeType: bonusesAccruedChange != null && bonusesAccruedChange >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'refunds',
-        iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
-        value: (data.dailyRefunds?.count ?? 0).toString(),
-        label: 'Возвратов',
-        change: data.dailyRefunds?.changeAbsolute != null ? `${data.dailyRefunds.changeAbsolute > 0 ? '+' : ''}${data.dailyRefunds.changeAbsolute}` : undefined,
-        changeType: data.dailyRefunds?.changeAbsolute != null && data.dailyRefunds.changeAbsolute >= 0 ? 'positive' : 'negative'
-      },
-      {
-        iconId: 'today',
-        iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-        value: (data.activeClients?.count ?? 0).toString(),
-        label: 'Активных клиентов',
-        change: data.activeClients?.changeAbsolute != null ? `${data.activeClients.changeAbsolute > 0 ? '+' : ''}${data.activeClients.changeAbsolute}` : undefined,
-        changeType: data.activeClients?.changeAbsolute != null && data.activeClients.changeAbsolute >= 0 ? 'positive' : 'negative'
-      }
+
+    // 1. Платежи
+    this.paymentCards = [
+      { iconId: 'month', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(monthlyRevenue), label: 'Выручка за месяц', change: monthlyRevenueChange != null ? `${monthlyRevenueChange > 0 ? '+' : ''}${monthlyRevenueChange.toFixed(0)}%` : undefined, changeType: monthlyRevenueChange != null && monthlyRevenueChange >= 0 ? 'positive' : 'negative' },
+      { iconId: 'today', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(dailyRevenue), label: 'Выручка за сегодня', change: dailyRevenueChange != null ? `${dailyRevenueChange > 0 ? '+' : ''}${dailyRevenueChange.toFixed(0)}%` : undefined, changeType: dailyRevenueChange != null && dailyRevenueChange >= 0 ? 'positive' : 'negative' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(averageCheck), label: 'Средний чек', change: averageCheckChange != null ? `${averageCheckChange > 0 ? '+' : ''}${averageCheckChange.toFixed(0)}%` : undefined, changeType: averageCheckChange != null && averageCheckChange >= 0 ? 'positive' : 'negative' },
+      { iconId: 'transactions', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: (data.dailyTransactions?.count ?? 0).toString(), label: 'Кол-во транзакций', change: data.dailyTransactions?.changeAbsolute != null ? `${data.dailyTransactions.changeAbsolute > 0 ? '+' : ''}${data.dailyTransactions.changeAbsolute}` : undefined, changeType: data.dailyTransactions?.changeAbsolute != null && data.dailyTransactions.changeAbsolute >= 0 ? 'positive' : 'negative' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.uplift?.avgCheckWithBonus != null ? this.formatCurrency(Number(kpi.uplift.avgCheckWithBonus)) : '—', label: 'Средний чек с бонусами' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0f2fe, #bae6fd)', value: kpi?.uplift?.avgCheckRegular != null ? this.formatCurrency(Number(kpi.uplift.avgCheckRegular)) : '—', label: 'Средний чек без бонусов' }
+    ];
+
+    // 2. Бонусы
+    const inCirculation = data.bonusesInCirculation?.amount ?? this.bonusesInCirculationAmount ?? 0;
+    this.bonusCards = [
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(inCirculation), label: 'Бонусы в обороте' },
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(bonusesAccrued), label: 'Начисленные бонусы', change: bonusesAccruedChange != null ? `${bonusesAccruedChange > 0 ? '+' : ''}${bonusesAccruedChange.toFixed(0)}%` : undefined, changeType: bonusesAccruedChange != null && bonusesAccruedChange >= 0 ? 'positive' : 'negative' },
+      { iconId: 'refunds', iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)', value: (data.dailyRefunds?.count ?? 0).toString(), label: 'Возвраты', change: data.dailyRefunds?.changeAbsolute != null ? `${data.dailyRefunds.changeAbsolute > 0 ? '+' : ''}${data.dailyRefunds.changeAbsolute}` : undefined, changeType: data.dailyRefunds?.changeAbsolute != null && data.dailyRefunds.changeAbsolute >= 0 ? 'positive' : 'negative' },
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.efficiency?.burnedAmount != null ? this.formatCurrency(Number(kpi.efficiency.burnedAmount)) : '0 ₸', label: 'Сгоревшие бонусы (сумма)' }
+    ];
+
+    // 3. KPI (with tooltips)
+    const retention = kpi?.retention?.retentionRate != null ? Number(kpi.retention.retentionRate).toFixed(1) : '—';
+    const redemptionRate = kpi?.efficiency?.redemptionRate != null ? Number(kpi.efficiency.redemptionRate).toFixed(1) + '%' : '—';
+    const effectiveDiscount = kpi?.efficiency?.effectiveDiscount != null ? Number(kpi.efficiency.effectiveDiscount).toFixed(1) + '%' : '—';
+    const burnRate = kpi?.efficiency?.burnRate != null ? Number(kpi.efficiency.burnRate).toFixed(1) + '%' : '—';
+    const aovUplift = kpi?.uplift?.aovUplift != null ? Number(kpi.uplift.aovUplift).toFixed(1) + '%' : '—';
+    const incRevPerc = kpi?.revenue?.incrementalRevenuePercentage != null ? Number(kpi.revenue.incrementalRevenuePercentage).toFixed(1) + '%' : '—';
+    this.kpiMetricCards = [
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: retention + (retention !== '—' ? '%' : ''), label: 'Retention', tooltip: 'Доля клиентов, совершивших 2 и более покупок в выбранном периоде, от общего числа активных клиентов. Показывает удержание.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: redemptionRate, label: 'Redemption rate', tooltip: 'Доля начисленных бонусов, которую клиенты потратили в периоде. Показывает, насколько активно используют бонусы.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: effectiveDiscount, label: 'Effective discount', tooltip: 'Средний фактический скидочный процент по использованным бонусам относительно выручки в периоде.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: burnRate, label: 'Burn rate', tooltip: 'Доля начисленных за последние 12 месяцев бонусов, которая сгорела (истек срок). Показывает потери от неиспользования.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: aovUplift, label: 'AOV uplift', tooltip: 'Разница среднего чека между платежами с использованием бонусов и без. Положительный uplift — клиенты с бонусами тратят больше.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: incRevPerc, label: 'Incremental revenue %', tooltip: 'Доля дополнительной выручки от платежей с использованием бонусов в общей выручке периода.' }
+    ];
+
+    // 4. Пользователи
+    const returningCount = kpi?.retention?.returningClientsCount ?? 0;
+    this.userCards = [
+      { iconId: 'clients', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: (data.newClients?.count ?? 0).toString(), label: 'Новые клиенты', change: data.newClients?.changeAbsolute != null ? `${data.newClients.changeAbsolute > 0 ? '+' : ''}${data.newClients.changeAbsolute}` : undefined, changeType: data.newClients?.changeAbsolute != null && data.newClients.changeAbsolute >= 0 ? 'positive' : 'negative' },
+      { iconId: 'clients', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: String(returningCount), label: 'Вернувшиеся клиенты' },
+      { iconId: 'clients', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: (data.activeClients?.count ?? 0).toString(), label: 'Активные клиенты', change: data.activeClients?.changeAbsolute != null ? `${data.activeClients.changeAbsolute > 0 ? '+' : ''}${data.activeClients.changeAbsolute}` : undefined, changeType: data.activeClients?.changeAbsolute != null && data.activeClients.changeAbsolute >= 0 ? 'positive' : 'negative' }
     ];
   }
 
@@ -1684,6 +2025,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     if (!chartData || chartData.length === 0) {
       console.log('Chart data is empty, clearing cache');
       this._chartDataCache = null;
+      this.chartYAxisMax = 30000;
+      this.cdr.markForCheck();
       return;
     }
 
@@ -1694,16 +2037,17 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const chartWidth = svgWidth - padding * 2;
     const chartHeight = svgHeight - padding * 2;
 
-    // Find max revenue for scaling
+    // Find max revenue and round to nice value for Y-axis and scaling
     const maxRevenue = Math.max(...chartData.map(d => (d.revenue || d.amount || 0)), 1);
-    console.log('Max revenue for scaling:', maxRevenue);
+    this.chartYAxisMax = this.niceRoundMax(maxRevenue);
+    const scaleMax = this.chartYAxisMax;
 
     const points = chartData.map((dataPoint) => {
       const day = dataPoint.day || dataPoint.dayNumber || 1;
       const dayRatio = daysInMonth > 1 ? (day - 1) / (daysInMonth - 1) : 0;
       const x = padding + dayRatio * chartWidth;
       const revenue = dataPoint.revenue || dataPoint.amount || 0;
-      const y = svgHeight - padding - (revenue / maxRevenue) * chartHeight;
+      const y = svgHeight - padding - (revenue / scaleMax) * chartHeight;
       
       // Use new field names from API (transactionCount, bonusesGranted, bonusesUsed)
       // with fallback to old field names for backward compatibility
@@ -1724,6 +2068,42 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
     console.log('Updated chart cache with', points.length, 'points');
     this._chartDataCache = points;
+    this.cdr.markForCheck();
+  }
+
+  /** Round max value to a nice step for Y-axis (e.g. 27300 -> 30000). */
+  niceRoundMax(value: number): number {
+    if (value <= 0) return 10000;
+    const order = Math.pow(10, Math.floor(Math.log10(value)));
+    const normalized = value / order;
+    const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return Math.ceil((nice * order) / 1000) * 1000 || 10000;
+  }
+
+  /** Format value for Y-axis: 50000 -> "50 тыс", 10000000 -> "10 млн", then append " тг". */
+  formatYAxisValue(value: number): string {
+    if (value >= 1_000_000) {
+      const millions = value / 1_000_000;
+      const str = millions % 1 === 0 ? `${millions}` : millions.toFixed(1);
+      return `${str.replace('.', ',')} млн`;
+    }
+    if (value >= 1_000) {
+      const thousands = value / 1_000;
+      const str = thousands % 1 === 0 ? `${thousands}` : thousands.toFixed(1);
+      return `${str.replace('.', ',')} тыс`;
+    }
+    return value.toLocaleString('ru-RU');
+  }
+
+  getYAxisLabels(): string[] {
+    const max = this.chartYAxisMax || 30000;
+    const steps = 6;
+    const labels: string[] = [];
+    for (let i = steps; i >= 0; i--) {
+      const v = Math.round((max * i) / steps);
+      labels.push(this.formatYAxisValue(v) + ' тг');
+    }
+    return labels;
   }
 
   formatCurrency(amount: number | null | undefined, showSymbol: boolean = true): string {
@@ -1997,6 +2377,86 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const uniquePositions = [...new Set(positions)].sort((a, b) => a - b);
     
     return uniquePositions.map(day => day.toString());
+  }
+
+  /** Donut: r=40, circumference ≈ 251. */
+  private getDonutCircumference(): number {
+    return 2 * Math.PI * 40;
+  }
+
+  getDonutLoyaltyDash(): string {
+    if (!this.salesByLoyalty) return '0 251';
+    const c = this.getDonutCircumference();
+    const len = (this.salesByLoyalty.loyaltyPercent / 100) * c;
+    return `${len} ${c}`;
+  }
+
+  getDonutNonLoyaltyDash(): string {
+    if (!this.salesByLoyalty) return '0 251';
+    const c = this.getDonutCircumference();
+    const len = (this.salesByLoyalty.nonLoyaltyPercent / 100) * c;
+    return `${len} ${c}`;
+  }
+
+  getDonutNonLoyaltyOffset(): number {
+    if (!this.salesByLoyalty) return 0;
+    const c = this.getDonutCircumference();
+    const len = (this.salesByLoyalty.loyaltyPercent / 100) * c;
+    return -len;
+  }
+
+  getKpiPeriodRange(): { from: string; to: string } {
+    const now = new Date();
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    let from: Date;
+    switch (this.kpiPeriod) {
+      case '3m':
+        from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate(), 0, 0, 0);
+        break;
+      case '6m':
+        from = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate(), 0, 0, 0);
+        break;
+      case '1y':
+        from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0);
+        break;
+      case 'all':
+        from = new Date(2000, 0, 1, 0, 0, 0);
+        break;
+      default:
+        from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    }
+    const fromStr = from.toISOString().slice(0, 19).replace('T', 'T');
+    const toStr = to.toISOString().slice(0, 19).replace('T', 'T');
+    return { from: fromStr, to: toStr };
+  }
+
+  onKpiPeriodChange(period: '1m' | '3m' | '6m' | '1y' | 'all'): void {
+    this.kpiPeriod = period;
+    const { from, to } = this.getKpiPeriodRange();
+    this.analyticsService.getKpiDashboard(from, to).pipe(
+      catchError(() => of(null))
+    ).subscribe((kpi) => {
+      this.buildKpiMetricCardsOnly(kpi);
+      this.cdr.detectChanges();
+    });
+  }
+
+  /** Build only kpiMetricCards from KPI response (used when period changes). */
+  buildKpiMetricCardsOnly(kpi: KpiDashboardResponse | null): void {
+    const retention = kpi?.retention?.retentionRate != null ? Number(kpi.retention.retentionRate).toFixed(1) : '—';
+    const redemptionRate = kpi?.efficiency?.redemptionRate != null ? Number(kpi.efficiency.redemptionRate).toFixed(1) + '%' : '—';
+    const effectiveDiscount = kpi?.efficiency?.effectiveDiscount != null ? Number(kpi.efficiency.effectiveDiscount).toFixed(1) + '%' : '—';
+    const burnRate = kpi?.efficiency?.burnRate != null ? Number(kpi.efficiency.burnRate).toFixed(1) + '%' : '—';
+    const aovUplift = kpi?.uplift?.aovUplift != null ? Number(kpi.uplift.aovUplift).toFixed(1) + '%' : '—';
+    const incRevPerc = kpi?.revenue?.incrementalRevenuePercentage != null ? Number(kpi.revenue.incrementalRevenuePercentage).toFixed(1) + '%' : '—';
+    this.kpiMetricCards = [
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: retention + (retention !== '—' ? '%' : ''), label: 'Retention', tooltip: 'Доля клиентов, совершивших 2 и более покупок в выбранном периоде, от общего числа активных клиентов. Показывает удержание.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: redemptionRate, label: 'Redemption rate', tooltip: 'Доля начисленных бонусов, которую клиенты потратили в периоде. Показывает, насколько активно используют бонусы.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: effectiveDiscount, label: 'Effective discount', tooltip: 'Средний фактический скидочный процент по использованным бонусам относительно выручки в периоде.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: burnRate, label: 'Burn rate', tooltip: 'Доля начисленных за последние 12 месяцев бонусов, которая сгорела (истек срок). Показывает потери от неиспользования.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: aovUplift, label: 'AOV uplift', tooltip: 'Разница среднего чека между платежами с использованием бонусов и без. Положительный uplift — клиенты с бонусами тратят больше.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', value: incRevPerc, label: 'Incremental revenue %', tooltip: 'Доля дополнительной выручки от платежей с использованием бонусов в общей выручке периода.' }
+    ];
   }
 
   getXAxisLabelPositions(): number[] {
