@@ -42,9 +42,20 @@ export class RewardProgramsService {
     return this.http.get<RewardProgramResponse>(`${API}/${uuid}`);
   }
 
-  getTieredClients(programUuid: string, page = 0, size = 20, tierName?: string): Observable<PagedTieredClientsResponse> {
+  getTieredClients(
+    programUuid: string,
+    page = 0,
+    size = 20,
+    tierName?: string,
+    search?: string,
+    searchPhone?: string,
+    sort?: string
+  ): Observable<PagedTieredClientsResponse> {
     const params: Record<string, string> = { page: String(page), size: String(size) };
     if (tierName) params['tierName'] = tierName;
+    if (search) params['search'] = search;
+    if (searchPhone) params['searchPhone'] = searchPhone;
+    if (sort) params['sort'] = sort;
     return this.http.get<PagedTieredClientsResponse>(
       `${API}/${programUuid}/tiered-clients`,
       { params }

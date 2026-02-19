@@ -236,17 +236,17 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
   styles: [`
     :host { display: block; height: 100%; }
     .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
-    .programs-container { max-width: 1200px; margin: 0 auto; }
+    .programs-container { max-width: 1400px; margin: 0 auto; }
 
     .intro-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .intro-text { flex: 1; min-width: 0; font-size: 0.95rem; color: #475569; line-height: 1.6; margin: 0; max-width: 720px; }
-    .btn-create-program { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
-    .btn-create-program:hover { background: #15803d; color: white; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3); }
+    .btn-create-program { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
+    .btn-create-program:hover { background: #15803d; color: white; }
     .btn-icon { width: 18px; height: 18px; }
 
     .tabs-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
     .tabs { display: flex; gap: 0; background: white; border-radius: 10px; padding: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-    .tab { padding: 0.5rem 1rem; border: none; background: transparent; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #64748b; cursor: pointer; transition: all 0.2s; }
+    .tab { padding: 0.5rem 1rem; border: none; background: transparent; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #64748b; cursor: pointer; }
     .tab:hover { color: #0f172a; background: #f1f5f9; }
     .tab.active { background: #16A34A; color: white; }
     .tab-count { font-size: 0.875rem; color: #64748b; font-weight: 500; }
@@ -258,7 +258,7 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: #64748b; }
     .empty-state svg { width: 56px; height: 56px; margin-bottom: 1rem; color: #94a3b8; }
     .empty-state span { font-size: 1rem; margin-bottom: 1.25rem; }
-    .btn-create-loyalty { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
+    .btn-create-loyalty { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
     .btn-create-loyalty:hover { background: #15803d; color: white; }
 
     .table-wrap { background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: visible; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05); }
@@ -267,7 +267,7 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     .programs-table td { text-align: left; padding: 1rem 1.25rem; vertical-align: middle; }
     .programs-table th { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
     .programs-table td { padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; color: #334155; }
-    .program-row { cursor: pointer; transition: background 0.15s; }
+    .program-row { cursor: pointer; }
     .program-row:hover { background: #f8fafc; }
     .program-row:last-child td { border-bottom: none; }
 
@@ -289,17 +289,17 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     .status-pill.inactive { background: #fee2e2; color: #b91c1c; }
 
     .action-cell { position: relative; text-align: right; }
-    .btn-menu { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: 10px; background: transparent; color: #64748b; cursor: pointer; transition: color 0.2s, background 0.2s; }
+    .btn-menu { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: 10px; background: transparent; color: #64748b; cursor: pointer; }
     .btn-menu:hover { background: #f1f5f9; color: #0f172a; }
     .dots-icon { width: 20px; height: 20px; }
     .menu-dropdown { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 160px; background: white; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.12); border: 1px solid #e2e8f0; padding: 4px; z-index: 100; }
-    .menu-item { display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem; border: none; background: none; border-radius: 6px; font-size: 0.875rem; color: #334155; cursor: pointer; transition: background 0.15s; }
+    .menu-item { display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem; border: none; background: none; border-radius: 6px; font-size: 0.875rem; color: #334155; cursor: pointer; }
     .menu-item:hover { background: #f1f5f9; }
     .menu-item-danger { color: #b91c1c; }
     .menu-item-danger:hover { background: #fef2f2; }
 
     .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
-    .page-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 10px; background: white; color: #475569; cursor: pointer; transition: all 0.2s; }
+    .page-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 10px; background: white; color: #475569; cursor: pointer; }
     .page-btn:hover:not(:disabled) { background: #f8fafc; border-color: #16A34A; color: #16A34A; }
     .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .page-btn svg { width: 18px; height: 18px; }
