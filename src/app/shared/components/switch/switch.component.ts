@@ -68,7 +68,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
     }
 
     .switch-track.checked {
-      background-color: #007bff;
+      background-color: var(--primary-color);
     }
 
     .switch-thumb {

@@ -101,6 +101,28 @@ export interface UpdatePaymentMethodRequest {
   paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
 }
 
+export interface TierInfo {
+  name: string;
+  extraRate: number;
+  minAmount: number;
+  maxAmount: number | null;
+}
+
+export interface CashbackContext {
+  active: boolean;
+  programName: string | null;
+  cashbackType: 'PERCENTAGE' | 'BONUS_POINTS' | null;
+  baseRate: number;
+  pointsSpendThreshold: number | null;
+  minSpendAmount: number;
+  redeemLimitPercent: number;
+  bonusLifespanDays: number | null;
+  eligibilityType: string | null;
+  currentTier: TierInfo | null;
+  effectiveRate: number;
+  clientTotalSpend: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -191,5 +213,12 @@ export class PaymentsService {
    */
   deletePayment(txId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${txId}`);
+  }
+
+  /**
+   * Get cashback context for a client (active program info, rates, tiers, limits)
+   */
+  getCashbackContext(clientId: string): Observable<CashbackContext> {
+    return this.http.get<CashbackContext>(`${this.apiUrl}/cashback-context/${clientId}`);
   }
 }

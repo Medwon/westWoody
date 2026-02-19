@@ -9,22 +9,18 @@ import { CommonModule } from '@angular/common';
     <div class="promo-panel">
       <div class="promo-content">
         <div class="promo-logo">
-          <svg viewBox="0 0 24 24" fill="none" class="logo-icon">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.9"/>
-            <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/tinta-logo-short.svg" alt="Tinta" class="logo-icon">
         </div>
         <h1 class="promo-title">
           <span class="title-greeting">Привет,</span>
-          <span class="title-brand">WestWood!<span class="wave-emoji">👋🏻</span></span>
+          <span class="title-brand">Tinta!<span class="wave-emoji">👋🏻</span></span>
         </h1>
         <p class="promo-text">
           Забудьте о ручном управлении бонусами и акциями.
           Автоматизируйте программу лояльности, увеличьте возврат клиентов и зарабатывайте больше — без лишних усилий.
         </p>
         <div class="promo-footer">
-          <span>© 2026 WestWood. Все права защищены.</span>
+          <span>© 2026 Tinta. Все права защищены.</span>
         </div>
       </div>
       <div class="promo-background">
@@ -96,9 +92,9 @@ import { CommonModule } from '@angular/common';
     }
 
     .promo-logo .logo-icon {
-      width: 96px;
-      height: 96px;
-      color: white;
+      width: 100px;
+      height: auto;
+      filter: brightness(0) invert(1);
     }
 
     .promo-title {
@@ -163,7 +159,8 @@ import { CommonModule } from '@angular/common';
 
       .promo-logo .logo-icon {
         width: 80px;
-        height: 80px;
+        height: auto;
+        filter: brightness(0) invert(1);
       }
 
       .promo-title {
@@ -218,8 +215,9 @@ import { CommonModule } from '@angular/common';
       }
 
       .promo-logo .logo-icon {
-        width: 64px;
-        height: 64px;
+        width: 60px;
+        height: auto;
+        filter: brightness(0) invert(1);
       }
 
       .promo-title {

@@ -90,7 +90,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
     input {
       width: 100%;
       padding: 0.625rem 0.875rem;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--color-input-border);
       border-radius: 6px;
       font-size: 0.875rem;
       transition: all 0.2s ease;
@@ -98,18 +98,22 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       color: #1a202c;
     }
 
+    input:hover {
+      border-color: var(--color-input-border-hover);
+    }
+
     input:focus {
       outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      border-color: var(--color-input-border-focus);
+      box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
     }
 
     input.error {
-      border-color: #dc3545;
+      border-color: var(--color-input-error);
     }
 
     input.error:focus {
-      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+      box-shadow: 0 0 0 3px var(--color-input-error-shadow);
     }
 
     input:disabled {

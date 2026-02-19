@@ -661,7 +661,7 @@ function clampPageSize(size: number): number {
     .filter-input {
       width: 100%;
       padding: 0.625rem 0.875rem 0.625rem 2.5rem;
-      border: 1.5px solid #e2e8f0;
+      border: 1.5px solid var(--color-input-border);
       border-radius: 10px;
       font-size: 0.9rem;
       background: #f8fafc;
@@ -670,14 +670,14 @@ function clampPageSize(size: number): number {
     }
 
     .filter-input:hover {
-      border-color: #cbd5e1;
+      border-color: var(--color-input-border-hover);
     }
 
     .filter-input:focus {
       outline: none;
-      border-color: #22c55e;
+      border-color: var(--color-input-border-focus);
       background: white;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+      box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
     }
 
     .filter-input::placeholder {
@@ -698,7 +698,7 @@ function clampPageSize(size: number): number {
     .date-input {
       flex: 1;
       padding: 0.625rem 0.875rem;
-      border: 1.5px solid #e2e8f0;
+      border: 1.5px solid var(--color-input-border);
       border-radius: 10px;
       font-size: 0.9rem;
       background: #f8fafc;
@@ -707,14 +707,14 @@ function clampPageSize(size: number): number {
     }
 
     .date-input:hover {
-      border-color: #cbd5e1;
+      border-color: var(--color-input-border-hover);
     }
 
     .date-input:focus {
       outline: none;
-      border-color: #22c55e;
+      border-color: var(--color-input-border-focus);
       background: white;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+      box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
     }
 
     .date-separator {

@@ -42,9 +42,9 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     }
 
     .toggle-button.active {
-      background-color: #007bff;
+      background-color: var(--primary-color);
       color: #ffffff;
-      border-color: #007bff;
+      border-color: var(--primary-color);
     }
 
     .toggle-button.disabled {

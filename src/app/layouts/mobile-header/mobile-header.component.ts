@@ -11,11 +11,7 @@ import { IconButtonComponent } from '../../shared/components/icon-button/icon-bu
     <header class="mobile-header">
       <div class="mobile-header-content">
         <a routerLink="/home" class="mobile-logo-link">
-          <svg class="mobile-logo-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.8"/>
-            <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/tinta-logo-short.svg" alt="Tinta" class="mobile-logo-icon">
           <span class="mobile-logo-text">{{ logoText }}</span>
         </a>
         <app-icon-button
@@ -66,8 +62,8 @@ import { IconButtonComponent } from '../../shared/components/icon-button/icon-bu
     .mobile-logo-icon {
       width: 28px;
       height: 28px;
-      color: #15803d;
       flex-shrink: 0;
+      object-fit: contain;
     }
 
     .mobile-logo-text {
@@ -86,7 +82,7 @@ import { IconButtonComponent } from '../../shared/components/icon-button/icon-bu
   `]
 })
 export class MobileHeaderComponent {
-  @Input() logoText: string = 'WestWood';
+  @Input() logoText: string = 'Tinta';
   @Output() menuClick = new EventEmitter<void>();
 
   onMenuClick(): void {

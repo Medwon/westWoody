@@ -1,7 +1,30 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
+import { Subject, takeUntil, finalize } from 'rxjs';
+
 import { PageHeaderService } from '../../../../core/services/page-header.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
+import {
+  DayOfWeek,
+  RewardProgramResponse,
+  SaveCashbackDraftRequest,
+  LaunchCashbackProgramRequest,
+  WeeklyScheduleEntry,
+  CashbackTierEntry
+} from '../../../../core/models/reward-program.model';
+
+import { StepProgramDetailsComponent } from './steps/step-program-details.component';
+import { StepScheduleComponent } from './steps/step-schedule.component';
+import { StepRulesComponent } from './steps/step-rules.component';
+import { StepTiersComponent } from './steps/step-tiers.component';
+import { StepNotificationsComponent } from './steps/step-notifications.component';
+import { StepSummaryComponent } from './steps/step-summary.component';
+import { AlertComponent } from '../../../../shared/components/alert/alert.component';
+
+// ─── Step definitions ────────────────────────────────────────────────
 
 interface WizardStep {
   num: number;
@@ -10,122 +33,140 @@ interface WizardStep {
 }
 
 const STEPS: WizardStep[] = [
-  { num: 1, label: 'Program details', hint: 'Define basic information and validity for this reward program.' },
-  { num: 2, label: 'Earning rules', hint: 'Configure when and how customers earn rewards.' },
-  { num: 3, label: 'Rewards catalog', hint: 'Set up what customers can redeem their points or bonuses for.' },
-  { num: 4, label: 'Tiers (optional)', hint: 'Optionally add tiers to differentiate customer groups.' },
-  { num: 5, label: 'Notifications (optional)', hint: 'Configure messages sent to customers about this program.' },
-  { num: 6, label: 'Summary', hint: 'Review all settings before activating the program.' }
+  { num: 1, label: 'Program details', hint: 'Define basic information about this cashback program.' },
+  { num: 2, label: 'Schedule', hint: 'Set program dates and weekly active hours.' },
+  { num: 3, label: 'Rules', hint: 'Configure spending rules and redeem limits.' },
+  { num: 4, label: 'Tiers (optional)', hint: 'Optionally add tiers to reward loyal customers.' },
+  { num: 5, label: 'Notifications', hint: 'Preview promotional messaging options.' },
+  { num: 6, label: 'Summary & Launch', hint: 'Review all settings and launch the program.' }
+];
+
+const ALL_DAYS: DayOfWeek[] = [
+  'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'
 ];
 
 @Component({
   selector: 'app-create-program-wizard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [
+    CommonModule, ReactiveFormsModule, AlertComponent,
+    StepProgramDetailsComponent, StepScheduleComponent, StepRulesComponent,
+    StepTiersComponent, StepNotificationsComponent, StepSummaryComponent
+  ],
   template: `
     <div class="wizard-wrapper">
       <div class="wizard-layout">
         <!-- ====== LEFT: Main content ====== -->
         <main class="wizard-main">
-          <h2 class="step-number">{{ currentStep }}. {{ STEPS[currentStep - 1].label }}</h2>
+          <h2 class="step-title">{{ currentStep }}. {{ STEPS[currentStep - 1].label }}</h2>
 
-          <!-- Step 1: Program details -->
-          <div *ngIf="currentStep === 1" class="step-content">
-            <form class="details-form">
-              <div class="form-row">
-                <label class="field">
-                  <span class="field-label">Program name *</span>
-                  <input class="field-input" type="text" placeholder="e.g. Weekend cashback" />
-                </label>
-                <label class="field field-inline-toggle">
-                  <span class="field-label">Auto update</span>
-                  <input type="checkbox" />
-                </label>
-              </div>
+          <!-- Global error -->
+          <app-alert *ngIf="globalError" type="error" [dismissible]="true" (dismissed)="globalError = ''">
+            {{ globalError }}
+          </app-alert>
 
-              <div class="form-row">
-                <label class="field full-width">
-                  <span class="field-label">Description</span>
-                  <textarea class="field-textarea" rows="3" placeholder="Describe this reward program for your team."></textarea>
-                </label>
-              </div>
+          <!-- Step 1: Program Details -->
+          <app-step-program-details
+            *ngIf="currentStep === 1"
+            [form]="form"
+          ></app-step-program-details>
 
-              <div class="helper-banner">
-                <p class="helper-title">Auto update</p>
-                <p class="helper-text">
-                  Auto update will keep this program active and allow you to adjust rules after launch
-                  without recreating the campaign.
-                </p>
-              </div>
+          <!-- Step 2: Schedule -->
+          <app-step-schedule
+            *ngIf="currentStep === 2"
+            [form]="form"
+          ></app-step-schedule>
 
-              <div class="form-row two-columns">
-                <label class="field">
-                  <span class="field-label">Start date</span>
-                  <input class="field-input" type="date" />
-                </label>
-                <label class="field">
-                  <span class="field-label">End date</span>
-                  <input class="field-input" type="date" />
-                </label>
-              </div>
+          <!-- Step 3: Rules -->
+          <app-step-rules
+            *ngIf="currentStep === 3"
+            [form]="form"
+          ></app-step-rules>
 
-              <div class="form-row toggles-row">
-                <label class="toggle-field">
-                  <input type="checkbox" />
-                  <span>New customers will auto-join once any earning rule is fulfilled</span>
-                </label>
-                <label class="toggle-field">
-                  <input type="checkbox" />
-                  <span>Customers can join this campaign only once</span>
-                </label>
-              </div>
-            </form>
-          </div>
+          <!-- Step 4: Tiers -->
+          <app-step-tiers
+            *ngIf="currentStep === 4"
+            [form]="form"
+          ></app-step-tiers>
 
-          <!-- Placeholder for steps 2-6 -->
-          <div *ngIf="currentStep > 1" class="step-content">
-            <p class="step-placeholder">This step will be implemented with backend.</p>
-          </div>
+          <!-- Step 5: Notifications -->
+          <app-step-notifications
+            *ngIf="currentStep === 5"
+          ></app-step-notifications>
+
+          <!-- Step 6: Summary -->
+          <app-step-summary
+            *ngIf="currentStep === 6"
+            [form]="form"
+            [isScheduledLaunch]="isScheduledLaunch"
+            [isFormValidForLaunch]="isFormValidForLaunch"
+            [launching]="launching"
+            (goToStep)="goToStep($event)"
+            (launch)="launch()"
+          ></app-step-summary>
         </main>
 
         <!-- ====== RIGHT: Sidebar stepper card ====== -->
         <aside class="steps-sidebar">
-          <h3 class="sidebar-title">New reward program</h3>
+          <h3 class="sidebar-title">Cashback Program</h3>
 
           <ul class="steps-list">
             <li *ngFor="let step of STEPS; let last = last"
                 class="step-item"
                 [class.active]="currentStep === step.num"
-                [class.done]="currentStep > step.num"
-                [class.future]="currentStep < step.num">
+                [class.done]="isStepDone(step.num)"
+                [class.future]="currentStep < step.num && !isStepDone(step.num)"
+                (click)="goToStep(step.num)">
               <div class="step-row">
                 <span class="step-num">
-                  <ng-container *ngIf="currentStep > step.num">
+                  <ng-container *ngIf="isStepDone(step.num)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
                   </ng-container>
-                  <ng-container *ngIf="currentStep <= step.num">{{ step.num }}</ng-container>
+                  <ng-container *ngIf="!isStepDone(step.num)">{{ step.num }}</ng-container>
                 </span>
                 <span class="step-label">{{ step.label }}</span>
               </div>
-              <!-- Active step: hint + Next step button -->
+              <!-- Active step hint + next -->
               <div *ngIf="currentStep === step.num" class="step-active-detail">
                 <p class="step-hint">{{ step.hint }}</p>
-                <button type="button" class="btn-next-step" (click)="continue()" *ngIf="currentStep < STEPS.length">Next step</button>
+                <button
+                  *ngIf="currentStep < STEPS.length"
+                  type="button"
+                  class="btn-next-step"
+                  (click)="nextStep(); $event.stopPropagation()"
+                >
+                  Next step
+                </button>
               </div>
-              <!-- Connector line -->
+              <!-- Connector -->
               <div class="step-connector" *ngIf="!last"></div>
             </li>
           </ul>
 
           <!-- Sidebar footer -->
           <div class="sidebar-footer">
-            <a routerLink="/bonus-program" class="btn-cancel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <button type="button" class="btn-cancel" (click)="onCancel()">
               Cancel
-            </a>
-            <button type="button" class="btn-save-draft" [class.btn-create]="currentStep === STEPS.length">
-              {{ currentStep === STEPS.length ? 'Create' : 'Save draft' }}
             </button>
+            @if (isFormValidForLaunch) {
+              <button
+                type="button"
+                class="btn-save-draft btn-launch"
+                [disabled]="launching"
+                (click)="launch()"
+              >
+                {{ launching ? 'Launching...' : (isScheduledLaunch ? 'Schedule' : 'Launch now') }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn-save-draft"
+                [disabled]="saving"
+                (click)="saveDraft()"
+              >
+                {{ saving ? 'Saving...' : 'Save draft' }}
+              </button>
+            }
           </div>
         </aside>
       </div>
@@ -135,58 +176,28 @@ const STEPS: WizardStep[] = [
     :host { display: block; height: 100%; }
     .wizard-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: #f8fafc; }
 
-    /* ===== Layout ===== */
+    /* Layout */
     .wizard-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
 
-    /* ===== Main panel ===== */
+    /* Main panel */
     .wizard-main {
       flex: 1; min-width: 0;
       background: white; border-radius: 12px; border: 1px solid #e2e8f0;
       padding: 2rem 2.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .step-number {
+    .step-title {
       font-size: 1.25rem; font-weight: 700; color: #0f172a;
       margin: 0 0 1.5rem 0; padding-bottom: 1rem;
       border-bottom: 1px solid #e2e8f0;
     }
-    .step-content { }
-    .step-placeholder { font-size: 0.9rem; color: #94a3b8; margin: 0; }
 
-    /* ---- Program details form ---- */
-    .details-form { display: flex; flex-direction: column; gap: 1.25rem; }
-    .form-row { display: flex; gap: 1rem; align-items: flex-start; }
-    .form-row.two-columns > .field { flex: 1; }
-    .form-row .full-width { flex: 1; }
-    .field { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
-    .field-label { font-size: 0.8rem; font-weight: 600; color: #475569; }
-    .field-input,
-    .field-textarea {
-      width: 100%; border-radius: 8px; border: 1px solid #cbd5e1;
-      padding: 0.5rem 0.75rem; font-size: 0.9rem; color: #0f172a;
-      background: #ffffff;
-    }
-    .field-input:focus,
-    .field-textarea:focus { outline: none; border-color: #16A34A; box-shadow: 0 0 0 1px #16A34A22; }
-    .field-textarea { resize: vertical; min-height: 72px; }
-    .field-inline-toggle { max-width: 220px; align-self: flex-end; }
-
-    .helper-banner {
-      border-radius: 8px; border: 1px solid #fed7aa; background: #fff7ed;
-      padding: 0.75rem 0.9rem; font-size: 0.8rem; color: #9a3412;
-    }
-    .helper-title { margin: 0 0 0.15rem 0; font-weight: 600; }
-    .helper-text { margin: 0; line-height: 1.4; }
-
-    .toggles-row { flex-direction: column; gap: 0.5rem; }
-    .toggle-field { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #475569; }
-    .toggle-field input { width: 16px; height: 16px; }
-
-    /* ===== Right sidebar ===== */
+    /* Sidebar */
     .steps-sidebar {
       flex-shrink: 0; width: 320px;
       background: white; border-radius: 12px; border: 1px solid #e2e8f0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       padding: 1.75rem; display: flex; flex-direction: column;
+      position: sticky; top: 2rem;
     }
     .sidebar-title {
       font-size: 1.1rem; font-weight: 700; color: #0f172a;
@@ -194,9 +205,10 @@ const STEPS: WizardStep[] = [
       border-bottom: 1px solid #e2e8f0;
     }
 
-    /* ---- Steps list ---- */
+    /* Steps list */
     .steps-list { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .step-item { position: relative; }
+    .step-item { position: relative; cursor: pointer; }
+    .step-item.future { cursor: pointer; }
     .step-row { display: flex; align-items: center; gap: 0.85rem; }
     .step-num {
       width: 36px; height: 36px; border-radius: 50%;
@@ -208,9 +220,10 @@ const STEPS: WizardStep[] = [
     .step-num svg { width: 16px; height: 16px; }
     .step-item.active .step-num { background: #16A34A; color: white; }
     .step-item.done .step-num { background: #dcfce7; color: #16A34A; }
-    .step-label { font-size: 0.95rem; color: #94a3b8; font-weight: 500; }
+    .step-label { font-size: 0.95rem; color: #94a3b8; font-weight: 500; transition: color 0.15s; }
     .step-item.active .step-label { color: #0f172a; font-weight: 600; }
     .step-item.done .step-label { color: #64748b; }
+    .step-item:hover .step-label { color: #0f172a; }
 
     /* Active step detail */
     .step-active-detail {
@@ -229,7 +242,7 @@ const STEPS: WizardStep[] = [
     }
     .btn-next-step:hover { background: #1e293b; }
 
-    /* Connector line */
+    /* Connector */
     .step-connector {
       width: 2px; height: 20px;
       background: #e2e8f0; margin: 4px 0 4px 17px;
@@ -237,63 +250,426 @@ const STEPS: WizardStep[] = [
     }
     .step-item.done .step-connector { background: #bbf7d0; }
 
-    /* ---- Sidebar footer ---- */
+    /* Footer: Cancel and Save grouped with a small gap between them */
     .sidebar-footer {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem;
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 1.25rem; margin-top: 1.5rem; padding-top: 1rem;
       border-top: 1px solid #e2e8f0;
     }
     .btn-cancel {
-      display: inline-flex; align-items: center; gap: 0.4rem;
+      display: inline-flex; align-items: center;
       font-size: 0.85rem; font-weight: 600; color: #ef4444;
       text-decoration: none; cursor: pointer; background: none; border: none;
       transition: color 0.15s;
     }
     .btn-cancel:hover { color: #dc2626; }
-    .btn-cancel svg { width: 15px; height: 15px; }
     .btn-save-draft {
       padding: 0.5rem 1.25rem; border: 1px solid #e2e8f0; border-radius: 6px;
       background: white; color: #0f172a; font-size: 0.85rem; font-weight: 600;
       cursor: pointer; transition: all 0.15s;
     }
     .btn-save-draft:hover { background: #f8fafc; border-color: #cbd5e1; }
-    .btn-save-draft.btn-create {
+    .btn-save-draft:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-save-draft.btn-launch {
       background: #16A34A; color: white; border-color: #16A34A;
     }
-    .btn-save-draft.btn-create:hover { background: #15803d; border-color: #15803d; }
+    .btn-save-draft.btn-launch:hover:not(:disabled) { background: #15803d; border-color: #15803d; }
 
-    /* ===== Responsive ===== */
+    /* Responsive */
     @media (max-width: 768px) {
       .wizard-layout { flex-direction: column; }
-      .steps-sidebar { width: 100%; order: -1; }
-      .section-cards { grid-template-columns: 1fr; }
+      .steps-sidebar { width: 100%; order: -1; position: static; }
     }
   `]
 })
-export class CreateProgramWizardComponent implements OnInit {
+export class CreateProgramWizardComponent implements OnInit, OnDestroy {
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private toast = inject(ToastService);
+  private rewardProgramsService = inject(RewardProgramsService);
+  private destroy$ = new Subject<void>();
+
   readonly STEPS = STEPS;
   currentStep = 1;
+  /** Highest step number the user has opened (by next or by clicking). Used so optional steps only show green after visit. */
+  maxStepVisited = 1;
   draftUuid = '';
+  saving = false;
+  launching = false;
+  globalError = '';
+
+  form!: FormGroup;
+
+  get stepsBaseUrl(): string {
+    return `/bonus-program/create/cashback/${this.draftUuid}/steps`;
+  }
+
+  /** Step shows green + check only if user has visited it AND the step is valid (mandatory filled, or optional with no invalid data e.g. tiers). */
+  isStepDone(stepNum: number): boolean {
+    if (this.maxStepVisited < stepNum) return false;
+    return this.isStepComplete(stepNum);
+  }
+
+  /** True if this step is complete: required fields valid; for step 4, tiers array valid if any. */
+  isStepComplete(stepNum: number): boolean {
+    if (!this.form) return false;
+    switch (stepNum) {
+      case 1: {
+        const name = this.form.get('name');
+        const cashbackType = this.form.get('cashbackType');
+        const cashbackValue = this.form.get('cashbackValue');
+        const pts = this.form.get('pointsSpendThreshold');
+        const type = cashbackType?.value;
+        const nameVal = name?.value;
+        const hasName = typeof nameVal === 'string' && nameVal.trim().length > 0;
+        return !!(hasName && cashbackType?.valid && cashbackValue?.valid
+          && (type !== 'BONUS_POINTS' || (pts?.value != null && Number(pts?.value) > 0)));
+      }
+      case 2: {
+        const start = this.form.get('startDate');
+        const v = start?.value;
+        return !!(start?.valid && v != null && String(v).trim().length > 0);
+      }
+      case 3: {
+        const minSpend = this.form.get('minSpendAmount');
+        return minSpend?.valid === true;
+      }
+      case 4: {
+        const tiers = this.form.get('tiers') as FormArray;
+        return tiers?.valid === true;
+      }
+      case 5:
+      case 6:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** True when all mandatory fields for launch are filled; then show Launch/Schedule on any step. */
+  get isFormValidForLaunch(): boolean {
+    if (!this.form) return false;
+    return this.isStepComplete(1) && this.isStepComplete(2) && (this.form.get('tiers') as FormArray)?.valid !== false;
+  }
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.draftUuid = params.get('uuid') ?? '';
+      const stepParam = params.get('step');
+      if (stepParam) {
+        const step = parseInt(stepParam, 10);
+        if (step >= 1 && step <= STEPS.length) {
+          this.currentStep = step;
+          this.maxStepVisited = Math.max(this.maxStepVisited, step);
+        } else {
+          this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', '1'], { replaceUrl: true });
+        }
+      }
     });
 
-    this.pageHeaderService.setPageHeader('Create Program', [
-      { label: 'Главная', route: '/home' },
+    this.pageHeaderService.setPageHeader('Create Cashback Program', [
+      { label: 'Home', route: '/home' },
       { label: 'Reward Programs', route: '/bonus-program' },
-      { label: 'Create Program' }
+      { label: 'Create Cashback Program' }
     ]);
+
+    this.buildForm();
+    this.loadExistingDraft();
   }
 
-  back(): void {
-    if (this.currentStep > 1) this.currentStep--;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  continue(): void {
-    if (this.currentStep < STEPS.length) this.currentStep++;
+  // ─── Form building ─────────────────────────────────────────────────
+
+  private buildForm(): void {
+    this.form = this.fb.group({
+      // Step 1: Details
+      name: ['', Validators.required],
+      description: [''],
+      cashbackType: ['', Validators.required],
+      cashbackValue: [null, [Validators.required, Validators.min(0)]],
+      pointsSpendThreshold: [null],
+
+      // Step 2: Schedule
+      startDate: ['', Validators.required],
+      endDate: [''],
+      weeklySchedules: this.fb.array(
+        ALL_DAYS.map(day => {
+          const isWeekday = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].includes(day);
+          return this.fb.group({
+            dayOfWeek: [day],
+            enabled: [isWeekday],
+            startTime: ['08:00'],
+            endTime: ['18:00']
+          });
+        })
+      ),
+
+      // Step 3: Rules
+      minSpendAmount: [0, Validators.min(0)],
+      eligibilityType: ['ALL'],
+      redeemLimitPercent: [100],
+      bonusLifespanDays: [null],
+
+      // Step 4: Tiers
+      tiers: this.fb.array([])
+    });
+  }
+
+  // ─── Load existing draft from backend ──────────────────────────────
+
+  private loadExistingDraft(): void {
+    if (!this.draftUuid) return;
+
+    this.rewardProgramsService.getProgram(this.draftUuid)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (program) => {
+          if (program.status !== 'DRAFT') {
+            this.router.navigate(['/bonus-program', 'view', program.uuid], { replaceUrl: true });
+            return;
+          }
+          this.patchFormFromResponse(program);
+        },
+        error: () => {} // Draft might not have data yet — that's fine
+      });
+  }
+
+  private patchFormFromResponse(p: RewardProgramResponse): void {
+    this.form.patchValue({
+      name: p.name || '',
+      description: p.description || '',
+      startDate: p.startDate ? this.toLocalDatetime(p.startDate) : '',
+      endDate: p.endDate ? this.toLocalDatetime(p.endDate) : ''
+    });
+
+    // Cashback rule
+    if (p.cashbackRule) {
+      this.form.patchValue({
+        cashbackType: p.cashbackRule.cashbackType,
+        cashbackValue: p.cashbackRule.cashbackValue,
+        pointsSpendThreshold: p.cashbackRule.pointsSpendThreshold,
+        minSpendAmount: p.cashbackRule.minSpendAmount,
+        eligibilityType: p.cashbackRule.eligibilityType,
+        redeemLimitPercent: p.cashbackRule.redeemLimitPercent,
+        bonusLifespanDays: p.cashbackRule.bonusLifespanDays
+      });
+    }
+
+    // Weekly schedules
+    if (p.weeklySchedules && p.weeklySchedules.length > 0) {
+      const schedulesArray = this.form.get('weeklySchedules') as FormArray;
+      p.weeklySchedules.forEach(ws => {
+        const dayIndex = ALL_DAYS.indexOf(ws.dayOfWeek);
+        if (dayIndex >= 0) {
+          schedulesArray.at(dayIndex).patchValue({
+            enabled: ws.enabled,
+            startTime: ws.startTime || '08:00',
+            endTime: ws.endTime || '22:00'
+          });
+        }
+      });
+    }
+
+    // Tiers
+    if (p.cashbackTiers && p.cashbackTiers.length > 0) {
+      const tiersArray = this.form.get('tiers') as FormArray;
+      tiersArray.clear();
+      p.cashbackTiers.forEach(t => {
+        tiersArray.push(this.fb.group({
+          name: [t.name, Validators.required],
+          minAmount: [t.minAmount, [Validators.required, Validators.min(0)]],
+          maxAmount: [t.maxAmount],
+          extraEarningPercent: [t.extraEarningPercent, [Validators.required, Validators.min(0)]],
+          sortOrder: [t.sortOrder]
+        }));
+      });
+    }
+  }
+
+  private toLocalDatetime(iso: string): string {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return iso;
+    }
+  }
+
+  // ─── Navigation ────────────────────────────────────────────────────
+
+  goToStep(step: number): void {
+    if (step >= 1 && step <= STEPS.length) {
+      this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', step.toString()]);
+    }
+  }
+
+  nextStep(): void {
+    if (this.currentStep < STEPS.length) {
+      const next = this.currentStep + 1;
+      this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', next.toString()]);
+    }
+  }
+
+  onCancel(): void {
+    if (!this.draftUuid) {
+      this.router.navigate(['/bonus-program']);
+      return;
+    }
+    this.rewardProgramsService.deleteProgram(this.draftUuid).subscribe({
+      next: () => this.router.navigate(['/bonus-program']),
+      error: () => this.router.navigate(['/bonus-program'])
+    });
+  }
+
+  // ─── Build request payload ─────────────────────────────────────────
+
+  private buildSaveDraftPayload(): SaveCashbackDraftRequest {
+    const v = this.form.getRawValue();
+    const schedules: WeeklyScheduleEntry[] = v.weeklySchedules
+      .filter((s: any) => s.enabled)
+      .map((s: any) => ({
+        dayOfWeek: s.dayOfWeek,
+        enabled: true,
+        startTime: s.startTime || null,
+        endTime: s.endTime || null
+      }));
+
+    const tiers: CashbackTierEntry[] = v.tiers.map((t: any, i: number) => ({
+      name: t.name,
+      minAmount: t.minAmount,
+      maxAmount: t.maxAmount ?? null,
+      extraEarningPercent: t.extraEarningPercent,
+      sortOrder: i
+    }));
+
+    return {
+      name: v.name || undefined,
+      description: v.description || undefined,
+      cashbackType: v.cashbackType || undefined,
+      cashbackValue: v.cashbackValue ?? undefined,
+      pointsSpendThreshold: v.pointsSpendThreshold ?? undefined,
+      minSpendAmount: v.minSpendAmount ?? undefined,
+      eligibilityType: v.eligibilityType || undefined,
+      redeemLimitPercent: v.redeemLimitPercent ?? undefined,
+      bonusLifespanDays: v.bonusLifespanDays ?? undefined,
+      startDate: v.startDate ? new Date(v.startDate).toISOString() : undefined,
+      endDate: v.endDate ? new Date(v.endDate).toISOString() : null,
+      weeklySchedules: schedules.length > 0 ? schedules : undefined,
+      tiers: tiers.length > 0 ? tiers : undefined
+    };
+  }
+
+  // ─── Save Draft ────────────────────────────────────────────────────
+
+  saveDraft(): void {
+    if (!this.draftUuid || this.saving) return;
+
+    this.saving = true;
+    this.globalError = '';
+    const payload = this.buildSaveDraftPayload();
+
+    this.rewardProgramsService.saveCashbackDraft(this.draftUuid, payload)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.saving = false)
+      )
+      .subscribe({
+        next: () => {
+          this.toast.success('Draft saved');
+          this.router.navigate(['/bonus-program']);
+        },
+        error: (err) => {
+          const status = err?.status ?? 0;
+          const message = err?.error?.message || 'Failed to save draft. Please try again.';
+          if (status >= 500) {
+            this.toast.error(message);
+          } else {
+            this.globalError = message;
+          }
+        }
+      });
+  }
+
+  // ─── Launch ────────────────────────────────────────────────────────
+
+  get isScheduledLaunch(): boolean {
+    const startDate = this.form.get('startDate')?.value;
+    if (!startDate) return false;
+    return new Date(startDate) > new Date();
+  }
+
+  launch(): void {
+    if (!this.draftUuid || this.launching) return;
+
+    // Mark all controls as touched for validation display
+    this.form.markAllAsTouched();
+
+    this.launching = true;
+    this.globalError = '';
+
+    const v = this.form.getRawValue();
+    const schedules: WeeklyScheduleEntry[] = v.weeklySchedules
+      .filter((s: any) => s.enabled)
+      .map((s: any) => ({
+        dayOfWeek: s.dayOfWeek,
+        enabled: true,
+        startTime: s.startTime || null,
+        endTime: s.endTime || null
+      }));
+
+    const tiers: CashbackTierEntry[] = v.tiers.map((t: any, i: number) => ({
+      name: t.name,
+      minAmount: t.minAmount,
+      maxAmount: t.maxAmount ?? null,
+      extraEarningPercent: t.extraEarningPercent,
+      sortOrder: i
+    }));
+
+    // Send all fields so backend applyCashbackData can set them (omit undefined so required are always sent)
+    const payload: LaunchCashbackProgramRequest = {
+      immediate: !this.isScheduledLaunch,
+      name: v.name ?? null,
+      description: v.description ?? null,
+      cashbackType: v.cashbackType ?? null,
+      cashbackValue: v.cashbackValue != null ? Number(v.cashbackValue) : null,
+      pointsSpendThreshold: v.pointsSpendThreshold != null ? Number(v.pointsSpendThreshold) : null,
+      minSpendAmount: v.minSpendAmount != null ? Number(v.minSpendAmount) : null,
+      eligibilityType: v.eligibilityType ?? null,
+      redeemLimitPercent: v.redeemLimitPercent != null ? Number(v.redeemLimitPercent) : null,
+      bonusLifespanDays: v.bonusLifespanDays != null ? Number(v.bonusLifespanDays) : null,
+      startDate: v.startDate ? new Date(v.startDate).toISOString() : null,
+      endDate: v.endDate ? new Date(v.endDate).toISOString() : null,
+      weeklySchedules: schedules.length > 0 ? schedules : null,
+      tiers: tiers.length > 0 ? tiers : null
+    };
+
+    this.rewardProgramsService.launchCashbackProgram(this.draftUuid, payload)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.launching = false)
+      )
+      .subscribe({
+        next: () => {
+          this.toast.success(this.isScheduledLaunch ? 'Program scheduled' : 'Program launched');
+          this.router.navigate(['/bonus-program']);
+        },
+        error: (err) => {
+          const status = err?.status ?? 0;
+          const message = err?.error?.message || 'Failed to launch program. Please review your configuration.';
+          if (status >= 500) {
+            this.toast.error(message);
+          } else {
+            this.globalError = message;
+          }
+        }
+      });
   }
 }

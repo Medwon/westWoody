@@ -47,12 +47,9 @@ export interface SidebarMenuItem {
         <div class="sidebar-header">
           <div class="sidebar-logo">
             <a routerLink="/home" class="logo-link">
-              <svg class="logo-icon" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.8"/>
-                <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg class="logo-mark" viewBox="368 339 289 243" width="42" height="35" xmlns="http://www.w3.org/2000/svg">
+                <path transform="translate(460,344)" d="m0 0h185l7 1-3 2-13 4-10 6-9 9-10 16-9 13-10 9-10 5-12 3-21 1-11 43-20 74-12 45-2 2-4-16-7-11-9-8-12-9-9-8-6-10-3-9v-16l11-42 9-34 1-2h-98v-2l14-4 8-4 10-9 7-9 10-17 11-12 9-6 11-4zm88 15-7 14-7 9-8 8-11 7-12 6-16 5-14 3v1h72l3-15 1-9v-29z" fill="#16A34A"/>
               </svg>
-              <span class="logo-text" *ngIf="!isCollapsed()">{{ logoText }}</span>
             </a>
           </div>
         </div>
@@ -194,7 +191,7 @@ export interface SidebarMenuItem {
     }
 
     .sidebar {
-      width: 240px;
+      width: 280px;
       background: #ffffff;
       border-right: 1px solid #e5e7eb;
       height: 100vh;
@@ -235,45 +232,39 @@ export interface SidebarMenuItem {
       height: 64px;
       display: flex;
       align-items: center;
-      padding: 0 16px;
-      justify-content: left;
+      justify-content: center;
       overflow-x: hidden;
       border-bottom: 1px solid #e5e7eb;
     }
 
     .sidebar-logo {
       display: flex;
+      align-items: center;
       justify-content: center;
+      width: 100%;
     }
 
     .logo-link {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
       text-decoration: none;
-      color: inherit;
     }
 
-    .logo-icon {
-      width: 28px;
-      height: 28px;
-      color: #15803d;
+    .logo-mark {
+      display: block;
+      width: 42px;
+      height: 35px;
+      min-width: 42px;
+      min-height: 35px;
       flex-shrink: 0;
     }
 
-    .logo-text {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #1a202c;
-      letter-spacing: -0.02em;
-      white-space: nowrap;
-      overflow: hidden;
-      transition: opacity 0.15s ease, width 0.15s ease;
-    }
-
-    .sidebar.collapsed .logo-link {
-      justify-content: center;
+    .sidebar.collapsed .logo-mark {
+      width: 32px;
+      height: 27px;
+      min-width: 32px;
+      min-height: 27px;
     }
 
     /* Create Button */
@@ -541,7 +532,6 @@ export interface SidebarMenuItem {
 
     .sidebar.collapsed .nav-label,
     .sidebar.collapsed .sidebar-create,
-    .sidebar.collapsed .logo-text,
     .sidebar.collapsed .footer-label {
       opacity: 0;
       width: 0;
@@ -698,14 +688,14 @@ export interface SidebarMenuItem {
     /* Content */
     .sidebar-content {
       flex: 1;
-      margin-left: 240px;
+      margin-left: 280px;
       transition: margin-left 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
       will-change: margin-left;
       overflow-x: hidden;
       overflow-y: auto;
       height: 100vh;
-      width: calc(100vw - 240px);
-      max-width: calc(100vw - 240px);
+      width: calc(100vw - 280px);
+      max-width: calc(100vw - 280px);
     }
 
     .sidebar-container.sidebar-collapsed .sidebar-content {

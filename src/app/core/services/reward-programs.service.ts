@@ -2,22 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-
-export type RewardProgramType = 'WELCOME' | 'BIRTHDAY' | 'REFERRAL' | 'CASHBACK';
-
-export type RewardProgramSlotStatus = 'NOT_CREATED' | 'DRAFT' | 'ACTIVE';
-
-export interface RewardProgramSlot {
-  type: RewardProgramType;
-  status: RewardProgramSlotStatus;
-  uuid: string | null;
-}
-
-export interface CreateDraftResponse {
-  uuid: string;
-  type: RewardProgramType;
-  status: 'DRAFT' | 'ACTIVE';
-}
+import {
+  RewardProgramType,
+  RewardProgramSlot,
+  CreateDraftResponse,
+  RewardProgramResponse,
+  RewardProgramListItem,
+  SaveCashbackDraftRequest,
+  LaunchCashbackProgramRequest,
+  PagedTieredClientsResponse
+} from '../models/reward-program.model';
 
 const API = `${environment.apiUrl}/reward-programs`;
 
@@ -26,12 +20,59 @@ export class RewardProgramsService {
 
   constructor(private http: HttpClient) {}
 
+  // ─── Slots & Draft Creation ──────────────────────────────────────
+
   getSlots(): Observable<RewardProgramSlot[]> {
     return this.http.get<RewardProgramSlot[]>(`${API}/slots`);
   }
 
   createDraft(type: RewardProgramType): Observable<CreateDraftResponse> {
     return this.http.post<CreateDraftResponse>(`${API}/draft`, { type });
+  }
+
+  // ─── Cashback Draft ──────────────────────────────────────────────
+
+  saveCashbackDraft(uuid: string, data: SaveCashbackDraftRequest): Observable<RewardProgramResponse> {
+    return this.http.put<RewardProgramResponse>(`${API}/${uuid}/cashback`, data);
+  }
+
+  // ─── Get Program ─────────────────────────────────────────────────
+
+  getProgram(uuid: string): Observable<RewardProgramResponse> {
+    return this.http.get<RewardProgramResponse>(`${API}/${uuid}`);
+  }
+
+  getTieredClients(programUuid: string, page = 0, size = 20, tierName?: string): Observable<PagedTieredClientsResponse> {
+    const params: Record<string, string> = { page: String(page), size: String(size) };
+    if (tierName) params['tierName'] = tierName;
+    return this.http.get<PagedTieredClientsResponse>(
+      `${API}/${programUuid}/tiered-clients`,
+      { params }
+    );
+  }
+
+  // ─── List Programs ───────────────────────────────────────────────
+
+  listPrograms(): Observable<RewardProgramListItem[]> {
+    return this.http.get<RewardProgramListItem[]>(`${API}`);
+  }
+
+  // ─── Lifecycle ───────────────────────────────────────────────────
+
+  launchCashbackProgram(uuid: string, data: LaunchCashbackProgramRequest): Observable<RewardProgramResponse> {
+    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch`, data);
+  }
+
+  deactivateProgram(uuid: string): Observable<RewardProgramResponse> {
+    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/deactivate`, {});
+  }
+
+  archiveProgram(uuid: string): Observable<RewardProgramResponse> {
+    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/archive`, {});
+  }
+
+  deleteProgram(uuid: string): Observable<void> {
+    return this.http.delete<void>(`${API}/${uuid}`);
   }
 }
 

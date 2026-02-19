@@ -13,11 +13,7 @@ export type LoaderType = 'spinner' | 'logo';
     <div class="loader-overlay" *ngIf="overlay && visible" [class.fullscreen]="fullscreen">
       <div class="loader-container" [class]="size">
         <div class="loader-logo" [style.width.px]="getLogoSize()" [style.height.px]="getLogoSize()">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#15803d" opacity="0.8"/>
-            <path d="M2 17l10 5 10-5" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/tinta-logo-short.svg" alt="" class="loader-logo-img">
         </div>
         <div *ngIf="showText" class="loader-text">{{ text }}</div>
       </div>
@@ -29,11 +25,7 @@ export type LoaderType = 'spinner' | 'logo';
       <div *ngSwitchCase="'spinner'" class="loader-spinner inline" [class]="size" [style.width.px]="getSpinnerSize()" [style.height.px]="getSpinnerSize()"></div>
       <!-- Logo for inline page loading -->
       <div *ngSwitchDefault class="loader-logo inline" [class]="size" [style.width.px]="getLogoSize()" [style.height.px]="getLogoSize()">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#15803d" opacity="0.8"/>
-          <path d="M2 17l10 5 10-5" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 12l10 5 10-5" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <img src="assets/tinta-logo-short.svg" alt="" class="loader-logo-img">
       </div>
     </div>
   `,
@@ -78,10 +70,11 @@ export type LoaderType = 'spinner' | 'logo';
       display: inline-block;
     }
 
-    .loader-logo svg {
+    .loader-logo-img {
       width: 100%;
       height: 100%;
       display: block;
+      object-fit: contain;
     }
 
     .loader-logo.small {

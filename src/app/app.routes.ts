@@ -66,15 +66,42 @@ export const routes: Routes = [
             loadComponent: () => import('./features/bonus-program/pages/program-types-page/program-types-page.component').then(m => m.ProgramTypesPageComponent),
             title: 'Create Program'
           },
+          /* Cashback: full wizard with routable steps */
           {
-            path: 'create/:uuid',
-            loadComponent: () => import('./features/bonus-program/pages/create-program-wizard/create-program-wizard.component').then(m => m.CreateProgramWizardComponent),
-            title: 'Create Program'
+            path: 'create/cashback/:uuid',
+            redirectTo: 'create/cashback/:uuid/steps/1',
+            pathMatch: 'full'
           },
           {
-            path: 'create/:type/:uuid',
+            path: 'create/cashback/:uuid/steps/:step',
+            loadComponent: () => import('./features/bonus-program/pages/create-program-wizard/create-program-wizard.component').then(m => m.CreateProgramWizardComponent),
+            title: 'Create Cashback Program'
+          },
+          /* Other types: in development */
+          {
+            path: 'create/welcome/:uuid',
             loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),
-            title: 'Create Reward Program'
+            title: 'Create Welcome Program'
+          },
+          {
+            path: 'create/birthday/:uuid',
+            loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),
+            title: 'Create Birthday Program'
+          },
+          {
+            path: 'create/referral/:uuid',
+            loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),
+            title: 'Create Referral Program'
+          },
+          {
+            path: 'view/:uuid',
+            redirectTo: 'view/:uuid/overview',
+            pathMatch: 'full'
+          },
+          {
+            path: 'view/:uuid/:tab',
+            loadComponent: () => import('./features/bonus-program/pages/program-view-page/program-view-page.component').then(m => m.ProgramViewPageComponent),
+            title: 'View Program'
           },
           {
             path: 'configure/:type/:uuid',

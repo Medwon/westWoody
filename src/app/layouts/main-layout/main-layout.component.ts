@@ -15,7 +15,7 @@ import { MessageTemplate } from '../../shared/components/invitation-form/invitat
     <div class="main-layout">
       <!-- Mobile Header (only visible on mobile) -->
       <app-mobile-header 
-        [logoText]="'WestWood'"
+        [logoText]="'Tinta'"
         (menuClick)="onMobileMenuClick()">
       </app-mobile-header>
       
@@ -153,7 +153,7 @@ export class MainLayoutComponent implements OnInit {
     if (this.isSidebarClosed) {
       return 64; // На десктопе закрытый sidebar становится свернутым (64px)
     }
-    return this.isSidebarCollapsed ? 64 : 240;
+    return this.isSidebarCollapsed ? 64 : 280;
   }
 }
 

@@ -4004,6 +4004,171 @@
 			]
 		},
 		{
+			"name": "Reward Programs",
+			"description": "Reward program lifecycle: create draft, save steps (details, schedule, rules, tiers), launch or schedule, deactivate, archive. Supports cashback program configuration. Requires SUDO or ADMIN for mutations; MANAGER for read.",
+			"item": [
+				{
+					"name": "Get Slots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/slots",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "slots"]
+						},
+						"description": "Returns one slot per reward program type (WELCOME, BIRTHDAY, REFERRAL, CASHBACK). Status NOT_CREATED | DRAFT | SCHEDULED | ACTIVE | INACTIVE | ARCHIVED."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Draft",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"CASHBACK\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/draft",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "draft"]
+						},
+						"description": "Creates a draft reward program for the given type (pre-generates UUID). Type: WELCOME | BIRTHDAY | REFERRAL | CASHBACK. Idempotent for existing DRAFT."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Program",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}"]
+						},
+						"description": "Get full program details by UUID (details, schedule, rules, tiers)."
+					},
+					"response": []
+				},
+				{
+					"name": "List Programs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs"]
+						},
+						"description": "List all reward programs (lightweight list DTO)."
+					},
+					"response": []
+				},
+				{
+					"name": "Save Cashback Draft",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Summer Cashback\",\n  \"description\": \"5% back on all purchases\",\n  \"cashbackType\": \"PERCENTAGE\",\n  \"cashbackValue\": 5.00,\n  \"minSpendAmount\": 0,\n  \"eligibilityType\": \"ALL\",\n  \"redeemLimitPercent\": 50,\n  \"bonusLifespanDays\": 90,\n  \"pointsSpendThreshold\": null,\n  \"startDate\": \"2025-03-01T00:00:00\",\n  \"endDate\": null,\n  \"weeklySchedules\": [\n    {\"dayOfWeek\": \"MONDAY\", \"enabled\": true, \"startTime\": \"08:00\", \"endTime\": \"22:00\"},\n    {\"dayOfWeek\": \"TUESDAY\", \"enabled\": true, \"startTime\": \"08:00\", \"endTime\": \"22:00\"},\n    {\"dayOfWeek\": \"WEDNESDAY\", \"enabled\": false, \"startTime\": null, \"endTime\": null}\n  ],\n  \"tiers\": [\n    {\"name\": \"Bronze\", \"minAmount\": 0, \"maxAmount\": 100, \"extraEarningPercent\": 0, \"sortOrder\": 0},\n    {\"name\": \"Silver\", \"minAmount\": 101, \"maxAmount\": 500, \"extraEarningPercent\": 1, \"sortOrder\": 1},\n    {\"name\": \"Gold\", \"minAmount\": 501, \"maxAmount\": null, \"extraEarningPercent\": 2, \"sortOrder\": 2}\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}/cashback",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}", "cashback"]
+						},
+						"description": "Save/update all cashback program draft data. All fields are optional — send only what changed. DRAFT only, CASHBACK type. When other program types are supported, they will have their own PUT /{uuid}/{type} endpoint."
+					},
+					"response": []
+				},
+				{
+					"name": "Launch Cashback Program",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"immediate\": true,\n  \"name\": \"Summer Cashback\",\n  \"description\": \"5% back on all purchases\",\n  \"cashbackType\": \"PERCENTAGE\",\n  \"cashbackValue\": 5.00,\n  \"minSpendAmount\": 0,\n  \"eligibilityType\": \"ALL\",\n  \"redeemLimitPercent\": 50,\n  \"bonusLifespanDays\": 90,\n  \"pointsSpendThreshold\": null,\n  \"startDate\": \"2025-03-01T00:00:00\",\n  \"endDate\": null,\n  \"weeklySchedules\": [\n    {\"dayOfWeek\": \"MONDAY\", \"enabled\": true, \"startTime\": \"08:00\", \"endTime\": \"22:00\"}\n  ],\n  \"tiers\": []\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}/launch",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}", "launch"]
+						},
+						"description": "Launch or schedule a cashback program. All program data fields are optional — if provided, they are saved before launch validation runs. This lets the frontend either: (1) save draft first, then launch with just { immediate: true }, or (2) submit the full form and launch in one call. DRAFT only."
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Program",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}/deactivate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}", "deactivate"]
+						},
+						"description": "ACTIVE or SCHEDULED → INACTIVE."
+					},
+					"response": []
+				},
+				{
+					"name": "Archive Program",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}/archive",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}", "archive"]
+						},
+						"description": "INACTIVE → ARCHIVED."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Program",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{authToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/reward-programs/{{programUuid}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "reward-programs", "{{programUuid}}"]
+						},
+						"description": "Delete a program. Allowed when status is DRAFT, INACTIVE, or ARCHIVED. Active or scheduled programs must be deactivated first."
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Backoffice - Tags",
 			"description": "Backoffice endpoints for managing tags. Requires SUDO or ADMIN role.",
 			"item": [
@@ -4154,6 +4319,11 @@
 		},
 		{
 			"key": "resetToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "programUuid",
 			"value": "",
 			"type": "string"
 		},

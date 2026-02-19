@@ -7,7 +7,7 @@ import { ButtonComponent } from '../button/button.component';
 import { DialogComponent } from '../dialog/dialog.component';
 import { PhoneFormatPipe } from '../../pipes/phone-format.pipe';
 import { ClientsService, ClientByPhoneResponse, CreateClientRequest, FrequentClientDto } from '../../../core/services/clients.service';
-import { PaymentsService, DraftPaymentResponse } from '../../../core/services/payments.service';
+import { PaymentsService, DraftPaymentResponse, CashbackContext } from '../../../core/services/payments.service';
 import { MessageTemplatesService } from '../../../core/services/message-templates.service';
 import { MessagesService } from '../../../core/services/messages.service';
 import { BonusTypesService } from '../../../core/services/bonus-types.service';
@@ -129,6 +129,15 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
                   </svg>
                   {{ foundClient.balance }} бонусов
                 </div>
+                <div class="client-tier-badge" *ngIf="cashbackContext?.currentTier">
+                  <svg viewBox="0 0 24 24" fill="none" class="tier-icon">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                  </svg>
+                  {{ cashbackContext?.currentTier?.name }}
+                </div>
+                <div class="client-rate-badge" *ngIf="cashbackContext?.active && bonusRateLabel">
+                  {{ bonusRateLabel }}
+                </div>
                 <div class="client-type-badge">
                   <svg viewBox="0 0 24 24" fill="none" class="type-icon">
                     <path *ngIf="foundClient.type === 'business'" d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z" fill="currentColor"/>
@@ -227,7 +236,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             (input)="onBonusesChange()"
             placeholder="0">
           <div class="bonus-hint">
-            Максимум: {{ getMaxBonuses() }} бонусов
+            Максимум: {{ getMaxBonuses() }} бонусов<span *ngIf="cashbackContext?.redeemLimitPercent && cashbackContext!.redeemLimitPercent < 100"> (до {{ cashbackContext?.redeemLimitPercent }}% от покупки)</span>
           </div>
         </div>
 
@@ -249,9 +258,13 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             <span class="summary-label">К оплате:</span>
             <span class="summary-value">{{ getFinalAmount() }} ₸</span>
           </div>
-          <div class="summary-row earned" *ngIf="!useBonuses">
+          <div class="summary-row earned" *ngIf="!useBonuses && cashbackContext?.active && !isBelowMinSpend">
             <span class="summary-label">Будет начислено:</span>
-            <span class="summary-value bonus">+{{ calculatedBonus }} бонусов</span>
+            <span class="summary-value bonus">+{{ calculatedBonus }} бонусов <span class="rate-hint" *ngIf="bonusRateLabel">({{ bonusRateLabel }})</span></span>
+          </div>
+          <div class="summary-row min-spend-warning" *ngIf="!useBonuses && cashbackContext?.active && isBelowMinSpend && purchaseAmount">
+            <span class="summary-label">Будет начислено:</span>
+            <span class="summary-value no-bonus">0 бонусов (мин. сумма {{ cashbackContext?.minSpendAmount }} ₸)</span>
           </div>
           <div class="bonus-warning" *ngIf="useBonuses">
             <svg viewBox="0 0 24 24" fill="none" class="warning-icon">
@@ -598,8 +611,9 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
     .client-bonus-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       margin-top: 4px;
+      flex-wrap: wrap;
     }
 
     .client-bonus {
@@ -613,6 +627,20 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
       align-items: center;
       gap: 4px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .client-tier-badge {
+      display: flex; align-items: center; gap: 4px;
+      background: #dcfce7; color: #16A34A;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+    }
+    .tier-icon { width: 12px; height: 12px; }
+    .client-rate-badge {
+      display: flex; align-items: center;
+      background: #f0f9ff; color: #0ea5e9;
+      padding: 3px 8px; border-radius: 12px;
+      font-size: 0.65rem; font-weight: 700; white-space: nowrap;
     }
 
     .client-type-badge {
@@ -1097,6 +1125,12 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
 
     .summary-row.earned .summary-value.bonus {
       color: #16A34A;
+    }
+    .rate-hint {
+      font-size: 0.75rem; color: #64748b; font-weight: 400;
+    }
+    .summary-row.min-spend-warning .summary-value.no-bonus {
+      color: #94a3b8; font-weight: 500;
     }
 
     .bonus-warning {
@@ -1667,7 +1701,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   draftPayment: DraftPaymentResponse | null = null;
   isLoading = false;
   selectedPaymentMethod: 'CASH' | 'CARD' | 'TRANSFER' = 'CASH';
-  bonusPercentage: number | null = null; // Bonus percentage from API
+  bonusPercentage: number | null = null; // Kept for legacy compatibility
+  cashbackContext: CashbackContext | null = null; // Active cashback program context
   newClientName = '';
   newClientSurname = '';
   newClientType: 'individual' | 'business' = 'individual';
@@ -1941,47 +1976,36 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     }
     
     this.isLoading = true;
-    console.log('Loading bonus configuration for new_payment flow...');
-    
-    // Load bonus configuration for new_payment flow with timeout and error handling
-    this.bonusTypesService.getBonusTypesByFlow('new_payment')
+
+    // Load cashback context for this client (rates, tiers, limits)
+    this.paymentsService.getCashbackContext(this.foundClient.id)
       .pipe(
-        timeout(5000), // 5 second timeout
+        timeout(5000),
         catchError((err) => {
-          console.warn('Error or timeout loading bonus configuration, continuing with default:', err);
-          // Return null on error so we can continue
-          return of(null as BonusTypeResponse | null);
+          console.warn('Error loading cashback context, continuing with defaults:', err);
+          return of(null as CashbackContext | null);
         })
       )
       .subscribe({
-        next: (bonusType) => {
-          console.log('Bonus type loaded:', bonusType);
-          
-          // API returns a single object, check if it's enabled and has bonusPercentage
-          if (bonusType && bonusType.enabled && bonusType.bonusPercentage !== null && bonusType.bonusPercentage !== undefined) {
-            // Convert percentage to decimal (e.g., 3.00 -> 0.03)
-            this.bonusPercentage = bonusType.bonusPercentage / 100;
-            console.log('Using bonus percentage:', bonusType.bonusPercentage, '% (', this.bonusPercentage, 'as decimal)');
+        next: (ctx) => {
+          this.cashbackContext = ctx;
+          // Backwards-compat: set bonusPercentage from context
+          if (ctx && ctx.active && ctx.cashbackType === 'PERCENTAGE') {
+            this.bonusPercentage = ctx.effectiveRate / 100;
           } else {
-            // Fallback to 0 if bonus type is disabled or has no percentage
             this.bonusPercentage = 0;
-            console.log('Bonus type is disabled or has no percentage, using 0%');
           }
           
-          // Create draft payment after bonus config is loaded
-          console.log('Creating draft payment for client:', this.foundClient!.id);
+          // Create draft payment after cashback context is loaded
           this.paymentsService.createDraftPayment({ clientId: this.foundClient!.id }).subscribe({
             next: (draft) => {
-              console.log('Draft payment created:', draft);
               this.draftPayment = draft;
               this.paymentId = draft.txId;
               this.currentStep = 'found';
               this.isLoading = false;
-              // Recalculate bonus with new percentage
               this.calculateBonus();
             },
             error: (err) => {
-              console.error('Error creating draft payment:', err);
               const errorMessage = err.error?.message || 'Ошибка при создании черновика платежа';
               this.toastService.error(errorMessage);
               this.isLoading = false;
@@ -1989,10 +2013,9 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
           });
         },
         error: (err) => {
-          // This should not happen due to catchError, but just in case
-          console.error('Unexpected error in bonus config subscription:', err);
+          console.error('Unexpected error loading cashback context:', err);
+          this.cashbackContext = null;
           this.bonusPercentage = 0;
-          // Still try to create draft payment
           this.paymentsService.createDraftPayment({ clientId: this.foundClient!.id }).subscribe({
             next: (draft) => {
               this.draftPayment = draft;
@@ -2012,13 +2035,46 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   }
 
   calculateBonus(): void {
-    // Если включена опция использования бонусов - новые не начисляются
-    if (this.useBonuses) {
+    if (this.useBonuses || !this.cashbackContext?.active) {
       this.calculatedBonus = 0;
+      return;
+    }
+    const amount = this.purchaseAmount || 0;
+    if (amount < (this.cashbackContext.minSpendAmount || 0)) {
+      this.calculatedBonus = 0;
+      return;
+    }
+    if (this.cashbackContext.cashbackType === 'PERCENTAGE') {
+      this.calculatedBonus = Math.floor(amount * this.cashbackContext.effectiveRate / 100);
     } else {
-      // Use bonusPercentage from API (already converted to decimal, e.g., 0.03 for 3%)
-      const rate = this.bonusPercentage ?? 0;
-      this.calculatedBonus = Math.floor((this.purchaseAmount || 0) * rate);
+      const threshold = this.cashbackContext.pointsSpendThreshold || 1;
+      const units = Math.floor(amount / threshold);
+      this.calculatedBonus = Math.floor(units * this.cashbackContext.effectiveRate);
+    }
+  }
+
+  /** Whether the current amount is below minimum spend for bonus accrual */
+  get isBelowMinSpend(): boolean {
+    if (!this.cashbackContext?.active || !this.cashbackContext.minSpendAmount) return false;
+    return (this.purchaseAmount || 0) < this.cashbackContext.minSpendAmount;
+  }
+
+  /** Human-readable bonus earning description (e.g. "5% + Silver 2%") */
+  get bonusRateLabel(): string {
+    if (!this.cashbackContext?.active) return '';
+    const ctx = this.cashbackContext;
+    if (ctx.cashbackType === 'PERCENTAGE') {
+      let label = `${ctx.baseRate}%`;
+      if (ctx.currentTier) {
+        label += ` + ${ctx.currentTier.name} ${ctx.currentTier.extraRate}%`;
+      }
+      return label;
+    } else {
+      let label = `${ctx.baseRate} pt per ${ctx.pointsSpendThreshold ?? 1}`;
+      if (ctx.currentTier) {
+        label += ` + ${ctx.currentTier.name} +${ctx.currentTier.extraRate}`;
+      }
+      return label;
     }
   }
 
@@ -2051,8 +2107,12 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
 
   getMaxBonuses(): number {
     if (!this.foundClient) return 0;
-    // Return available bonus balance (no percentage limit)
-    return this.foundClient.balance;
+    const balance = this.foundClient.balance;
+    if (this.cashbackContext?.redeemLimitPercent != null && this.cashbackContext.redeemLimitPercent < 100) {
+      const maxByPercent = Math.floor((this.purchaseAmount || 0) * this.cashbackContext.redeemLimitPercent / 100);
+      return Math.min(balance, maxByPercent);
+    }
+    return balance;
   }
 
   getFinalAmount(): number {
@@ -2410,6 +2470,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.draftPayment = null;
     this.paymentId = null;
     this.bonusPercentage = null;
+    this.cashbackContext = null;
     this.newClientName = '';
     this.newClientSurname = '';
     this.newClientEmail = '';
@@ -2475,6 +2536,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
     this.paymentId = null;
     this.draftPayment = null;
     this.bonusPercentage = null;
+    this.cashbackContext = null;
     this.newClientName = '';
     this.newClientSurname = '';
     this.newClientEmail = '';

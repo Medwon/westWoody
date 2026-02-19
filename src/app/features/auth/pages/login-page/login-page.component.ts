@@ -37,7 +37,7 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
       <div class="form-panel">
         <div class="form-content">
           <div class="form-header">
-            <h2 class="brand-name">WestWood</h2>
+            <img src="assets/tinta-logo-short-only-text.svg" alt="Tinta" class="brand-logo">
             <h3 class="welcome-title">Добро пожаловать!</h3>
           </div>
 
@@ -101,7 +101,7 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
         </form>
 
         <div class="form-footer">
-          <span>© 2026 WestWood. Все права защищены.</span>
+          <span>© 2026 Tinta. Все права защищены.</span>
         </div>
         </div>
       </div>
@@ -145,12 +145,11 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
       margin-bottom: 1rem;
     }
 
-    .brand-name {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #1a202c;
-      margin: 0 0 0.75rem 0;
-      letter-spacing: -0.02em;
+    .brand-logo {
+      display: block;
+      height: 28px;
+      width: auto;
+      margin-bottom: 0.75rem;
     }
 
     .welcome-title {

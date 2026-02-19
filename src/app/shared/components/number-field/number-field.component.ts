@@ -40,6 +40,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         <span *ngIf="suffix" class="number-field-suffix">{{ suffix }}</span>
       </div>
       <span *ngIf="errorMessage" class="error-message">{{ errorMessage }}</span>
+      <span *ngIf="hint && !errorMessage" class="hint-message">{{ hint }}</span>
     </div>
   `,
   styles: [`
@@ -70,7 +71,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
     .number-field {
       width: 100%;
       padding: 0.625rem 0.875rem;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--color-input-border);
       border-radius: 6px;
       font-size: 0.875rem;
       transition: all 0.2s ease;
@@ -78,10 +79,14 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       color: #1a202c;
     }
 
+    .number-field:hover {
+      border-color: var(--color-input-border-hover);
+    }
+
     .number-field:focus {
       outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      border-color: var(--color-input-border-focus);
+      box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
     }
 
     .number-field:disabled {
@@ -91,7 +96,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
     }
 
     .number-field.error {
-      border-color: #dc3545;
+      border-color: var(--color-input-error);
     }
 
     .number-field.has-prefix {
@@ -122,6 +127,11 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       color: #dc3545;
       font-size: 0.75rem;
     }
+
+    .hint-message {
+      color: #64748b;
+      font-size: 0.75rem;
+    }
   `]
 })
 export class NumberFieldComponent implements ControlValueAccessor {
@@ -136,6 +146,7 @@ export class NumberFieldComponent implements ControlValueAccessor {
   @Input() prefix = '';
   @Input() suffix = '';
   @Input() errorMessage = '';
+  @Input() hint = '';
 
   value: number | null = null;
   private onChangeFn = (value: number | null) => {};
