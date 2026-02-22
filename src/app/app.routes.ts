@@ -99,6 +99,11 @@ export const routes: Routes = [
             pathMatch: 'full'
           },
           {
+            path: 'view/:uuid/tier/:tierName',
+            loadComponent: () => import('./features/bonus-program/pages/program-tier-page/program-tier-page.component').then(m => m.ProgramTierPageComponent),
+            title: 'Tier'
+          },
+          {
             path: 'view/:uuid/:tab',
             loadComponent: () => import('./features/bonus-program/pages/program-view-page/program-view-page.component').then(m => m.ProgramViewPageComponent),
             title: 'View Program'

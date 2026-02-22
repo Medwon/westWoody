@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { DialogComponent } from '../../../../shared/components/dialog/dialog.component';
-import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import {
   RewardProgramResponse,
   RewardProgramType,
@@ -15,7 +14,6 @@ import {
   CashbackTierResponse,
   CashbackProgramRuleResponse,
   WeeklyScheduleResponse,
-  PagedTieredClientsResponse
 } from '../../../../core/models/reward-program.model';
 
 const DAY_ORDER: Record<string, number> = {
@@ -44,7 +42,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
 @Component({
   selector: 'app-program-view-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, DialogComponent, ModalComponent],
+  imports: [CommonModule, RouterModule, DialogComponent],
   template: `
     @if (loading) {
       <div class="page-shell">
@@ -288,7 +286,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
                       @if (getTierClients(tier).length > 0) {
                         <p class="tier-clients-summary">
                           You have {{ getTierClients(tier).length }} client{{ getTierClients(tier).length === 1 ? '' : 's' }} tiered in this level.
-                          <button type="button" class="link-view-clients" (click)="openTieredClientsModal(tier.name)">→ View clients</button>
+                          <a [routerLink]="getTierPageLink(tier)" class="link-view-clients">→ View clients</a>
                         </p>
                       } @else {
                         <p class="tier-clients-empty">
@@ -379,78 +377,11 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
           (cancelled)="confirmAction = null"
           (closed)="confirmAction = null">
         </app-dialog>
-
-        <app-modal
-          [visible]="showTieredClientsModal"
-          [title]="tieredClientsFilterTier ? tieredClientsFilterTier + ' — Clients' : 'Tiered clients'"
-          [showCloseButton]="true"
-          [showFooter]="false"
-          size="large"
-          (closed)="closeTieredClientsModal()">
-          <div class="tiered-clients-modal-body">
-            @if (loadingTieredClients) {
-              <div class="tiered-clients-loading">
-                <div class="spinner"></div>
-                <p>Loading clients…</p>
-              </div>
-            } @else if (tieredClientsData) {
-              @if (tieredClientsData.content.length === 0) {
-                <p class="tiered-clients-empty-msg">No clients in this tier yet. Tiering is based on spend during the program period.</p>
-              } @else {
-                <div class="tiered-clients-table-wrap">
-                  <table class="tiered-clients-table">
-                    <thead>
-                      <tr>
-                        <th>Client</th>
-                        <th>Contact</th>
-                        <th>Spend (period)</th>
-                        <th>Progress to next tier</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (row of tieredClientsData.content; track row.clientUuid) {
-                        <tr>
-                          <td><a [routerLink]="['/clients', row.clientUuid]" class="client-link" (click)="closeTieredClientsModal()">{{ row.clientName }}</a></td>
-                          <td>{{ row.phone || '—' }}</td>
-                          <td>{{ row.programPeriodSpend | number:'1.0-0' }} ₸</td>
-                          <td>
-                            @if (row.percentToNextTier != null) {
-                              <div class="progress-to-next">
-                                <div class="progress-bar-track"><div class="progress-bar-fill" [style.width.%]="row.percentToNextTier"></div></div>
-                                <span class="progress-label">{{ row.percentToNextTier | number:'1.0-1' }}%</span>
-                                @if (row.nextTierName) {
-                                  <span class="next-tier-label">→ {{ row.nextTierName }}</span>
-                                }
-                              </div>
-                            } @else {
-                              <span class="top-tier-label">Top tier</span>
-                            }
-                          </td>
-                          <td>
-                            <a [routerLink]="['/clients', row.clientUuid]" class="link-profile" (click)="closeTieredClientsModal()">Profile</a>
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-                @if (tieredClientsData.totalPages > 1) {
-                  <div class="tiered-clients-pagination">
-                    <button type="button" class="page-btn" [disabled]="tieredClientsData.first" (click)="loadTieredClientsPage(tieredClientsData.page - 1)">Previous</button>
-                    <span class="page-info">Page {{ tieredClientsData.page + 1 }} of {{ tieredClientsData.totalPages }}</span>
-                    <button type="button" class="page-btn" [disabled]="tieredClientsData.last" (click)="loadTieredClientsPage(tieredClientsData.page + 1)">Next</button>
-                  </div>
-                }
-              }
-            }
-          </div>
-        </app-modal>
       </div>
     }
   `,
   styles: [`
-    .page-shell { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+    .page-shell { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem 3rem; }
 
     .loading-state, .error-state {
       display: flex; flex-direction: column; align-items: center;
@@ -909,11 +840,6 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
   activeTab: Tab = 'overview';
   confirmAction: ConfirmAction | null = null;
 
-  showTieredClientsModal = false;
-  tieredClientsData: PagedTieredClientsResponse | null = null;
-  loadingTieredClients = false;
-  tieredClientsFilterTier: string | null = null;
-
   get confirmDialogTitle(): string {
     if (!this.confirmAction) return '';
     const t: Record<ConfirmAction, string> = {
@@ -1163,32 +1089,9 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
     this.eligibilityPopoverTier = null;
   }
 
-  openTieredClientsModal(tierName?: string): void {
-    this.tieredClientsFilterTier = tierName ?? null;
-    this.showTieredClientsModal = true;
-    this.tieredClientsData = null;
-    this.loadTieredClientsPage(0);
-  }
-
-  closeTieredClientsModal(): void {
-    this.showTieredClientsModal = false;
-    this.tieredClientsData = null;
-    this.tieredClientsFilterTier = null;
-  }
-
-
-  loadTieredClientsPage(page: number): void {
-    if (!this.program) return;
-    this.loadingTieredClients = true;
-    this.rewardService.getTieredClients(this.program.uuid, page, 20, this.tieredClientsFilterTier ?? undefined).subscribe({
-      next: (data) => {
-        this.tieredClientsData = data;
-        this.loadingTieredClients = false;
-      },
-      error: () => {
-        this.loadingTieredClients = false;
-      }
-    });
+  getTierPageLink(tier: CashbackTierResponse): string[] {
+    if (!this.program?.uuid) return ['/bonus-program'];
+    return ['/bonus-program', 'view', this.program.uuid, 'tier', encodeURIComponent(tier.name)];
   }
 
   onAdjustProgram(): void {
