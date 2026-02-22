@@ -1,4 +1,4 @@
-# Westwood Frontend
+# Tinta Frontend
 
 Angular приложение с архитектурой, включающей NgRx, сервисы, guards и shared компоненты.
 

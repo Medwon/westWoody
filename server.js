@@ -3,8 +3,8 @@ const path = require('path');
 const app = express();
 
 // Determine the correct dist path (Angular 19 uses /browser subdirectory)
-const distPath = path.join(__dirname, 'dist', 'westwood-frontend', 'browser');
-const fallbackPath = path.join(__dirname, 'dist', 'westwood-frontend');
+const distPath = path.join(__dirname, 'dist', 'tinta-frontend', 'browser');
+const fallbackPath = path.join(__dirname, 'dist', 'tinta-frontend');
 
 // Try browser subdirectory first, fallback to root dist
 const staticPath = require('fs').existsSync(distPath) ? distPath : fallbackPath;

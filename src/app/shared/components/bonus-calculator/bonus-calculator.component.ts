@@ -1262,7 +1262,7 @@ export class BonusCalculatorComponent implements OnInit, OnDestroy {
         .pipe(filter(event => event instanceof NavigationEnd))
         .subscribe((event: any) => {
           // Only reload if we're on the bonus-program page
-          if (event.urlAfterRedirects?.includes('/bonus-program')) {
+          if (event.urlAfterRedirects?.includes('/reward-programs')) {
             this.loadAnalyticsData();
           }
         });

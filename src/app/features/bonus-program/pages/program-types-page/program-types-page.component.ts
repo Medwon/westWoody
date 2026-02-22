@@ -27,10 +27,10 @@ const PROGRAM_TYPES: ProgramTypeCard[] = [
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="page-wrapper">
-      <a routerLink="/bonus-program" class="back-link">
+    
+      <a routerLink="/reward-programs" class="back-link">
         <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back
+        Back  
       </a>
       <h2 class="page-title">Reward Program types</h2>
       <p class="page-subtitle">Choose what kind of reward program you want to configure.</p>
@@ -61,11 +61,11 @@ const PROGRAM_TYPES: ProgramTypeCard[] = [
           </div>
         </article>
       </div>
-    </div>
+    
   `,
   styles: [`
     :host { display: block; height: 100%; }
-    .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: #f8fafc; }
+    // .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: #f8fafc; }
 
     .back-link { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 500; color: #475569; text-decoration: none; margin-bottom: 1rem; transition: color 0.2s; }
     .back-link:hover { color: #16A34A; }
@@ -104,7 +104,7 @@ export class ProgramTypesPageComponent implements OnInit {
   ngOnInit(): void {
     this.pageHeaderService.setPageHeader('Create Program', [
       { label: 'Главная', route: '/home' },
-      { label: 'Reward Programs', route: '/bonus-program' },
+      { label: 'Reward Programs', route: '/reward-programs' },
       { label: 'Reward Program types' }
     ]);
     this.rewardProgramsService.getSlots().subscribe({
@@ -130,7 +130,7 @@ export class ProgramTypesPageComponent implements OnInit {
     const typeSlug = card.id;
     this.rewardProgramsService.createDraft(type).subscribe({
       next: res => {
-        this.router.navigate(['/bonus-program', 'create', typeSlug, res.uuid]);
+        this.router.navigate(['/reward-programs', 'create', typeSlug, res.uuid]);
       }
     });
   }

@@ -30,10 +30,13 @@ export type ButtonSize = 'small' | 'medium' | 'large';
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-weight: 500;
-      font-size: 0.875rem;
+      font-weight: 600;
+      font-size: 0.9rem;
       transition: all 0.2s ease;
       white-space: nowrap;
+      border-radius: 10px; 
+      text-decoration: none; 
+      
     }
 
     button svg {
@@ -55,8 +58,16 @@ export type ButtonSize = 'small' | 'medium' | 'large';
 
     button.primary {
       background-color: var(--primary-color, #16A34A);
+      transition: all 0.2s; 
+      box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25);
       color: #ffffff;
+      border-radius: 10px; 
+
     }
+
+    button.primary:hover { background: #15803d; color: white; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3); }
+
+
 
     button.primary-outline {
       background-color: #16A34A;

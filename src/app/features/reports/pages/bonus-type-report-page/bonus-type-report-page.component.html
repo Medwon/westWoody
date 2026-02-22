@@ -2,21 +2,22 @@
   <div class="report-header">
     <div class="report-controls">
       <div class="control-group">
-        <label class="control-label">Тип бонуса</label>
-        <select class="control-select" [ngModel]="selectedBonusTypeId ?? 'all'" (ngModelChange)="onBonusTypeChange($event)">
-          <option value="all">Общая статистика</option>
-          <option *ngFor="let bt of bonusTypes" [value]="bt.id">{{ bt.name }}</option>
-        </select>
+        <app-select
+          label="Тип бонуса"
+          [ngModel]="selectedBonusTypeId ?? 'all'"
+          (ngModelChange)="onBonusTypeChange($event)"
+          [options]="bonusTypeOptions"
+          placeholder="Тип бонуса">
+        </app-select>
       </div>
       <div class="control-group">
-        <label class="control-label">Период</label>
-        <select class="control-select" [ngModel]="period" (ngModelChange)="onPeriodChange($event)">
-          <option value="1m">За месяц</option>
-          <option value="3m">За 3 месяца</option>
-          <option value="6m">За 6 месяцев</option>
-          <option value="1y">За год</option>
-          <option value="all">За все время</option>
-        </select>
+        <app-select
+          label="Период"
+          [ngModel]="period"
+          (ngModelChange)="onPeriodChange($event)"
+          [options]="periodOptions"
+          placeholder="Период">
+        </app-select>
       </div>
     </div>
   </div>

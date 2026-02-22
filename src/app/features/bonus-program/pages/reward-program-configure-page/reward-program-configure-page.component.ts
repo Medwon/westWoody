@@ -7,19 +7,18 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="page-wrapper">
+
       <div class="configure-page">
         <p class="back-link">
-          <a routerLink="/bonus-program">← Программа вознаграждений</a>
+          <a routerLink="/reward-programs">← Программа вознаграждений</a>
         </p>
         <h1 class="page-title">Настройка: {{ typeLabel }}</h1>
         <p class="placeholder">Страница настройки будет загружаться динамически с бэкенда.</p>
         <p class="meta">Тип: {{ type }} · UUID: {{ uuid }}</p>
       </div>
-    </div>
   `,
   styles: [`
-    .page-wrapper { padding: 2rem; }
+    // .page-wrapper { padding: 2rem; }
     .configure-page { max-width: 800px; margin: 0 auto; }
     .back-link { margin-bottom: 1rem; }
     .back-link a { color: #16A34A; text-decoration: none; font-weight: 500; }

@@ -54,7 +54,7 @@ const ALL_DAYS: DayOfWeek[] = [
     StepTiersComponent, StepNotificationsComponent, StepSummaryComponent
   ],
   template: `
-    <div class="wizard-wrapper">
+    
       <div class="wizard-layout">
         <!-- ====== LEFT: Main content ====== -->
         <main class="wizard-main">
@@ -170,7 +170,7 @@ const ALL_DAYS: DayOfWeek[] = [
           </div>
         </aside>
       </div>
-    </div>
+    
   `,
   styles: [`
     :host { display: block; height: 100%; }
@@ -303,7 +303,7 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
   form!: FormGroup;
 
   get stepsBaseUrl(): string {
-    return `/bonus-program/create/cashback/${this.draftUuid}/steps`;
+    return `/reward-programs/create/cashback/${this.draftUuid}/steps`;
   }
 
   /** Step shows green + check only if user has visited it AND the step is valid (mandatory filled, or optional with no invalid data e.g. tiers). */
@@ -364,14 +364,14 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
           this.currentStep = step;
           this.maxStepVisited = Math.max(this.maxStepVisited, step);
         } else {
-          this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', '1'], { replaceUrl: true });
+          this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', '1'], { replaceUrl: true });
         }
       }
     });
 
     this.pageHeaderService.setPageHeader('Create Cashback Program', [
       { label: 'Home', route: '/home' },
-      { label: 'Reward Programs', route: '/bonus-program' },
+      { label: 'Reward Programs', route: '/reward-programs' },
       { label: 'Create Cashback Program' }
     ]);
 
@@ -431,9 +431,9 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (program) => {
           if (program.status !== 'DRAFT') {
-            this.router.navigate(['/bonus-program', 'view', program.uuid], { replaceUrl: true });
+            this.router.navigate(['/reward-programs', 'view', program.uuid], { replaceUrl: true });
             return;
-          }
+          }   
           this.patchFormFromResponse(program);
         },
         error: () => {} // Draft might not have data yet — that's fine
@@ -507,25 +507,25 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
 
   goToStep(step: number): void {
     if (step >= 1 && step <= STEPS.length) {
-      this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', step.toString()]);
+      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', step.toString()]);
     }
   }
 
   nextStep(): void {
     if (this.currentStep < STEPS.length) {
       const next = this.currentStep + 1;
-      this.router.navigate(['/bonus-program', 'create', 'cashback', this.draftUuid, 'steps', next.toString()]);
+      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', next.toString()]);
     }
   }
 
   onCancel(): void {
     if (!this.draftUuid) {
-      this.router.navigate(['/bonus-program']);
+      this.router.navigate(['/reward-programs']);
       return;
     }
     this.rewardProgramsService.deleteProgram(this.draftUuid).subscribe({
-      next: () => this.router.navigate(['/bonus-program']),
-      error: () => this.router.navigate(['/bonus-program'])
+      next: () => this.router.navigate(['/reward-programs']),
+      error: () => this.router.navigate(['/reward-programs'])
     });
   }
 
@@ -584,7 +584,7 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.toast.success('Draft saved');
-          this.router.navigate(['/bonus-program']);
+          this.router.navigate(['/reward-programs']);
         },
         error: (err) => {
           const status = err?.status ?? 0;
@@ -659,7 +659,7 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.toast.success(this.isScheduledLaunch ? 'Program scheduled' : 'Program launched');
-          this.router.navigate(['/bonus-program']);
+          this.router.navigate(['/reward-programs']);
         },
         error: (err) => {
           const status = err?.status ?? 0;

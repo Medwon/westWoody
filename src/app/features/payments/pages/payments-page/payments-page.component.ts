@@ -15,6 +15,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
+import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 
 interface Payment {
   id: string;
@@ -47,7 +48,7 @@ function clampPaymentPageSize(size: number): number {
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent, PaymentViewModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent, PaymentViewModalComponent, SelectComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
@@ -236,13 +237,12 @@ function clampPaymentPageSize(size: number): number {
 
             <!-- Sort -->
             <div class="filter-group sort-group">
-              <label class="filter-label">Сортировка:</label>
-              <select [(ngModel)]="sortField" class="sort-select">
-                <option value="date">По дате</option>
-                <option value="clientName">По клиенту</option>
-                <option value="amount">По сумме</option>
-                <option value="paymentMethod">По способу оплаты</option>
-              </select>
+              <app-select
+                label="Сортировка:"
+                [(ngModel)]="sortField"
+                [options]="sortOptions"
+                placeholder="Сортировка">
+              </app-select>
               <button class="sort-direction-btn" (click)="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" [class.desc]="sortDirection === 'desc'">
                   <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -450,13 +450,12 @@ function clampPaymentPageSize(size: number): number {
               <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalPaymentsFound) }} из {{ totalPaymentsFound }}</span>
             </div>
             <div class="page-size-filter-section">
-              <label class="page-size-label">Строк на странице:</label>
-              <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
-                <option [value]="15">15</option>
-                <option [value]="30">30</option>
-                <option [value]="50">50</option>
-                <option [value]="100">100</option>
-              </select>
+              <app-select
+                label="Строк на странице:"
+                [(ngModel)]="pageSize"
+                [options]="pageSizeSelectOptions"
+                (ngModelChange)="onPageSizeChange()">
+              </app-select>
             </div>
           </div>
           <div class="pagination-right" *ngIf="getTotalPages() > 1">
@@ -1344,6 +1343,13 @@ export class PaymentsPageComponent implements OnInit, OnDestroy {
   filterRefund: 'all' | 'paid' | 'refund' = 'all';
   sortField: SortField = 'date';
   sortDirection: SortDirection = 'desc';
+  sortOptions: SelectOption[] = [
+    { value: 'date', label: 'По дате' },
+    { value: 'clientName', label: 'По клиенту' },
+    { value: 'amount', label: 'По сумме' },
+    { value: 'paymentMethod', label: 'По способу оплаты' }
+  ];
+  pageSizeSelectOptions: SelectOption[] = [15, 30, 50, 100].map(s => ({ value: s, label: String(s) }));
 
   // Refund modal
   showRefundModal = false;

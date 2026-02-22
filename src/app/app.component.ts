@@ -13,6 +13,6 @@ import { ToastContainerComponent } from './shared/components/toast-container/toa
   `
 })
 export class AppComponent {
-  title = 'westwood-frontend';
+  title = 'tinta-frontend';
 }
 

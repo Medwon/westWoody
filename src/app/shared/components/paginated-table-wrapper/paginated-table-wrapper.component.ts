@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { PaginationComponent } from '../pagination/pagination.component';
 import { PaginationService } from '../../../core/services/pagination.service';
+import { SelectComponent, SelectOption } from '../select/select.component';
 
 @Component({
   selector: 'app-paginated-table-wrapper',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, PaginationComponent],
+  imports: [CommonModule, FormsModule, RouterModule, PaginationComponent, SelectComponent],
   template: `
     <div class="paginated-wrapper">
       <!-- Table Content (ng-content) -->
@@ -21,10 +22,12 @@ import { PaginationService } from '../../../core/services/pagination.service';
             <span>Показано {{ startIndex }}-{{ endIndex }} из {{ totalItems }}</span>
           </div>
           <div class="page-size-filter-section">
-            <label class="page-size-label">Строк на странице:</label>
-            <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
-              <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
-            </select>
+            <app-select
+              label="Строк на странице:"
+              [(ngModel)]="pageSize"
+              [options]="pageSizeSelectOptions"
+              (ngModelChange)="onPageSizeChange()">
+            </app-select>
           </div>
         </div>
         <div class="pagination-right" *ngIf="totalPages > 1">
@@ -162,6 +165,9 @@ export class PaginatedTableWrapperComponent implements OnInit, OnChanges {
   startIndex = 0;
   endIndex = 0;
   pageSizeOptions: number[] = [];
+  get pageSizeSelectOptions(): SelectOption[] {
+    return this.pageSizeOptions.map(s => ({ value: s, label: String(s) }));
+  }
   paginatedData: any[] = [];
 
   private route = inject(ActivatedRoute);

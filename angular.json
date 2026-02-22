@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "westwood-frontend": {
+    "tinta-frontend": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -18,7 +18,7 @@
           "builder": "@angular-devkit/build-angular:application",
           "options": {
             "outputPath": {
-              "base": "../westwood-loyalty-backend/src/main/resources/static"
+              "base": "../tinta-backend/src/main/resources/static"
             },
             "index": "src/index.html",
             "browser": "src/main.ts",

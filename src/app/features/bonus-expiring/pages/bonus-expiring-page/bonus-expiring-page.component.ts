@@ -23,7 +23,7 @@ import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
     PhoneFormatPipe
   ],
   template: `
-    <div class="page-wrapper">
+
       <div class="page-content">
         <div class="page-loading-container" *ngIf="isLoading">
           <app-loader [visible]="true" [overlay]="false" type="logo" size="large"></app-loader>
@@ -89,7 +89,7 @@ import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
           </div>
         </div>
       </div>
-    </div>
+
 
     <!-- Notify modal (for one expiry group) -->
     <app-modal

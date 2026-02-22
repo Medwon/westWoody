@@ -401,12 +401,7 @@ interface UserPayment {
     </app-payment-view-modal>
   `,
   styles: [`
-    .page-wrapper {
-      min-height: 100%;
-      margin: -2rem;
-      padding: 2rem;
-      background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
-    }
+    
 
     .profile-container-wrapper {
       position: relative;

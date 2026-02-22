@@ -22,7 +22,7 @@ import { PageHeaderService } from '../../../../core/services/page-header.service
           Only <strong>Cashback</strong> programs can be created at this time.
         </p>
         <p class="in-dev-meta">Draft UUID: {{ uuid }}</p>
-        <a routerLink="/bonus-program" class="in-dev-back">← Back to Reward Programs</a>
+        <a routerLink="/reward-programs" class="in-dev-back">← Back to Reward Programs</a>
       </div>
     </div>
   `,
@@ -74,7 +74,7 @@ export class RewardProgramCreatePageComponent implements OnInit {
 
     this.pageHeaderService.setPageHeader(`Create ${this.typeLabel}`, [
       { label: 'Home', route: '/home' },
-      { label: 'Reward Programs', route: '/bonus-program' },
+      { label: 'Reward Programs', route: '/reward-programs' },
       { label: `Create ${this.typeLabel}` }
     ]);
   }

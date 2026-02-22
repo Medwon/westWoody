@@ -75,13 +75,13 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, DialogComponent],
   template: `
-    <div class="page-wrapper">
+
       <div class="programs-container">
         <div class="intro-row">
           <p class="intro-text">
             Increase engagement with your loyalty program. Create a promotion where members can earn extra points when they shop at designated times — perfect for happy hour or holidays.
           </p>
-          <a routerLink="/bonus-program/programs" class="btn-create-program">
+          <a routerLink="/reward-programs/programs" class="btn-create-program">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14M5 12h14"/>
             </svg>
@@ -112,7 +112,7 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
                 <path d="M20 12v9H4v-9"/><rect x="2" y="7" width="20" height="5" rx="1"/><path d="M12 22V7"/><path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5"/><path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5"/>
               </svg>
               <span>You don't have programs created</span>
-              <a routerLink="/bonus-program/programs" class="btn-create-loyalty">Create loyalty program</a>
+              <a routerLink="/reward-programs/programs" class="btn-create-loyalty">Create loyalty program</a>
             </div>
           </div>
         } @else {
@@ -220,7 +220,7 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
           </div>
         }
       </div>
-    </div>
+
 
     <app-dialog
       [visible]="!!confirmState"
@@ -235,13 +235,13 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
   `,
   styles: [`
     :host { display: block; height: 100%; }
-    .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
+    // .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
     .programs-container { max-width: 1200px; margin: 0 auto; }
 
     .intro-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .intro-text { flex: 1; min-width: 0; font-size: 0.95rem; color: #475569; line-height: 1.6; margin: 0; max-width: 720px; }
     .btn-create-program { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
-    .btn-create-program:hover { background: #15803d; color: white; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3); }
+    .btn-create-program:hover { background: #15803d; color: white; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3); }
     .btn-icon { width: 18px; height: 18px; }
 
     .tabs-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
@@ -406,7 +406,7 @@ export class BonusProgramPageComponent implements OnInit {
 
   actionFullView(program: RewardProgramListItem): void {
     this.openMenuUuid = null;
-    this.router.navigate(['/bonus-program', 'view', program.uuid]);
+    this.router.navigate(['/reward-programs', 'view', program.uuid]);
   }
 
   actionContinueCreate(program: RewardProgramListItem): void {
@@ -532,16 +532,16 @@ export class BonusProgramPageComponent implements OnInit {
     if (program.status === 'DRAFT') {
       this.goToDraftWizard(program);
     } else {
-      this.router.navigate(['/bonus-program', 'view', program.uuid]);
+      this.router.navigate(['/reward-programs', 'view', program.uuid]);
     }
   }
 
   private goToDraftWizard(program: RewardProgramListItem): void {
     const slug = rewardProgramTypeToSlug(program.type);
     if (program.type === 'CASHBACK') {
-      this.router.navigate(['/bonus-program', 'create', slug, program.uuid, 'steps', 1]);
+      this.router.navigate(['/reward-programs', 'create', slug, program.uuid, 'steps', 1]);
     } else {
-      this.router.navigate(['/bonus-program', 'create', slug, program.uuid]);
+      this.router.navigate(['/reward-programs', 'create', slug, program.uuid]);
     }
   }
 }

@@ -19,6 +19,7 @@ import { RefundConfirmationModalComponent, Payment } from '../../../../shared/co
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
+import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 
 interface KpiCard {
   iconId: 'revenue' | 'bonus' | 'clients' | 'transactions' | 'refunds' | 'average' | 'today' | 'month';
@@ -50,9 +51,9 @@ interface RecentPayment {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent, PaymentViewModalComponent, LoaderComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, ButtonComponent, RefundConfirmationModalComponent, IconButtonComponent, PaymentViewModalComponent, LoaderComponent, SelectComponent],
   template: `
-    <div class="page-wrapper">
+    
       <div class="dashboard">
         <!-- Loading: только блок аналитики (карточки). График и таблица грузятся отдельно. -->
         <div class="page-loading-container" *ngIf="isLoading">
@@ -136,13 +137,12 @@ interface RecentPayment {
             </div>
             <h3 class="card-group-title">KPI</h3>
             <div class="kpi-period-select-wrapper">
-              <select class="kpi-period-select" [ngModel]="kpiPeriod" (ngModelChange)="onKpiPeriodChange($event)">
-                <option value="1m">За месяц</option>
-                <option value="3m">За 3 месяца</option>
-                <option value="6m">За 6 месяцев</option>
-                <option value="1y">За год</option>
-                <option value="all">За все время</option>
-              </select>
+              <app-select
+                [ngModel]="kpiPeriod"
+                (ngModelChange)="onKpiPeriodChange($event)"
+                [options]="kpiPeriodOptions"
+                placeholder="Период">
+              </app-select>
             </div>
           </div>
             <div class="metric-list">
@@ -464,7 +464,7 @@ interface RecentPayment {
         </div>
         </div>
       </div>
-    </div>
+    
 
     <!-- Refund Confirmation Modal -->
     <app-refund-confirmation-modal
@@ -715,21 +715,7 @@ interface RecentPayment {
 
     .kpi-period-select-wrapper {
       flex-shrink: 0;
-    }
-
-    .kpi-period-select {
-      font-size: 0.75rem;
-      padding: 0.25rem 0.5rem;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      background: #fff;
-      color: #0f172a;
-      cursor: pointer;
-    }
-
-    .kpi-period-select:focus {
-      outline: none;
-      border-color: #22c55e;
+      min-width: 120px;
     }
 
     .metric-tooltip-icon {
@@ -1684,6 +1670,13 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   // KPI period: '1m' | '3m' | '6m' | '1y' | 'all'
   kpiPeriod: '1m' | '3m' | '6m' | '1y' | 'all' = '1m';
+  kpiPeriodOptions: SelectOption[] = [
+    { value: '1m', label: 'За месяц' },
+    { value: '3m', label: 'За 3 месяца' },
+    { value: '6m', label: 'За 6 месяцев' },
+    { value: '1y', label: 'За год' },
+    { value: 'all', label: 'За все время' }
+  ];
 
   // Chart Y-axis: max value for dynamic labels
   chartYAxisMax = 30000;

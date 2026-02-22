@@ -41,7 +41,7 @@ git push heroku master
 
 ### Build Process
 - `heroku-postbuild` script automatically builds the production version during deployment
-- Production build output: `dist/westwood-frontend/browser` (or `dist/westwood-frontend` for older Angular versions)
+- Production build output: `dist/tinta-frontend/browser` (or `dist/tinta-frontend` for older Angular versions)
 
 ### Server
 - Express server serves static files from the build output

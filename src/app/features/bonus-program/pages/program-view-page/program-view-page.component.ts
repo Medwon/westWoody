@@ -115,9 +115,9 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
 
         <!-- Tabs (routable) -->
         <div class="tabs-bar" role="tablist">
-          <a [routerLink]="['/bonus-program/view', viewUuid, 'overview']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'overview'">Overview</a>
-          <a [routerLink]="['/bonus-program/view', viewUuid, 'tiers']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'tiers'">Tiers</a>
-          <a [routerLink]="['/bonus-program/view', viewUuid, 'schedule']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'schedule'">Schedule</a>
+          <a [routerLink]="['/reward-programs/view', viewUuid, 'overview']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'overview'">Overview</a>
+          <a [routerLink]="['/reward-programs/view', viewUuid, 'tiers']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'tiers'">Tiers</a>
+          <a [routerLink]="['/reward-programs/view', viewUuid, 'schedule']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'schedule'">Schedule</a>
         </div>
 
         <div class="tab-content">
@@ -1024,7 +1024,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
     if (ProgramViewPageComponent.VALID_TABS.includes(tab as Tab)) {
       this.activeTab = tab as Tab;
     } else {
-      this.router.navigate(['/bonus-program/view', this.uuid, 'overview'], { replaceUrl: true });
+      this.router.navigate(['/reward-programs/view', this.uuid, 'overview'], { replaceUrl: true });
     }
   }
 
@@ -1035,8 +1035,8 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
     this.rewardService.getProgram(this.uuid).subscribe({
       next: (p) => {
         if (p.status === 'DRAFT') {
-          this.router.navigate(['/bonus-program', 'create', p.type.toLowerCase(), p.uuid]);
-          return;
+          this.router.navigate(['/reward-programs', 'create', p.type.toLowerCase(), p.uuid]);
+          return; 
         }
         this.program = p;
         this.loading = false;
@@ -1075,8 +1075,8 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
     if (!this.program) return;
     this.pageHeaderService.setPageHeader('Program View', [
       { label: 'Home', route: '/home' },
-      { label: 'Reward Programs', route: '/bonus-program' },
-      { label: 'Program View', route: '/bonus-program/view/' + this.program.uuid }
+      { label: 'Reward Programs', route: '/reward-programs' },
+      { label: 'Program View', route: '/reward-programs/view/' + this.program.uuid }
     ]);
   }
 

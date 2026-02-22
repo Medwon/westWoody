@@ -23,7 +23,9 @@ import { MessageTemplate } from '../../shared/components/invitation-form/invitat
         <div class="main-content-wrapper">
           <app-page-header></app-page-header>
           <main class="main-content">
+          <div class="page-wrapper">
             <ng-content></ng-content>
+            </div>
           </main>
         </div>
       </app-sidebar>
@@ -45,7 +47,12 @@ import { MessageTemplate } from '../../shared/components/invitation-form/invitat
       overflow-x: hidden;
       width: 100%;
     }
-
+    .page-wrapper {
+     min-height: 100%;
+      margin: -2rem;
+      padding: 2rem;
+      background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 50%, #f8fafc 100%);
+    }
     .main-content-wrapper {
       flex: 1;
       display: flex;

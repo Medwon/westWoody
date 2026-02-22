@@ -14,6 +14,7 @@ import { PaginationComponent } from '../../../../shared/components/pagination/pa
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { CreateClientModalComponent } from '../../../../shared/components/create-client-modal/create-client-modal.component';
 import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
+import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 
 interface Client {
   id: string;
@@ -42,9 +43,9 @@ function clampPageSize(size: number): number {
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent, PhoneFormatPipe],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent, PhoneFormatPipe, SelectComponent],
   template: `
-    <div class="page-wrapper">
+    
       <div class="clients-container">
         <!-- Loading State -->
         <div class="page-loading-container" *ngIf="isLoadingDashboard || isLoading">
@@ -221,13 +222,12 @@ function clampPageSize(size: number): number {
 
             <!-- Sort -->
             <div class="filter-group sort-group">
-              <label class="filter-label">Сортировка:</label>
-              <select [(ngModel)]="sortField" class="sort-select">
-                <option value="name">По имени</option>
-                <option value="totalAmount">По сумме трат</option>
-                <option value="lastVisit">По последнему визиту</option>
-                <option value="createdAt">По дате регистрации</option>
-              </select>
+              <app-select
+                label="Сортировка:"
+                [(ngModel)]="sortField"
+                [options]="sortOptions"
+                placeholder="Сортировка">
+              </app-select>
               <button class="sort-direction-btn" (click)="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">
                 <svg viewBox="0 0 24 24" fill="none" [class.desc]="sortDirection === 'desc'">
                   <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -454,13 +454,12 @@ function clampPageSize(size: number): number {
                 <span>Показано {{ (currentPage * pageSize) + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalClientsFound) }} из {{ totalClientsFound }}</span>
               </div>
               <div class="page-size-filter-section">
-                <label class="page-size-label">Строк на странице:</label>
-                <select [(ngModel)]="pageSize" (change)="onPageSizeChange()" class="page-size-select">
-                  <option [value]="15">15</option>
-                  <option [value]="30">30</option>
-                  <option [value]="50">50</option>
-                  <option [value]="100">100</option>
-                </select>
+                <app-select
+                  label="Строк на странице:"
+                  [(ngModel)]="pageSize"
+                  [options]="pageSizeSelectOptions"
+                  (ngModelChange)="onPageSizeChange()">
+                </app-select>
               </div>
             </div>
             <div class="pagination-right" *ngIf="getTotalPages() > 1">
@@ -473,7 +472,7 @@ function clampPageSize(size: number): number {
           </div>
         </div>
       </div>
-    </div>
+    
 
     <!-- Create Client Modal -->
     <app-create-client-modal
@@ -500,11 +499,7 @@ function clampPageSize(size: number): number {
       flex-shrink: 0;
     }
 
-    .page-wrapper {
-      min-height: 100%;
-      margin: -2rem;
-      padding: 2rem;
-    }
+
 
     .clients-container {
       max-width: 1400px;
@@ -1520,6 +1515,13 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   showTagDropdown = false;
   sortField: 'name' | 'createdAt' | 'lastVisit' | 'totalAmount' = 'lastVisit';
   sortDirection: SortDirection = 'desc';
+  sortOptions: SelectOption[] = [
+    { value: 'name', label: 'По имени' },
+    { value: 'totalAmount', label: 'По сумме трат' },
+    { value: 'lastVisit', label: 'По последнему визиту' },
+    { value: 'createdAt', label: 'По дате регистрации' }
+  ];
+  pageSizeSelectOptions: SelectOption[] = PAGE_SIZE_OPTIONS.map(s => ({ value: s, label: String(s) }));
   filterType: 'all' | 'individual' | 'business' = 'all';
 
   // Available tags from API

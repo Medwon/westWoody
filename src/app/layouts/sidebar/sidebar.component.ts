@@ -793,7 +793,7 @@ export class SidebarComponent implements OnInit {
     { 
       label: 'Программа вознаграждений', 
       iconPath: '<path d="M20 12v10H4V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="7" width="20" height="5" rx="1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 22V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c-2.5-2.5-5-3-5-5a2.5 2.5 0 0 1 5 0c0 2-2.5 2.5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7c2.5-2.5 5-3 5-5a2.5 2.5 0 0 0-5 0c0 2 2.5 2.5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 
-      route: '/bonus-program',
+      route: '/reward-programs',
       exact: false
     },
     { 

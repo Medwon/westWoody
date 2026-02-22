@@ -8,13 +8,14 @@ import { AnalyticsService, BonusTypeReportResponse, MonthlyReportPoint } from '.
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import type { BonusTypeResponse } from '../../../../core/models/bonus-type.model';
 import { catchError, of } from 'rxjs';
+import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 
 type PeriodKey = '1m' | '3m' | '6m' | '1y' | 'all';
 
 @Component({
   selector: 'app-bonus-type-report-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoaderComponent],
+  imports: [CommonModule, FormsModule, LoaderComponent, SelectComponent],
   templateUrl: './bonus-type-report-page.component.html',
   styleUrls: ['./bonus-type-report-page.component.scss']
 })
@@ -30,6 +31,22 @@ export class BonusTypeReportPageComponent implements OnInit {
   selectedBonusTypeId: number | null = null;
   period: PeriodKey = '1m';
   report: BonusTypeReportResponse | null = null;
+
+  periodOptions: SelectOption[] = [
+    { value: '1m', label: 'За месяц' },
+    { value: '3m', label: 'За 3 месяца' },
+    { value: '6m', label: 'За 6 месяцев' },
+    { value: '1y', label: 'За год' },
+    { value: 'all', label: 'За все время' }
+  ];
+
+  get bonusTypeOptions(): SelectOption[] {
+    return [
+      { value: 'all', label: 'Общая статистика' },
+      ...this.bonusTypes.map(bt => ({ value: bt.id, label: bt.name }))
+    ];
+  }
+
   /** Monthly data for the chart block only (always 12 months of chartYear). */
   monthlyChartData: MonthlyReportPoint[] | null = null;
   isLoading = false;

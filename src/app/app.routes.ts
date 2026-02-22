@@ -54,7 +54,7 @@ export const routes: Routes = [
         title: 'Отчёт по типам бонусов'
       },
       {
-        path: 'bonus-program',
+        path: 'reward-programs',
         children: [
           {
             path: '',
