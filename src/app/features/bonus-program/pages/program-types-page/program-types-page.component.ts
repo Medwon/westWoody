@@ -120,8 +120,8 @@ export class ProgramTypesPageComponent implements OnInit {
   }
 
   isSlotBlocked(card: ProgramTypeCard): boolean {
-    const state = this.getSlotState(card);
-    return state === 'ACTIVE' || state === 'SCHEDULED';
+    // Multiple programs per type allowed; Create is always enabled.
+    return false;
   }
 
   onCreate(card: ProgramTypeCard): void {

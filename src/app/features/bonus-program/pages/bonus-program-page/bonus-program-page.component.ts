@@ -51,6 +51,17 @@ function statusToLabel(status: RewardProgramStatus): string {
 }
 
 function formatBonusType(program: RewardProgramListItem): { line1: string; line2: string } {
+  if (program.type === 'WELCOME') {
+    const gt = program.welcomeGrantType;
+    const val = program.welcomeGrantValue;
+    if (gt === 'POINTS' && val != null) {
+      return { line1: 'Bonus Points', line2: `${val.toLocaleString('en-US')} pts` };
+    }
+    if (gt === 'FIXED_MONEY_KZT' && val != null) {
+      return { line1: 'Bonus Amount', line2: `${val.toLocaleString('en-US')} KZT` };
+    }
+    return { line1: 'Welcome bonus', line2: '' };
+  }
   if (program.type !== 'CASHBACK') {
     return { line1: '—', line2: '' };
   }
@@ -140,6 +151,12 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
                 <tr *ngFor="let program of paginatedPrograms" class="program-row" (click)="goToProgram(program)">
                   <td>
                     <span class="program-name">{{ program.name || 'Untitled' }}</span>
+                    @if (program.ignoredDuringProgramName) {
+                      <span class="ignored-info" (click)="$event.stopPropagation()" tabindex="0">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                        <span class="list-tooltip-popover">{{ getIgnoredDuringTooltip(program.ignoredDuringProgramName) }}</span>
+                      </span>
+                    }
                   </td>
                   <td>
                     <span class="program-type-label">{{ typeToLabel(program.type) }}</span>
@@ -282,6 +299,40 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     .program-row:last-child td { border-bottom: none; }
 
     .program-name { font-weight: 600; color: #0f172a; }
+    .ignored-info {
+      position: relative; display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 0.35rem; color: #64748b; cursor: help; vertical-align: middle;
+    }
+    .ignored-info svg { width: 16px; height: 16px; }
+    .ignored-info:hover { color: #22c55e; }
+    .list-tooltip-popover {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(6px) scale(0.97);
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 0.625rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      white-space: normal;
+      max-width: 380px;
+      min-width: 280px;
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+      z-index: 20;
+    }
+    .list-tooltip-popover::after {
+      content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: #1f2937;
+    }
+    .ignored-info:hover .list-tooltip-popover {
+      opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0) scale(1);
+    }
     .program-type-label { color: #475569; }
     .bonus-type-cell { display: flex; flex-direction: column; gap: 0.15rem; }
     .bonus-type-line1 { font-weight: 500; color: #0f172a; }
@@ -370,6 +421,10 @@ export class BonusProgramPageComponent implements OnInit {
 
   readonly formatDateRange = formatDateRange;
   readonly typeToLabel = typeToLabel;
+
+  getIgnoredDuringTooltip(ignoredDuringProgramName: string): string {
+    return `This program is not applied during «${ignoredDuringProgramName}»'s scheduled period.`;
+  }
   readonly statusToLabel = statusToLabel;
   readonly formatBonusType = formatBonusType;
 
@@ -549,9 +604,13 @@ export class BonusProgramPageComponent implements OnInit {
   private goToDraftWizard(program: RewardProgramListItem): void {
     const slug = rewardProgramTypeToSlug(program.type);
     if (program.type === 'CASHBACK') {
-      this.router.navigate(['/reward-programs', 'create', slug, program.uuid, 'steps', 1]);
+      this.router.navigate(['/reward-programs', 'create', slug, program.uuid, 'steps', 1], {
+        queryParams: { 'continue-editing': 'true' }
+      });
     } else {
-      this.router.navigate(['/reward-programs', 'create', slug, program.uuid]);
+      this.router.navigate(['/reward-programs', 'create', slug, program.uuid], {
+        queryParams: { 'continue-editing': 'true' }
+      });
     }
   }
 }

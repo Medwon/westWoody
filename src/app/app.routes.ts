@@ -77,12 +77,18 @@ export const routes: Routes = [
             loadComponent: () => import('./features/bonus-program/pages/create-program-wizard/create-program-wizard.component').then(m => m.CreateProgramWizardComponent),
             title: 'Create Cashback Program'
           },
-          /* Other types: in development */
+          /* Welcome: full wizard (no weekly schedule) */
           {
             path: 'create/welcome/:uuid',
-            loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),
+            redirectTo: 'create/welcome/:uuid/steps/1',
+            pathMatch: 'full'
+          },
+          {
+            path: 'create/welcome/:uuid/steps/:step',
+            loadComponent: () => import('./features/bonus-program/pages/create-welcome-program-wizard/create-welcome-program-wizard.component').then(m => m.CreateWelcomeProgramWizardComponent),
             title: 'Create Welcome Program'
           },
+          /* Other types: in development */
           {
             path: 'create/birthday/:uuid',
             loadComponent: () => import('./features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component').then(m => m.RewardProgramCreatePageComponent),

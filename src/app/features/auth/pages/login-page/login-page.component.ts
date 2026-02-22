@@ -176,6 +176,15 @@ import { authMobileStyles } from '../../../../shared/styles/auth-mobile.styles';
       gap: 1rem;
     }
 
+    /* This page only: input hover/focus use black instead of app color palette */
+    :host ::ng-deep .form-panel app-input .input-container input:hover {
+      border-color: #000 !important;
+    }
+    :host ::ng-deep .form-panel app-input .input-container input:focus {
+      border-color: #000 !important;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15) !important;
+    }
+
     .submit-button {
       width: 100%;
       margin-top: 0.25rem;

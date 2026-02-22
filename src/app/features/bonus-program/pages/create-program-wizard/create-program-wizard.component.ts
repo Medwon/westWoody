@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
-import { Subject, takeUntil, finalize } from 'rxjs';
+import { Subject, takeUntil, finalize, debounceTime, combineLatest, startWith } from 'rxjs';
 
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -13,7 +13,8 @@ import {
   SaveCashbackDraftRequest,
   LaunchCashbackProgramRequest,
   WeeklyScheduleEntry,
-  CashbackTierEntry
+  CashbackTierEntry,
+  ScheduleOverlapCheckResponse
 } from '../../../../core/models/reward-program.model';
 
 import { StepProgramDetailsComponent } from './steps/step-program-details.component';
@@ -75,6 +76,7 @@ const ALL_DAYS: DayOfWeek[] = [
           <app-step-schedule
             *ngIf="currentStep === 2"
             [form]="form"
+            [scheduleOverlap]="scheduleOverlap"
           ></app-step-schedule>
 
           <!-- Step 3: Rules -->
@@ -99,8 +101,9 @@ const ALL_DAYS: DayOfWeek[] = [
             *ngIf="currentStep === 6"
             [form]="form"
             [isScheduledLaunch]="isScheduledLaunch"
-            [isFormValidForLaunch]="isFormValidForLaunch"
+            [isFormValidForLaunch]="isFormValidForLaunch && !scheduleOverlap?.overlaps"
             [launching]="launching"
+            [scheduleOverlap]="scheduleOverlap"
             (goToStep)="goToStep($event)"
             (launch)="launch()"
           ></app-step-summary>
@@ -149,14 +152,22 @@ const ALL_DAYS: DayOfWeek[] = [
               Cancel
             </button>
             @if (isFormValidForLaunch) {
-              <button
-                type="button"
-                class="btn-save-draft btn-launch"
-                [disabled]="launching"
-                (click)="launch()"
-              >
-                {{ launching ? 'Launching...' : (isScheduledLaunch ? 'Schedule' : 'Launch now') }}
-              </button>
+              <div class="launch-footer-row">
+                @if (scheduleOverlap?.overlaps) {
+                  <span class="footer-tooltip-icon" tabindex="0">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                    <span class="footer-tooltip-popover">{{ overlapTooltipTitle }}</span>
+                  </span>
+                }
+                <button
+                  type="button"
+                  class="btn-save-draft btn-launch"
+                  [disabled]="launching || (scheduleOverlap?.overlaps ?? false)"
+                  (click)="launch()"
+                >
+                  {{ launching ? 'Launching...' : (isScheduledLaunch ? 'Schedule' : 'Launch now') }}
+                </button>
+              </div>
             } @else {
               <button
                 type="button"
@@ -274,6 +285,54 @@ const ALL_DAYS: DayOfWeek[] = [
       background: #16A34A; color: white; border-color: #16A34A;
     }
     .btn-save-draft.btn-launch:hover:not(:disabled) { background: #15803d; border-color: #15803d; }
+    .launch-footer-row {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .footer-tooltip-icon {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: help; color: #64748b; flex-shrink: 0;
+    }
+    .footer-tooltip-icon svg {
+      width: 14px; height: 14px; display: block;
+    }
+    .footer-tooltip-icon:hover {
+      color: #22c55e;
+    }
+    .footer-tooltip-popover {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(6px) scale(0.97);
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 0.625rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      white-space: normal;
+      max-width: 260px;
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+      z-index: 20;
+    }
+    .footer-tooltip-popover::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+    .footer-tooltip-icon:hover .footer-tooltip-popover {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
 
     /* Responsive */
     @media (max-width: 768px) {
@@ -299,11 +358,23 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
   saving = false;
   launching = false;
   globalError = '';
+  /** When true, cancel should only navigate away and not delete the draft (URL has ?continue-editing). */
+  private preserveDraftOnCancel = false;
+  /** Set when schedule (start/end) is checked; overlaps true means Schedule/Launch must be disabled. */
+  scheduleOverlap: ScheduleOverlapCheckResponse | null = null;
 
   form!: FormGroup;
 
   get stepsBaseUrl(): string {
     return `/reward-programs/create/cashback/${this.draftUuid}/steps`;
+  }
+
+  get overlapTooltipTitle(): string {
+    if (this.scheduleOverlap?.alwaysOnConflict) {
+      return 'You can have only one always-on program. Schedule or launch a periodic program instead.';
+    }
+    const name = this.scheduleOverlap?.overlappingProgramName || 'another program';
+    return `It's overlapping with ${name} and scheduling/launching is not possible.`;
   }
 
   /** Step shows green + check only if user has visited it AND the step is valid (mandatory filled, or optional with no invalid data e.g. tiers). */
@@ -328,9 +399,17 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
           && (type !== 'BONUS_POINTS' || (pts?.value != null && Number(pts?.value) > 0)));
       }
       case 2: {
+        const mode = this.form.get('scheduleMode')?.value;
+        if (mode === 'immediate_always_on') {
+          return !(this.scheduleOverlap?.overlaps && this.scheduleOverlap?.alwaysOnConflict);
+        }
         const start = this.form.get('startDate');
-        const v = start?.value;
-        return !!(start?.valid && v != null && String(v).trim().length > 0);
+        const end = this.form.get('endDate');
+        const sv = start?.value;
+        const ev = end?.value;
+        return !!(start?.valid && end?.valid
+          && sv != null && String(sv).trim().length > 0
+          && ev != null && String(ev).trim().length > 0);
       }
       case 3: {
         const minSpend = this.form.get('minSpendAmount');
@@ -355,6 +434,8 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.preserveDraftOnCancel = this.route.snapshot.queryParamMap.get('continue-editing') != null;
+
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.draftUuid = params.get('uuid') ?? '';
       const stepParam = params.get('step');
@@ -363,8 +444,9 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
         if (step >= 1 && step <= STEPS.length) {
           this.currentStep = step;
           this.maxStepVisited = Math.max(this.maxStepVisited, step);
+          if (step === 6) this.runOverlapCheck();
         } else {
-          this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', '1'], { replaceUrl: true });
+          this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', '1'], { replaceUrl: true, queryParamsHandling: 'preserve' });
         }
       }
     });
@@ -377,6 +459,66 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
 
     this.buildForm();
     this.loadExistingDraft();
+    this.setupOverlapCheck();
+  }
+
+  private setupOverlapCheck(): void {
+    const scheduleMode = this.form.get('scheduleMode');
+    const startDate = this.form.get('startDate');
+    const endDate = this.form.get('endDate');
+    if (!scheduleMode || !startDate || !endDate) return;
+    combineLatest([
+      scheduleMode.valueChanges.pipe(startWith(scheduleMode.value)),
+      startDate.valueChanges.pipe(startWith(startDate.value)),
+      endDate.valueChanges.pipe(startWith(endDate.value))
+    ])
+      .pipe(
+        debounceTime(400),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => this.runOverlapCheck());
+    setTimeout(() => this.runOverlapCheck(), 500);
+  }
+
+  private runOverlapCheck(): void {
+    if (!this.draftUuid) {
+      this.scheduleOverlap = null;
+      return;
+    }
+    const mode = this.form.get('scheduleMode')?.value;
+    if (mode === 'immediate_always_on') {
+      const nowIso = new Date().toISOString();
+      this.rewardProgramsService
+        .checkScheduleOverlap('CASHBACK', nowIso, null, this.draftUuid)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (res) => (this.scheduleOverlap = res),
+          error: () => (this.scheduleOverlap = null)
+        });
+      return;
+    }
+    const startVal = this.form.get('startDate')?.value;
+    const endVal = this.form.get('endDate')?.value;
+    if (startVal && endVal) {
+      const startIso = new Date(startVal).toISOString();
+      const endIso = new Date(endVal).toISOString();
+      this.rewardProgramsService
+        .checkScheduleOverlap('CASHBACK', startIso, endIso, this.draftUuid)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (res) => (this.scheduleOverlap = res),
+          error: () => (this.scheduleOverlap = null)
+        });
+    } else {
+      const nowIso = new Date().toISOString();
+      this.rewardProgramsService
+        .checkScheduleOverlap('CASHBACK', nowIso, null, this.draftUuid)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (res) => (this.scheduleOverlap = res),
+          error: () => (this.scheduleOverlap = null)
+        });
+    }
   }
 
   ngOnDestroy(): void {
@@ -395,9 +537,10 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
       cashbackValue: [null, [Validators.required, Validators.min(0)]],
       pointsSpendThreshold: [null],
 
-      // Step 2: Schedule
+      // Step 2: Schedule (periodic only; start and end required)
+      scheduleMode: ['periodic'],
       startDate: ['', Validators.required],
-      endDate: [''],
+      endDate: ['', Validators.required],
       weeklySchedules: this.fb.array(
         ALL_DAYS.map(day => {
           const isWeekday = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].includes(day);
@@ -507,20 +650,24 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
 
   goToStep(step: number): void {
     if (step >= 1 && step <= STEPS.length) {
-      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', step.toString()]);
+      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', step.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
   nextStep(): void {
     if (this.currentStep < STEPS.length) {
       const next = this.currentStep + 1;
-      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', next.toString()]);
+      this.router.navigate(['/reward-programs', 'create', 'cashback', this.draftUuid, 'steps', next.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
   onCancel(): void {
     if (!this.draftUuid) {
       this.router.navigate(['/reward-programs']);
+      return;
+    }
+    if (this.preserveDraftOnCancel) {
+       this.router.navigate(['/reward-programs']);
       return;
     }
     this.rewardProgramsService.deleteProgram(this.draftUuid).subscribe({
@@ -601,9 +748,7 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
   // ─── Launch ────────────────────────────────────────────────────────
 
   get isScheduledLaunch(): boolean {
-    const startDate = this.form.get('startDate')?.value;
-    if (!startDate) return false;
-    return new Date(startDate) > new Date();
+    return this.form.get('scheduleMode')?.value === 'periodic';
   }
 
   launch(): void {
@@ -634,8 +779,9 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
     }));
 
     // Send all fields so backend applyCashbackData can set them (omit undefined so required are always sent)
+    const isImmediate = this.form.get('scheduleMode')?.value === 'immediate_always_on';
     const payload: LaunchCashbackProgramRequest = {
-      immediate: !this.isScheduledLaunch,
+      immediate: isImmediate,
       name: v.name ?? null,
       description: v.description ?? null,
       cashbackType: v.cashbackType ?? null,
@@ -645,8 +791,8 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
       eligibilityType: v.eligibilityType ?? null,
       redeemLimitPercent: v.redeemLimitPercent != null ? Number(v.redeemLimitPercent) : null,
       bonusLifespanDays: v.bonusLifespanDays != null ? Number(v.bonusLifespanDays) : null,
-      startDate: v.startDate ? new Date(v.startDate).toISOString() : null,
-      endDate: v.endDate ? new Date(v.endDate).toISOString() : null,
+      startDate: isImmediate ? null : (v.startDate ? new Date(v.startDate).toISOString() : null),
+      endDate: isImmediate ? null : (v.endDate ? new Date(v.endDate).toISOString() : null),
       weeklySchedules: schedules.length > 0 ? schedules : null,
       tiers: tiers.length > 0 ? tiers : null
     };

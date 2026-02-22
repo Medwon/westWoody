@@ -13,7 +13,7 @@ import { CommonModule } from '@angular/common';
         </div>
         <h1 class="promo-title">
           <span class="title-greeting">Привет,</span>
-          <span class="title-brand">Tinta!<span class="wave-emoji">👋🏻</span></span>
+          <span class="title-brand">Tinta!</span>
         </h1>
         <p class="promo-text">
           Забудьте о ручном управлении бонусами и акциями.
@@ -112,10 +112,6 @@ import { CommonModule } from '@angular/common';
       display: block;
       font-size: 4rem;
       font-weight: 800;
-    }
-
-    .wave-emoji {
-      display: inline-block;
     }
 
     .promo-text {

@@ -13,12 +13,12 @@ export class CustomTitleStrategy extends TitleStrategy {
   override updateTitle(routerState: RouterStateSnapshot): void {
     const title = this.buildTitle(routerState);
     if (title !== undefined) {
-      this.title.setTitle(`Westwood - ${title}`);
+      this.title.setTitle(`Tinta - ${title}`);
     } else {
       // Fallback to route path
       const route = routerState.root;
       const titleFromPath = this.getTitleFromRoute(route);
-      this.title.setTitle(`Westwood - ${titleFromPath}`);
+      this.title.setTitle(`Tinta - ${titleFromPath}`);
     }
   }
 

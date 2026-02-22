@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, FormArray } from '@angular/forms';
 import { AlertComponent } from '../../../../../shared/components/alert/alert.component';
+import { ScheduleOverlapCheckResponse } from '../../../../../core/models/reward-program.model';
 
 @Component({
   selector: 'app-step-summary',
@@ -24,15 +25,28 @@ import { AlertComponent } from '../../../../../shared/components/alert/alert.com
             This program will be <strong>launched immediately</strong> and become active right away.
           </p>
         </div>
-        <button
-          type="button"
-          class="btn-launch-cta"
-          [disabled]="!isFormValidForLaunch || launching"
-          (click)="launch.emit()"
-        >
-          {{ launching ? 'Launching...' : (isScheduledLaunch ? 'Schedule' : 'Launch now') }}
-        </button>
+        <div class="launch-cta-row">
+          <button
+            type="button"
+            class="btn-launch-cta"
+            [disabled]="!isFormValidForLaunch || launching"
+            (click)="launch.emit()"
+          >
+            {{ launching ? 'Launching...' : (isScheduledLaunch ? 'Schedule' : 'Launch now') }}
+          </button>
+        </div>
       </div>
+
+      @if (scheduleOverlap?.overlaps && scheduleOverlap?.alwaysOnConflict) {
+        <app-alert type="warning" [dismissible]="false">
+          You can have only one always-on program. You can schedule or launch only a periodic program.
+        </app-alert>
+      }
+      @if (scheduleOverlap?.overlaps && !scheduleOverlap?.alwaysOnConflict) {
+        <app-alert type="warning" [dismissible]="false">
+          It overlaps with <strong>{{ scheduleOverlap?.overlappingProgramName || 'another program' }}</strong> of the same type. Only one program can be active or scheduled in the same period.
+        </app-alert>
+      }
 
       <!-- Program details -->
       <div class="summary-section">
@@ -73,13 +87,17 @@ import { AlertComponent } from '../../../../../shared/components/alert/alert.com
           </button>
         </h3>
         <div class="summary-grid">
-          <div class="summary-item">
+          <div class="summary-item" *ngIf="formValue.scheduleMode === 'immediate_always_on'">
+            <span class="item-label">Schedule</span>
+            <span class="item-value">Launch always-on immediately</span>
+          </div>
+          <div class="summary-item" *ngIf="formValue.scheduleMode !== 'immediate_always_on'">
             <span class="item-label">Start date</span>
             <span class="item-value">{{ formValue.startDate ? formatDate(formValue.startDate) : '—' }}</span>
           </div>
-          <div class="summary-item">
+          <div class="summary-item" *ngIf="formValue.scheduleMode !== 'immediate_always_on'">
             <span class="item-label">End date</span>
-            <span class="item-value">{{ formValue.endDate ? formatDate(formValue.endDate) : 'Ongoing' }}</span>
+            <span class="item-value">{{ formValue.endDate ? formatDate(formValue.endDate) : '—' }}</span>
           </div>
           <div class="summary-item full-width" *ngIf="enabledDays.length > 0">
             <span class="item-label">Active days</span>
@@ -207,6 +225,9 @@ import { AlertComponent } from '../../../../../shared/components/alert/alert.com
     }
     .btn-launch-cta:hover:not(:disabled) { background: #15803d; }
     .btn-launch-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+    .launch-cta-row { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+    .overlap-tooltip-wrap { display: inline-flex; align-items: center; color: #b45309; cursor: help; }
+    .overlap-warning-icon { width: 22px; height: 22px; flex-shrink: 0; }
   `]
 })
 export class StepSummaryComponent {
@@ -214,10 +235,19 @@ export class StepSummaryComponent {
   @Input() isScheduledLaunch = false;
   @Input() isFormValidForLaunch = false;
   @Input() launching = false;
+  @Input() scheduleOverlap: ScheduleOverlapCheckResponse | null = null;
   @Output() goToStep = new EventEmitter<number>();
   @Output() launch = new EventEmitter<void>();
 
   launchError = '';
+
+  get overlapTooltipTitle(): string {
+    if (this.scheduleOverlap?.alwaysOnConflict) {
+      return 'You can have only one always-on program. Schedule or launch a periodic program instead.';
+    }
+    const name = this.scheduleOverlap?.overlappingProgramName || 'another program';
+    return `It's overlapping with ${name} and scheduling/launching is not possible.`;
+  }
 
   get formValue(): any {
     return this.form.getRawValue();

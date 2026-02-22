@@ -10,7 +10,10 @@ import {
   RewardProgramListItem,
   SaveCashbackDraftRequest,
   LaunchCashbackProgramRequest,
-  PagedTieredClientsResponse
+  SaveWelcomeProgramDraftRequest,
+  LaunchWelcomeProgramRequest,
+  PagedTieredClientsResponse,
+  ScheduleOverlapCheckResponse
 } from '../models/reward-program.model';
 
 const API = `${environment.apiUrl}/reward-programs`;
@@ -34,6 +37,10 @@ export class RewardProgramsService {
 
   saveCashbackDraft(uuid: string, data: SaveCashbackDraftRequest): Observable<RewardProgramResponse> {
     return this.http.put<RewardProgramResponse>(`${API}/${uuid}/cashback`, data);
+  }
+
+  saveWelcomeDraft(uuid: string, data: SaveWelcomeProgramDraftRequest): Observable<RewardProgramResponse> {
+    return this.http.put<RewardProgramResponse>(`${API}/${uuid}/welcome`, data);
   }
 
   // ─── Get Program ─────────────────────────────────────────────────
@@ -68,10 +75,26 @@ export class RewardProgramsService {
     return this.http.get<RewardProgramListItem[]>(`${API}`);
   }
 
+  checkScheduleOverlap(
+    type: RewardProgramType,
+    start: string,
+    end: string | null,
+    excludeUuid?: string | null
+  ): Observable<ScheduleOverlapCheckResponse> {
+    const params: Record<string, string> = { type, start };
+    if (end != null) params['end'] = end;
+    if (excludeUuid) params['excludeUuid'] = excludeUuid;
+    return this.http.get<ScheduleOverlapCheckResponse>(`${API}/check-schedule-overlap`, { params });
+  }
+
   // ─── Lifecycle ───────────────────────────────────────────────────
 
   launchCashbackProgram(uuid: string, data: LaunchCashbackProgramRequest): Observable<RewardProgramResponse> {
     return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch`, data);
+  }
+
+  launchWelcomeProgram(uuid: string, data: LaunchWelcomeProgramRequest): Observable<RewardProgramResponse> {
+    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch-welcome`, data);
   }
 
   deactivateProgram(uuid: string): Observable<RewardProgramResponse> {

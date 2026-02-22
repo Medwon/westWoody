@@ -991,7 +991,7 @@ export class UserProfilePageComponent implements OnInit, AfterViewInit, OnDestro
         
         // Update page title with user name
         const userName = `${this.user.firstName}${this.user.lastName ? ' ' + this.user.lastName : ''}`.trim();
-        this.titleService.setTitle(`Westwood - User - ${userName}`);
+        this.titleService.setTitle(`Tinta - User - ${userName}`);
         
         this.isLoading = false;
       },

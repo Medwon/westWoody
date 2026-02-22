@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
 import { DialogComponent } from '../../../../shared/components/dialog/dialog.component';
+import { AlertComponent } from '../../../../shared/components/alert/alert.component';
 import {
   RewardProgramResponse,
   RewardProgramType,
@@ -42,7 +43,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
 @Component({
   selector: 'app-program-view-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, DialogComponent],
+  imports: [CommonModule, RouterModule, DialogComponent, AlertComponent],
   template: `
     @if (loading) {
       <div class="page-shell">
@@ -111,17 +112,24 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
           </div>
         </header>
 
-        <!-- Tabs (routable) -->
+        <!-- Tabs (routable). Tiers and Schedule hidden for Welcome program. -->
         <div class="tabs-bar" role="tablist">
           <a [routerLink]="['/reward-programs/view', viewUuid, 'overview']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'overview'">Overview</a>
-          <a [routerLink]="['/reward-programs/view', viewUuid, 'tiers']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'tiers'">Tiers</a>
-          <a [routerLink]="['/reward-programs/view', viewUuid, 'schedule']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'schedule'">Schedule</a>
+          @if (program.type !== 'WELCOME') {
+            <a [routerLink]="['/reward-programs/view', viewUuid, 'tiers']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'tiers'">Tiers</a>
+            <a [routerLink]="['/reward-programs/view', viewUuid, 'schedule']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'schedule'">Schedule</a>
+          }
         </div>
 
         <div class="tab-content">
           <!-- OVERVIEW (combined: Cashback at a glance, Program info, Dates, Rules) -->
           @if (activeTab === 'overview') {
             <div class="tab-cards overview-cards">
+              @if (program.ignoredDuringProgramName) {
+                <app-alert type="info" [dismissible]="false">
+                  {{ ignoredDuringMessage }}
+                </app-alert>
+              }
               @if (program.type === 'CASHBACK' && program.cashbackRule) {
                 <section class="card card-span cashback-glance">
                   <h2 class="card-title">Cashback at a Glance</h2>
@@ -153,6 +161,31 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
                   </div>
                 </section>
               }
+              @if (program.type === 'WELCOME' && program.welcomeRule) {
+                <section class="card card-span welcome-rules-card">
+                  <h2 class="card-title">Welcome Rules</h2>
+                  <div class="stats-row">
+                    <div class="stat-block">
+                      <span class="stat-value">{{ program.welcomeRule.grantType === 'POINTS' ? (program.welcomeRule.grantValue | number:'1.0-0') + ' pts' : (program.welcomeRule.grantValue | number:'1.0-0') + ' ₸' }}</span>
+                      <span class="stat-label">Grant</span>
+                    </div>
+                    <div class="stat-block">
+                      <span class="stat-value">{{ program.welcomeRule.bonusLifespanDays ? program.welcomeRule.bonusLifespanDays + ' days' : 'Never expires' }}</span>
+                      <span class="stat-label">Bonus Lifespan</span>
+                    </div>
+                    <div class="stat-block">
+                      <span class="stat-value">{{ welcomeGrantTriggerLabel(program.welcomeRule.grantTrigger) }}</span>
+                      <span class="stat-label">When to grant</span>
+                    </div>
+                    @if (program.welcomeRule.grantTrigger === 'ON_FIRST_PAY' && program.welcomeRule.firstPayMode) {
+                      <div class="stat-block">
+                        <span class="stat-value">{{ welcomeFirstPayModeLabel(program.welcomeRule.firstPayMode) }}</span>
+                        <span class="stat-label">On first payment</span>
+                      </div>
+                    }
+                  </div>
+                </section>
+              }
               <section class="card">
                 <h2 class="card-title">Program Information</h2>
                 <div class="info-list">
@@ -177,27 +210,39 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
                   </div>
                 </div>
               </section>
-              <section class="card">
-                <h2 class="card-title">Dates</h2>
-                <div class="info-list">
-                  <div class="info-row">
-                    <span class="info-label">Start</span>
-                    <span class="info-value">{{ formatDate(program.startDate) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">End</span>
-                    <span class="info-value">{{ formatDate(program.endDate) || 'No end date' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Created</span>
-                    <span class="info-value">{{ formatDate(program.createdAt) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Updated</span>
-                    <span class="info-value">{{ formatDate(program.updatedAt) }}</span>
-                  </div>
+              <!-- Schedule: Always on or Periodic – directly after Program Information (same row, next column) -->
+              <section class="card schedule-type-card" [class.schedule-always-on]="!program.endDate" [class.schedule-periodic]="!!program.endDate">
+                <div class="schedule-type-header">
+                  @if (!program.endDate) {
+                    <div class="schedule-type-icon schedule-type-icon-always-on" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <div class="schedule-type-content">
+                      <h2 class="schedule-type-title">Always on</h2>
+                      <p class="schedule-type-desc">This program runs 24/7 until you deactivate it. There is no end date.</p>
+                      <div class="schedule-type-meta">
+                        <span class="schedule-type-meta-label">Started</span>
+                        <span class="schedule-type-meta-value">{{ formatDate(program.startDate) }}</span>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="schedule-type-icon schedule-type-icon-periodic" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div class="schedule-type-content">
+                      <h2 class="schedule-type-title">Periodic promotional program</h2>
+                      <p class="schedule-type-desc">This program is active only during the set period below.</p>
+                      <div class="schedule-type-period-hero">
+                        <span class="schedule-type-date-box">{{ formatDateShort(program.startDate) }}</span>
+                        <span class="schedule-type-sep">→</span>
+                        <span class="schedule-type-date-box">{{ formatDateShort(program.endDate) }}</span>
+                      </div>
+                      <p class="schedule-type-period-note">Active until {{ formatDateShort(program.endDate) }}</p>
+                    </div>
+                  }
                 </div>
               </section>
+              @if (program.type === 'CASHBACK') {
               <section class="card card-span rules-card">
                 <h2 class="card-title">Cashback Rules</h2>
                 @if (program.cashbackRule; as rule) {
@@ -244,11 +289,12 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
                   </div>
                 }
               </section>
+              }
             </div>
           }
 
-          <!-- TIERS -->
-          @if (activeTab === 'tiers') {
+          <!-- TIERS (hidden for Welcome) -->
+          @if (activeTab === 'tiers' && program.type !== 'WELCOME') {
             <section class="card">
               <h2 class="card-title">Tiers</h2>
               @if (program.cashbackTiers && program.cashbackTiers.length > 0) {
@@ -318,8 +364,8 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
             </section>
           }
 
-          <!-- SCHEDULE -->
-          @if (activeTab === 'schedule') {
+          <!-- SCHEDULE (hidden for Welcome; Welcome has no weekly schedule) -->
+          @if (activeTab === 'schedule' && program.type !== 'WELCOME') {
             <div class="tab-cards">
               <section class="card card-span program-period-card">
                 <h2 class="card-title">Program Period</h2>
@@ -511,6 +557,11 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
     .info-value {
       font-size: 0.875rem; font-weight: 700; color: #0f172a; text-align: right;
     }
+    .always-on-info-row .info-label { align-self: flex-start; }
+    .always-on-info {
+      display: inline-flex; align-items: flex-start; gap: 0.35rem; font-size: 0.8125rem; color: #64748b; font-weight: 500; text-align: right; cursor: help;
+    }
+    .always-on-info svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem; }
     .description-text { text-align: right; max-width: 220px; line-height: 1.4; white-space: pre-wrap; font-weight: 500; }
 
     .status-dot {
@@ -536,6 +587,69 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
     .strip-time { font-weight: 600; color: var(--primary-color, #15803d); }
     .strip-row.off .strip-time { color: #94a3b8; font-weight: 500; font-style: italic; }
     .strip-all-day { font-size: 0.8125rem; color: #64748b; margin: 0; }
+    /* Schedule type card (Always on / Periodic) – matches design: light blue card, calendar icon, date boxes */
+    .schedule-type-card {
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .schedule-type-card.schedule-always-on {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .schedule-type-card.schedule-periodic {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+    .schedule-type-header {
+      display: flex; align-items: flex-start; gap: 1.25rem;
+    }
+    .schedule-type-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .schedule-type-icon svg { width: 24px; height: 24px; }
+    .schedule-type-icon-always-on {
+      background: rgba(22, 163, 74, 0.12);
+      color: #15803d;
+    }
+    .schedule-type-icon-periodic {
+      background: rgba(37, 99, 235, 0.12);
+      color: #2563eb;
+    }
+    .schedule-type-content { flex: 1; min-width: 0; }
+    .schedule-type-title {
+      font-size: 1.125rem; font-weight: 700; color: #0f172a;
+      margin: 0 0 0.25rem 0; letter-spacing: -0.01em;
+    }
+    .schedule-type-desc {
+      font-size: 0.8125rem; color: #64748b; line-height: 1.5; margin: 0 0 1rem 0;
+    }
+    .schedule-type-meta {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.8125rem;
+    }
+    .schedule-type-meta-label {
+      font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .schedule-type-meta-value {
+      font-weight: 700; color: #0f172a;
+    }
+    .schedule-type-period-hero {
+      display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+    .schedule-type-date-box {
+      font-size: 0.9375rem; font-weight: 700; color: #0f172a;
+      padding: 0.5rem 1rem; border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+    }
+    .schedule-type-sep { font-size: 1rem; color: #94a3b8; font-weight: 600; }
+    .schedule-type-period-note {
+      font-size: 0.8125rem; color: #64748b; margin: 0;
+    }
+
     .program-period-card .period-hero {
       display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
       margin-bottom: 1rem;
@@ -947,6 +1061,11 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
 
   private syncTabFromRoute(): void {
     const tab = this.route.snapshot.paramMap.get('tab') ?? 'overview';
+    if (this.program?.type === 'WELCOME' && (tab === 'tiers' || tab === 'schedule')) {
+      this.router.navigate(['/bonus-program/view', this.uuid, 'overview'], { replaceUrl: true });
+      this.activeTab = 'overview';
+      return;
+    }
     if (ProgramViewPageComponent.VALID_TABS.includes(tab as Tab)) {
       this.activeTab = tab as Tab;
     } else {
@@ -967,6 +1086,10 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
         this.program = p;
         this.loading = false;
         this.setPageHeader();
+        if (p.type === 'WELCOME' && (this.activeTab === 'tiers' || this.activeTab === 'schedule')) {
+          this.router.navigate(['/bonus-program/view', this.uuid, 'overview'], { replaceUrl: true });
+          this.activeTab = 'overview';
+        }
         this.loadTieredClientsForTiersSection();
       },
       error: (err) => {
@@ -1078,6 +1201,14 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
     return `To reach ${tier.name}, a customer must spend a total of ${min} ₸ or more within the program period.`;
   }
 
+  welcomeGrantTriggerLabel(trigger: string): string {
+    return trigger === 'ON_JOIN' ? 'On client joining' : 'On first payment';
+  }
+
+  welcomeFirstPayModeLabel(mode: string): string {
+    return mode === 'WELCOME_ONLY' ? 'Grant only welcome bonus' : 'Grant alongside cashback';
+  }
+
   openEligibilityPopover(event: MouseEvent, tier: CashbackTierResponse): void {
     this.eligibilityPopoverTier = tier;
     const rect = (event.target as HTMLElement).getBoundingClientRect();
@@ -1115,6 +1246,16 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
       INACTIVE: 'Inactive', ARCHIVED: 'Archived'
     };
     return m[s] ?? s;
+  }
+
+  get alwaysOnNoteTitle(): string {
+    const name = this.program?.alwaysOnProgramName;
+    return name ? `During this program's period, the always-on program «${name}» is not applied.` : '';
+  }
+
+  get ignoredDuringMessage(): string {
+    const name = this.program?.ignoredDuringProgramName;
+    return name ? `This program is not applied during «${name}»'s scheduled period.` : '';
   }
 
   cashbackTypeLabel(t: CashbackType): string {

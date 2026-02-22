@@ -1,10 +1,11 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormGroup, FormArray } from '@angular/forms';
+import { ReactiveFormsModule, FormGroup, FormArray, Validators } from '@angular/forms';
 import { SwitchComponent } from '../../../../../shared/components/switch/switch.component';
 import { SelectComponent, SelectOption } from '../../../../../shared/components/select/select.component';
 import { DatePickerComponent } from '../../../../../shared/components/date-picker/date-picker.component';
-import { DayOfWeek } from '../../../../../core/models/reward-program.model';
+import { AlertComponent } from '../../../../../shared/components/alert/alert.component';
+import { DayOfWeek, ScheduleOverlapCheckResponse } from '../../../../../core/models/reward-program.model';
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
   MONDAY: 'Mon',
@@ -19,13 +20,56 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 @Component({
   selector: 'app-step-schedule',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SwitchComponent, SelectComponent, DatePickerComponent],
+  imports: [CommonModule, ReactiveFormsModule, SwitchComponent, SelectComponent, DatePickerComponent, AlertComponent],
   template: `
     <div class="step-form" [formGroup]="form">
-      <!-- Date range -->
+      <!-- Schedule mode: always-on or periodic. Always-on is disabled when one already exists for this type. -->
       <div class="section">
+        <h3 class="section-title">When to run</h3>
+        <p class="section-desc">Launch the program now as always-on, or schedule a periodic program with start and end dates.</p>
+
+        <div class="schedule-mode-toggle">
+          <button
+            type="button"
+            class="mode-btn"
+            [class.active]="isImmediateAlwaysOn"
+            [class.disabled]="isAlwaysOnDisabled"
+            [attr.aria-disabled]="isAlwaysOnDisabled"
+            (click)="!isAlwaysOnDisabled && setScheduleMode('immediate_always_on')"
+          >
+            <span class="mode-btn-label">Launch always-on immediately</span>
+            <span class="mode-btn-desc">Starts now, runs until you stop it</span>
+            @if (isAlwaysOnDisabled) {
+              <span class="mode-btn-reason">Only one always-on program per type allowed</span>
+            }
+          </button>
+          <button
+            type="button"
+            class="mode-btn"
+            [class.active]="!isImmediateAlwaysOn"
+            (click)="setScheduleMode('periodic')"
+          >
+            <span class="mode-btn-label">Schedule periodic program</span>
+            <span class="mode-btn-desc">Set start and end dates</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Date range: only for periodic (end date required for periodic) -->
+      <div class="section" *ngIf="!isImmediateAlwaysOn">
         <h3 class="section-title">Program dates</h3>
         <p class="section-desc">Set when this program will be active.</p>
+
+        @if (scheduleOverlap?.overlaps && scheduleOverlap?.alwaysOnConflict) {
+          <app-alert type="warning" [dismissible]="false">
+            You can have only one always-on program per type. Schedule a periodic program with start and end dates.
+          </app-alert>
+        }
+        @if (scheduleOverlap?.overlaps && !scheduleOverlap?.alwaysOnConflict) {
+          <app-alert type="warning" [dismissible]="false">
+            It overlaps with <strong>{{ scheduleOverlap?.overlappingProgramName || 'another program' }}</strong> of the same type. Only one program can be active or scheduled in the same period.
+          </app-alert>
+        }
 
         <div class="form-row">
           <div class="form-group flex-1">
@@ -34,42 +78,25 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
               placeholder="Select start date"
               formControlName="startDate"
               [showTime]="true"
-              [required]="true"
+              [required]="!isImmediateAlwaysOn"
               [errorMessage]="form.get('startDate')?.touched && form.get('startDate')?.invalid ? 'Start date is required' : ''"
             ></app-date-picker>
           </div>
-
-          <!-- End date: shown only if toggled on -->
-          <div class="form-group flex-1" *ngIf="showEndDate">
+          <div class="form-group flex-1">
             <app-date-picker
               label="End date"
               placeholder="Select end date"
               formControlName="endDate"
               [showTime]="true"
-              [clearable]="false"
-            >
-              <button labelExtra type="button" class="btn-remove-field" (click)="removeEndDate()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                Remove
-              </button>
-            </app-date-picker>
+              [required]="!isImmediateAlwaysOn"
+              [errorMessage]="form.get('endDate')?.touched && form.get('endDate')?.invalid ? 'End date is required' : ''"
+            ></app-date-picker>
           </div>
         </div>
-
-        <button
-          *ngIf="!showEndDate"
-          type="button"
-          class="btn-add-enddate"
-          (click)="showEndDate = true"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Add end date
-        </button>
-        <p class="field-hint" *ngIf="!showEndDate">This program will run indefinitely until manually stopped.</p>
       </div>
 
-      <!-- Weekly time windows -->
-      <div class="section">
+      <!-- Weekly time windows (hidden for welcome program) -->
+      <div class="section" *ngIf="!hideWeekly">
         <h3 class="section-title">Weekly schedule</h3>
         <p class="section-desc">
           Configure which days and hours the program is effective.
@@ -123,29 +150,22 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
     .section { }
     .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem 0; }
     .section-desc { font-size: 0.85rem; color: #64748b; margin: 0 0 1rem 0; line-height: 1.45; }
+    .schedule-mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .mode-btn {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;
+      text-align: left; padding: 1rem 1.25rem; border-radius: 10px;
+      border: 2px solid #e2e8f0; background: #f8fafc;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .mode-btn:hover:not(.disabled) { border-color: #cbd5e1; background: #f1f5f9; }
+    .mode-btn.active { border-color: #16A34A; background: #f0fdf4; }
+    .mode-btn.disabled { opacity: 0.65; cursor: not-allowed; }
+    .mode-btn-label { font-weight: 600; font-size: 0.95rem; color: #0f172a; }
+    .mode-btn-desc { font-size: 0.8rem; color: #64748b; }
+    .mode-btn-reason { font-size: 0.75rem; color: #b45309; margin-top: 0.15rem; }
     .form-row { display: flex; gap: 1rem; }
     .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
     .flex-1 { flex: 1; }
-    .field-hint { font-size: 0.8rem; color: #64748b; margin: 0.5rem 0 0 0; }
-
-    .btn-add-enddate {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      background: none; border: 1px dashed #cbd5e1; border-radius: 6px;
-      padding: 0.5rem 1rem; color: #16A34A; font-size: 0.85rem;
-      font-weight: 600; cursor: pointer; transition: all 0.15s;
-      margin-top: 0.5rem;
-    }
-    .btn-add-enddate:hover { border-color: #16A34A; background: #f0fdf4; }
-    .btn-add-enddate svg { width: 16px; height: 16px; }
-
-    .btn-remove-field {
-      display: inline-flex; align-items: center; gap: 0.25rem;
-      background: none; border: none; padding: 0; margin-left: auto;
-      color: #ef4444; font-size: 0.75rem; font-weight: 600;
-      cursor: pointer; transition: color 0.15s;
-    }
-    .btn-remove-field:hover { color: #dc2626; }
-    .btn-remove-field svg { width: 14px; height: 14px; }
 
     .schedule-grid { display: flex; flex-direction: column; gap: 0.5rem; }
     .schedule-row {
@@ -168,20 +188,61 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 })
 export class StepScheduleComponent implements OnInit {
   @Input() form!: FormGroup;
+  @Input() scheduleOverlap: ScheduleOverlapCheckResponse | null = null;
+  /** When true, hide the weekly schedule section (e.g. for welcome program). */
+  @Input() hideWeekly = false;
 
-  showEndDate = false;
   timeOptions: SelectOption[] = [];
 
   private readonly days: DayOfWeek[] = [
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'
   ];
 
+  /** True when an always-on program of this type already exists; then "Launch always-on immediately" is disabled. */
+  get isAlwaysOnDisabled(): boolean {
+    return !!(this.scheduleOverlap?.overlaps && this.scheduleOverlap?.alwaysOnConflict);
+  }
+
+  get isImmediateAlwaysOn(): boolean {
+    return this.form.get('scheduleMode')?.value === 'immediate_always_on';
+  }
+
+  setScheduleMode(mode: 'immediate_always_on' | 'periodic'): void {
+    this.form.patchValue({ scheduleMode: mode });
+    if (mode === 'immediate_always_on') {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      this.form.patchValue({ startDate: local, endDate: '' });
+      this.form.get('startDate')?.clearValidators();
+      this.form.get('endDate')?.clearValidators();
+      this.form.get('startDate')?.updateValueAndValidity();
+      this.form.get('endDate')?.updateValueAndValidity();
+    } else {
+      this.form.get('startDate')?.setValidators(Validators.required);
+      this.form.get('endDate')?.setValidators(Validators.required);
+      this.form.get('startDate')?.updateValueAndValidity();
+      this.form.get('endDate')?.updateValueAndValidity();
+    }
+  }
+
   ngOnInit(): void {
     this.timeOptions = this.generateTimeOptions();
-
-    const endDateValue = this.form.get('endDate')?.value;
-    if (endDateValue) {
-      this.showEndDate = true;
+    const mode = this.form.get('scheduleMode')?.value;
+    if (mode === 'immediate_always_on') {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' });
+      this.form.get('startDate')?.clearValidators();
+      this.form.get('endDate')?.clearValidators();
+      this.form.get('startDate')?.updateValueAndValidity();
+      this.form.get('endDate')?.updateValueAndValidity();
+    } else {
+      this.form.get('startDate')?.setValidators(Validators.required);
+      this.form.get('endDate')?.setValidators(Validators.required);
+      this.form.get('startDate')?.updateValueAndValidity();
+      this.form.get('endDate')?.updateValueAndValidity();
     }
   }
 
@@ -191,11 +252,6 @@ export class StepScheduleComponent implements OnInit {
 
   getShortDayLabel(index: number): string {
     return DAY_LABELS[this.days[index]];
-  }
-
-  removeEndDate(): void {
-    this.form.get('endDate')?.setValue('');
-    this.showEndDate = false;
   }
 
   private generateTimeOptions(): SelectOption[] {

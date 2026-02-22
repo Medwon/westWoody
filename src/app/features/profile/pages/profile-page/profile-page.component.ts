@@ -3165,7 +3165,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         // Update page title with client name
         const clientName = `${client.name}${client.surname ? ' ' + client.surname : ''}`.trim();
-        this.titleService.setTitle(`Westwood - Client - ${clientName}`);
+        this.titleService.setTitle(`Tinta - Client - ${clientName}`);
         
         // Map client data for UI
         this.client = {
@@ -3294,7 +3294,7 @@ export class ProfilePageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         // Update page title with client name
         const clientName = `${client.name}${client.surname ? ' ' + client.surname : ''}`.trim();
-        this.titleService.setTitle(`Westwood - Client - ${clientName}`);
+        this.titleService.setTitle(`Tinta - Client - ${clientName}`);
         
         // Map client data for UI
         this.client = {
