@@ -18,11 +18,7 @@
           "builder": "@angular-devkit/build-angular:application",
           "options": {
             "outputPath": {
-<<<<<<< HEAD
               "base": "../tinta-backend/src/main/resources/static"
-=======
-              "base": "../westwood-backend/src/main/resources/static"
->>>>>>> 2b32cbf99da2eb63125ed607f63de9545c517f08
             },
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -76,10 +72,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "westwood-frontend:build:production"
+              "buildTarget": "tinta-frontend:build:production"
             },
             "development": {
-              "buildTarget": "westwood-frontend:build:development"
+              "buildTarget": "tinta-frontend:build:development"
             }
           },
           "defaultConfiguration": "development"

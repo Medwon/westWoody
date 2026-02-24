@@ -1,16 +1,16 @@
 <div class="report-page">
   <div class="report-header">
     <div class="report-controls">
-      <div class="control-group">
+      <div class="control-group type-control">
         <app-select
-          label="Тип бонуса"
-          [ngModel]="selectedBonusTypeId ?? 'all'"
+          label="Программы лояльности"
+          [ngModel]="selectedProgramUuid"
           (ngModelChange)="onBonusTypeChange($event)"
           [options]="bonusTypeOptions"
-          placeholder="Тип бонуса">
+          placeholder="Программа лояльности">
         </app-select>
       </div>
-      <div class="control-group">
+      <div class="control-group period-control">
         <app-select
           label="Период"
           [ngModel]="period"
@@ -196,9 +196,12 @@
           </div>
           <h3 class="block-title">Средний чек и выручка по месяцам</h3>
           <div class="month-chart-year-select">
-            <select class="control-select year-select" [ngModel]="chartYear" (ngModelChange)="onChartYearChange($event)">
-              <option *ngFor="let y of availableChartYears" [value]="y">{{ y }}</option>
-            </select>
+            <app-select
+              [ngModel]="chartYearStr"
+              (ngModelChange)="onChartYearChange($event)"
+              [options]="chartYearOptions"
+              placeholder="Год">
+            </app-select>
           </div>
         </div>
         <div class="monthly-chart" *ngIf="!isMonthlyChartLoading">

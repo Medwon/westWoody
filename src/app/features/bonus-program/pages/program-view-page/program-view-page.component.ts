@@ -1062,7 +1062,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
   private syncTabFromRoute(): void {
     const tab = this.route.snapshot.paramMap.get('tab') ?? 'overview';
     if (this.program?.type === 'WELCOME' && (tab === 'tiers' || tab === 'schedule')) {
-      this.router.navigate(['/bonus-program/view', this.uuid, 'overview'], { replaceUrl: true });
+      this.router.navigate(['/reward-programs/view', this.uuid, 'overview'], { replaceUrl: true });
       this.activeTab = 'overview';
       return;
     }
@@ -1087,7 +1087,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.setPageHeader();
         if (p.type === 'WELCOME' && (this.activeTab === 'tiers' || this.activeTab === 'schedule')) {
-          this.router.navigate(['/bonus-program/view', this.uuid, 'overview'], { replaceUrl: true });
+          this.router.navigate(['/reward-programs/view', this.uuid, 'overview'], { replaceUrl: true });
           this.activeTab = 'overview';
         }
         this.loadTieredClientsForTiersSection();
@@ -1221,8 +1221,8 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
   }
 
   getTierPageLink(tier: CashbackTierResponse): string[] {
-    if (!this.program?.uuid) return ['/bonus-program'];
-    return ['/bonus-program', 'view', this.program.uuid, 'tier', encodeURIComponent(tier.name)];
+    if (!this.program?.uuid) return ['/reward-programs'];
+    return ['/reward-programs', 'view', this.program.uuid, 'tier', encodeURIComponent(tier.name)];
   }
 
   onAdjustProgram(): void {

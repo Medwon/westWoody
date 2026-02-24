@@ -37,7 +37,7 @@ export class CustomTitleStrategy extends TitleStrategy {
       'payments': 'Payments',
       'users': 'Users',
       'profile': 'Profile',
-      'bonus-program': 'Reward Program',
+      'reward-programs': 'Reward Programs',
       'communications': 'Communications',
       'whatsapp': 'WhatsApp',
       'login': 'Login',

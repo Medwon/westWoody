@@ -17,7 +17,7 @@ import { rewardProgramTypeToSlug } from '../../../../core/services/reward-progra
 
 type FilterTab = 'All' | 'Active' | 'Draft' | 'Scheduled' | 'Archived' | 'Inactive';
 
-type ConfirmAction = 'launchNow' | 'deactivate' | 'delete';
+type ConfirmAction = 'launchNow' | 'deactivate' | 'archive' | 'delete';
 interface ConfirmState {
   action: ConfirmAction;
   program: RewardProgramListItem;
@@ -215,6 +215,9 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
                         @if (program.status === 'ACTIVE') {
                           <button type="button" class="menu-item menu-item-danger" (click)="actionDeactivate(program)">Deactivate</button>
                         }
+                        @if (program.status === 'INACTIVE') {
+                          <button type="button" class="menu-item" (click)="actionArchive(program)">Archive</button>
+                        }
                         @if (program.status === 'INACTIVE' || program.status === 'ARCHIVED' || program.status === 'DRAFT') {
                           <button type="button" class="menu-item menu-item-danger" (click)="actionDelete(program)">Delete</button>
                         }
@@ -251,24 +254,13 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     </app-dialog>
   `,
   styles: [`
-    :host { display: block; height: 100%; }
-<<<<<<< HEAD
-    // .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
-    .programs-container { max-width: 1200px; margin: 0 auto; }
+    :host { display: block; height: 100%; min-width: 0; }
+    .programs-container { width: 100%; box-sizing: border-box; }
 
     .intro-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .intro-text { flex: 1; min-width: 0; font-size: 0.95rem; color: #475569; line-height: 1.6; margin: 0; max-width: 720px; }
     .btn-create-program { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
     .btn-create-program:hover { background: #15803d; color: white; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3); }
-=======
-    .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
-    .programs-container { max-width: 1400px; margin: 0 auto; }
-
-    .intro-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    .intro-text { flex: 1; min-width: 0; font-size: 0.95rem; color: #475569; line-height: 1.6; margin: 0; max-width: 720px; }
-    .btn-create-program { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: #16A34A; color: white; border-radius: 10px; font-size: 0.9rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25); }
-    .btn-create-program:hover { background: #15803d; color: white; }
->>>>>>> 2b32cbf99da2eb63125ed607f63de9545c517f08
     .btn-icon { width: 18px; height: 18px; }
 
     .tabs-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
@@ -308,8 +300,8 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     .list-tooltip-popover {
       position: absolute;
       bottom: calc(100% + 8px);
-      left: 50%;
-      transform: translateX(-50%) translateY(6px) scale(0.97);
+      left: 0;
+      transform: translateY(6px) scale(0.97);
       background: #1f2937;
       color: #f3f4f6;
       padding: 0.625rem 0.875rem;
@@ -324,14 +316,14 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
       transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       pointer-events: none;
-      z-index: 20;
+      z-index: 110;
     }
     .list-tooltip-popover::after {
-      content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      content: ''; position: absolute; top: 100%; left: 1rem; transform: translateX(0);
       border: 6px solid transparent; border-top-color: #1f2937;
     }
     .ignored-info:hover .list-tooltip-popover {
-      opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0) scale(1);
+      opacity: 1; visibility: visible; transform: translateY(0) scale(1);
     }
     .program-type-label { color: #475569; }
     .bonus-type-cell { display: flex; flex-direction: column; gap: 0.15rem; }
@@ -390,6 +382,7 @@ export class BonusProgramPageComponent implements OnInit {
     const t: Record<ConfirmAction, string> = {
       launchNow: 'Launch program now?',
       deactivate: 'Deactivate program?',
+      archive: 'Archive program?',
       delete: 'Delete program?'
     };
     return t[this.confirmState.action];
@@ -400,6 +393,7 @@ export class BonusProgramPageComponent implements OnInit {
     const m: Record<ConfirmAction, string> = {
       launchNow: 'It will start affecting customers joining the loyalty program and the start date will be set to today.',
       deactivate: 'This program will be deactivated and will stop affecting customers.',
+      archive: 'This program will be moved to Archived. You can still view it but it will no longer appear in active lists.',
       delete: 'This program will be permanently deleted. This cannot be undone.'
     };
     return m[this.confirmState.action];
@@ -410,6 +404,7 @@ export class BonusProgramPageComponent implements OnInit {
     const l: Record<ConfirmAction, string> = {
       launchNow: 'Launch now',
       deactivate: 'Deactivate',
+      archive: 'Archive',
       delete: 'Delete'
     };
     return l[this.confirmState.action];
@@ -481,7 +476,14 @@ export class BonusProgramPageComponent implements OnInit {
 
   actionReports(program: RewardProgramListItem): void {
     this.openMenuUuid = null;
-    this.toast.show('Reports coming soon', 'success');
+    const year = new Date().getFullYear();
+    this.router.navigate(['/reports/bonus-types'], {
+      queryParams: {
+        period: '1m',
+        bonusType: program.uuid ?? 'all',
+        year
+      }
+    });
   }
 
   actionLaunchNow(program: RewardProgramListItem): void {
@@ -525,6 +527,11 @@ export class BonusProgramPageComponent implements OnInit {
   actionDeactivate(program: RewardProgramListItem): void {
     this.openMenuUuid = null;
     this.confirmState = { action: 'deactivate', program };
+  }
+
+  actionArchive(program: RewardProgramListItem): void {
+    this.openMenuUuid = null;
+    this.confirmState = { action: 'archive', program };
   }
 
   actionDelete(program: RewardProgramListItem): void {
@@ -573,6 +580,21 @@ export class BonusProgramPageComponent implements OnInit {
         error: (err) => {
           this.actionInProgress = null;
           this.toast.error(err?.error?.message || 'Failed to deactivate');
+        }
+      });
+      return;
+    }
+
+    if (state.action === 'archive') {
+      this.rewardProgramsService.archiveProgram(program.uuid).subscribe({
+        next: () => {
+          this.actionInProgress = null;
+          this.toast.success('Program archived');
+          this.loadPrograms();
+        },
+        error: (err) => {
+          this.actionInProgress = null;
+          this.toast.error(err?.error?.message || 'Failed to archive');
         }
       });
       return;

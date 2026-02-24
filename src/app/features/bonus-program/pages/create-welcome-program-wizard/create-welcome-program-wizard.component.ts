@@ -275,7 +275,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
 
     this.pageHeaderService.setPageHeader('Create Welcome Program', [
       { label: 'Home', route: '/home' },
-      { label: 'Reward Programs', route: '/bonus-program' },
+      { label: 'Reward Programs', route: '/reward-programs' },
       { label: 'Create Welcome Program' }
     ]);
 
@@ -318,7 +318,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (program) => {
           if (program.status !== 'DRAFT') {
-            this.router.navigate(['/bonus-program', 'view', program.uuid], { replaceUrl: true });
+            this.router.navigate(['/reward-programs', 'view', program.uuid], { replaceUrl: true });
             return;
           }
           this.patchFormFromResponse(program);
@@ -421,29 +421,29 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
 
   goToStep(step: number): void {
     if (step >= 1 && step <= WELCOME_STEPS.length) {
-      this.router.navigate(['/bonus-program', 'create', 'welcome', this.draftUuid, 'steps', step.toString()], { queryParamsHandling: 'preserve' });
+      this.router.navigate(['/reward-programs', 'create', 'welcome', this.draftUuid, 'steps', step.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
   nextStep(): void {
     if (this.currentStep < WELCOME_STEPS.length) {
       const next = this.currentStep + 1;
-      this.router.navigate(['/bonus-program', 'create', 'welcome', this.draftUuid, 'steps', next.toString()], { queryParamsHandling: 'preserve' });
+      this.router.navigate(['/reward-programs', 'create', 'welcome', this.draftUuid, 'steps', next.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
   onCancel(): void {
     if (!this.draftUuid) {
-      this.router.navigate(['/bonus-program']);
+      this.router.navigate(['/reward-programs']);
       return;
     }
     if (this.preserveDraftOnCancel) {
-      this.router.navigate(['/bonus-program']);
+      this.router.navigate(['/reward-programs']);
       return;
     }
     this.rewardProgramsService.deleteProgram(this.draftUuid).subscribe({
-      next: () => this.router.navigate(['/bonus-program']),
-      error: () => this.router.navigate(['/bonus-program'])
+      next: () => this.router.navigate(['/reward-programs']),
+      error: () => this.router.navigate(['/reward-programs'])
     });
   }
 
@@ -468,7 +468,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.toast.success('Draft saved');
-          this.router.navigate(['/bonus-program']);
+          this.router.navigate(['/reward-programs']);
         },
         error: (err) => {
           this.globalError = err?.error?.message || 'Failed to save draft.';
@@ -500,7 +500,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.toast.success(this.isScheduledLaunch ? 'Program scheduled' : 'Program launched');
-          this.router.navigate(['/bonus-program']);
+          this.router.navigate(['/reward-programs']);
         },
         error: (err) => {
           this.globalError = err?.error?.message || 'Failed to launch.';

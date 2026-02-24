@@ -288,11 +288,19 @@ export class AnalyticsService {
   }
 
   /**
-   * Get KPI report for a bonus type (or all when bonusTypeId is null) in period [from, to] (ISO-8601).
+   * Get KPI report for a bonus type or reward program (or all when both are null) in period [from, to] (ISO-8601).
+   * When rewardProgramUuid is set, it takes precedence over bonusTypeId for report scope.
    */
-  getBonusTypeReport(bonusTypeId: number | null, from: string, to: string): Observable<BonusTypeReportResponse> {
+  getBonusTypeReport(
+    bonusTypeId: number | null,
+    from: string,
+    to: string,
+    rewardProgramUuid?: string | null
+  ): Observable<BonusTypeReportResponse> {
     let params = new HttpParams().set('from', from).set('to', to);
-    if (bonusTypeId != null) {
+    if (rewardProgramUuid) {
+      params = params.set('rewardProgramUuid', rewardProgramUuid);
+    } else if (bonusTypeId != null) {
       params = params.set('bonusTypeId', bonusTypeId.toString());
     }
     return this.http.get<BonusTypeReportResponse>(`${this.apiUrl}/bonus-type-report`, { params });
@@ -320,9 +328,15 @@ export interface BonusTypeReportResponse {
   avgCheckWithBonus: number;
   avgCheckWithoutBonus: number;
   totalGranted: number;
+  /** Number of grant events in period. */
+  grantCount?: number;
   inCirculation: number;
   burnedAmount: number;
+  /** Number of grants that expired in period. */
+  expiredGrantCount?: number;
   spentAmount: number;
+  /** Number of consumption (use) events in period. */
+  consumptionCount?: number;
   redemptionRatePercent: number;
   effectiveDiscountPercent: number;
   burnRatePercent: number;

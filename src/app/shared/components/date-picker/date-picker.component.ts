@@ -32,7 +32,7 @@ interface CalendarDay {
         <ng-content select="[labelExtra]"></ng-content>
       </label>
 
-      <!-- Trigger -->
+      <!-- Trigger: editable input + calendar button (clicking anywhere opens picker) -->
       <div
         class="dp-trigger"
         [class.open]="isOpen"
@@ -40,16 +40,27 @@ interface CalendarDay {
         [class.disabled]="disabled"
         [class.has-value]="!!value"
         (click)="toggleCalendar()"
-        tabindex="0"
         (keydown.escape)="isOpen = false"
       >
-        <svg class="dp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <path d="M16 2v4M8 2v4M3 10h18"/>
-        </svg>
-        <span class="dp-display" [class.placeholder]="!value">
-          {{ value ? formatDisplay(value) : placeholder || 'Select date' }}
+        <span class="dp-icon-wrap" aria-hidden="true">
+          <svg class="dp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
         </span>
+        <input
+          type="text"
+          class="dp-input"
+          [value]="inputDisplay"
+          (input)="onInputChange($event)"
+          (blur)="onInputBlur()"
+          (keydown.enter)="onInputBlur()"
+          (keydown)="onInputKeydown($event)"
+          [placeholder]="placeholder || (showTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD')"
+          [disabled]="disabled"
+          [readonly]="false"
+          autocomplete="off"
+        />
         <button *ngIf="value && clearable && !disabled" type="button" class="dp-clear" (click)="clearValue($event)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
@@ -127,7 +138,7 @@ interface CalendarDay {
     }
     .required-mark { color: #dc3545; margin-left: 0.25rem; }
 
-    /* Trigger */
+    /* Trigger (original design: padding, font, icon size) */
     .dp-trigger {
       display: flex; align-items: center; gap: 0.625rem;
       width: 100%; padding: 0.625rem 0.875rem;
@@ -143,10 +154,22 @@ interface CalendarDay {
     .dp-trigger.error { border-color: var(--color-input-error); }
     .dp-trigger.error:focus, .dp-trigger.error.open { box-shadow: 0 0 0 3px var(--color-input-error-shadow); }
 
-    .dp-icon { width: 18px; height: 18px; color: #94a3b8; flex-shrink: 0; }
-    .dp-trigger.has-value .dp-icon { color: #16A34A; }
-    .dp-display { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dp-display.placeholder { color: #94a3b8; }
+    .dp-input {
+      flex: 1; min-width: 0;
+      border: none; background: none; outline: none;
+      font-size: 0.875rem; color: #1a202c;
+      padding: 0; margin: 0;
+    }
+    .dp-input::placeholder { color: #94a3b8; }
+    .dp-input:disabled { color: #94a3b8; cursor: not-allowed; }
+    .dp-icon-wrap {
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: #94a3b8;
+      pointer-events: none;
+    }
+    .dp-icon { width: 18px; height: 18px; }
+    .dp-trigger.has-value .dp-icon-wrap .dp-icon,
+    .dp-trigger.open .dp-icon-wrap .dp-icon { color: #16A34A; }
     .dp-clear {
       background: none; border: none; padding: 0.125rem; cursor: pointer;
       color: #94a3b8; display: flex; transition: color 0.15s;
@@ -249,6 +272,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
   @Input() disablePast = true;
 
   value = '';       // ISO string: "2025-03-15T08:00" or "2025-03-15"
+  inputDisplay = ''; // what the user sees/edits in the input (YYYY-MM-DD or YYYY-MM-DD HH:mm)
   isOpen = false;
   viewMonth = 0;    // 0-indexed
   viewYear = 2025;
@@ -367,6 +391,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
     }
 
     this.onChangeFn(this.value);
+    this.syncInputFromValue();
     this.buildCalendar();
   }
 
@@ -393,6 +418,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
     }
 
     this.onChangeFn(this.value);
+    this.syncInputFromValue();
     this.viewMonth = day.month;
     this.viewYear = day.year;
     this.buildCalendar();
@@ -415,6 +441,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
       this.selectedTime = timeToUse;
       this.value = `${datePart}T${timeToUse}`;
       this.onChangeFn(this.value);
+      this.syncInputFromValue();
     } else {
       this.selectedTime = time;
     }
@@ -428,7 +455,89 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
     return slotMinutes < currentMinutes;
   }
 
-  toggleCalendar(): void {
+  /** Sync the text input from current value (call after changing value). */
+  private syncInputFromValue(): void {
+    this.inputDisplay = this.formatForInput(this.value);
+  }
+
+  /** Format value for display in the editable input (YYYY-MM-DD or YYYY-MM-DD HH:mm). */
+  formatForInput(val: string): string {
+    if (!val) return '';
+    const part = val.split('T')[0];
+    if (this.showTime && val.includes('T')) {
+      const timePart = val.split('T')[1] || '';
+      const [h, m] = timePart.split(':');
+      return `${part} ${(h || '00').padStart(2, '0')}:${(m || '00').padStart(2, '0')}`;
+    }
+    return part;
+  }
+
+  /** Parse user input to ISO value or null if invalid. */
+  private parseInputToValue(input: string): string | null {
+    const s = input.trim();
+    if (!s) return null;
+    let dateStr: string;
+    let timeStr = '00:00';
+    const withTime = s.includes(' ') || s.includes('T');
+    if (withTime) {
+      const parts = s.split(/[\sT]+/);
+      dateStr = parts[0] || '';
+      const t = parts[1] || '';
+      const timeMatch = t.match(/^(\d{1,2}):(\d{2})$/);
+      if (timeMatch) {
+        timeStr = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
+      }
+    } else {
+      dateStr = s;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+    if (this.disablePast) {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (date < todayStart) return null;
+    }
+    if (this.showTime) {
+      return `${dateStr}T${timeStr}`;
+    }
+    return dateStr;
+  }
+
+  onInputChange(event: Event): void {
+    const el = event.target as HTMLInputElement;
+    this.inputDisplay = el.value;
+  }
+
+  onInputBlur(): void {
+    this.onTouchedFn();
+    const parsed = this.parseInputToValue(this.inputDisplay);
+    if (parsed !== null) {
+      this.value = parsed;
+      this.onChangeFn(this.value);
+      this.syncInputFromValue();
+      if (this.showTime) {
+        const t = this.value.split('T')[1] || '00:00';
+        this.selectedTime = t;
+      }
+      this.viewMonth = new Date(this.value).getMonth();
+      this.viewYear = new Date(this.value).getFullYear();
+      this.buildCalendar();
+    } else {
+      this.syncInputFromValue();
+    }
+  }
+
+  onInputKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      (event.target as HTMLInputElement).blur();
+      event.preventDefault();
+    }
+  }
+
+  toggleCalendar(event?: Event): void {
+    if (event) event.stopPropagation();
     if (this.disabled) return;
     this.isOpen = !this.isOpen;
     if (this.isOpen) {
@@ -461,6 +570,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
   clearValue(event: Event): void {
     event.stopPropagation();
     this.value = '';
+    this.inputDisplay = '';
     this.onChangeFn(this.value);
   }
 
@@ -563,6 +673,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnInit {
         }
       } catch { /* ignore */ }
     }
+    this.syncInputFromValue();
   }
 
   registerOnChange(fn: (value: string) => void): void {

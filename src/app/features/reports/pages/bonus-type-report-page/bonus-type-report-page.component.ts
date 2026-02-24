@@ -3,14 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PageHeaderService } from '../../../../core/services/page-header.service';
-import { BonusTypesService } from '../../../../core/services/bonus-types.service';
+import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
 import { AnalyticsService, BonusTypeReportResponse, MonthlyReportPoint } from '../../../../core/services/analytics.service';
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
-import type { BonusTypeResponse } from '../../../../core/models/bonus-type.model';
 import { catchError, of } from 'rxjs';
 import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
+import type { RewardProgramListItem, RewardProgramType } from '../../../../core/models/reward-program.model';
 
 type PeriodKey = '1m' | '3m' | '6m' | '1y' | 'all';
+
+const REWARD_PROGRAM_STATUSES_FOR_REPORT: string[] = ['ACTIVE', 'INACTIVE', 'ARCHIVED'];
+const PROGRAM_TYPE_ORDER: RewardProgramType[] = ['WELCOME', 'BIRTHDAY', 'REFERRAL', 'CASHBACK'];
+const PROGRAM_TYPE_LABELS: Record<RewardProgramType, string> = {
+  WELCOME: 'Welcome',
+  BIRTHDAY: 'Birthday',
+  REFERRAL: 'Referral',
+  CASHBACK: 'Cashback'
+};
 
 @Component({
   selector: 'app-bonus-type-report-page',
@@ -21,14 +30,14 @@ type PeriodKey = '1m' | '3m' | '6m' | '1y' | 'all';
 })
 export class BonusTypeReportPageComponent implements OnInit {
   private pageHeader = inject(PageHeaderService);
-  private bonusTypesService = inject(BonusTypesService);
+  private rewardProgramsService = inject(RewardProgramsService);
   private analyticsService = inject(AnalyticsService);
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  bonusTypes: BonusTypeResponse[] = [];
-  selectedBonusTypeId: number | null = null;
+  rewardPrograms: RewardProgramListItem[] = [];
+  selectedProgramUuid: string = 'all';
   period: PeriodKey = '1m';
   report: BonusTypeReportResponse | null = null;
 
@@ -40,11 +49,22 @@ export class BonusTypeReportPageComponent implements OnInit {
     { value: 'all', label: 'За все время' }
   ];
 
-  get bonusTypeOptions(): SelectOption[] {
-    return [
-      { value: 'all', label: 'Общая статистика' },
-      ...this.bonusTypes.map(bt => ({ value: bt.id, label: bt.name }))
-    ];
+  bonusTypeOptions: SelectOption[] = [{ value: 'all', label: 'Общая статистика' }];
+
+  private rebuildBonusTypeOptions(): void {
+    const result: SelectOption[] = [{ value: 'all', label: 'Общая статистика' }];
+    const filtered = this.rewardPrograms.filter(p =>
+      REWARD_PROGRAM_STATUSES_FOR_REPORT.includes(p.status)
+    );
+    for (const type of PROGRAM_TYPE_ORDER) {
+      const programs = filtered.filter(p => p.type === type);
+      if (programs.length === 0) continue;
+      result.push({ value: `__header_${type}`, label: `${PROGRAM_TYPE_LABELS[type]}`, disabled: true });
+      for (const p of programs) {
+        result.push({ value: p.uuid, label: p.name || 'Untitled', status: p.status });
+      }
+    }
+    this.bonusTypeOptions = result;
   }
 
   /** Monthly data for the chart block only (always 12 months of chartYear). */
@@ -60,27 +80,27 @@ export class BonusTypeReportPageComponent implements OnInit {
 
   get showRetention(): boolean {
     if (!this.report) return false;
-    const type = this.getSelectedBonusType();
-    return type != null && (type.type === 'WELCOME' || type.type === 'BIRTHDAY');
+    const program = this.getSelectedProgram();
+    return program != null && (program.type === 'WELCOME' || program.type === 'BIRTHDAY');
   }
 
   get showReferral(): boolean {
-    const type = this.getSelectedBonusType();
-    return type != null && type.type === 'REFERRAL';
+    const program = this.getSelectedProgram();
+    return program != null && program.type === 'REFERRAL';
   }
 
-  /** Для "Общая статистика" — все транзакции за период (как в главном меню). Для выбранного типа бонуса — только транзакции с этим бонусом. */
+  /** Для "Общая статистика" — все транзакции за период. Для выбранной программы — только транзакции с этой программой. */
   get displayTransactionCount(): number {
     if (!this.report) return 0;
-    if (this.selectedBonusTypeId == null) {
+    if (this.selectedProgramUuid === 'all') {
       return this.report.transactionCount + (this.report.transactionCountWithoutBonus ?? 0);
     }
     return this.report.transactionCount;
   }
 
-  private getSelectedBonusType(): BonusTypeResponse | undefined {
-    if (this.selectedBonusTypeId == null) return undefined;
-    return this.bonusTypes.find(bt => bt.id === this.selectedBonusTypeId);
+  private getSelectedProgram(): RewardProgramListItem | undefined {
+    if (this.selectedProgramUuid === 'all') return undefined;
+    return this.rewardPrograms.find(p => p.uuid === this.selectedProgramUuid);
   }
 
   ngOnInit(): void {
@@ -89,7 +109,7 @@ export class BonusTypeReportPageComponent implements OnInit {
       { label: 'Отчёт по типам бонусов' }
     ]);
     this.applyStateFromQueryParams(this.route.snapshot.queryParams);
-    this.loadBonusTypes();
+    this.loadRewardPrograms();
   }
 
   private applyStateFromQueryParams(params: Record<string, string | undefined>): void {
@@ -99,12 +119,7 @@ export class BonusTypeReportPageComponent implements OnInit {
     }
     const bonusType = params['bonusType'];
     if (bonusType !== undefined) {
-      if (bonusType === 'all' || bonusType === '') {
-        this.selectedBonusTypeId = null;
-      } else {
-        const id = Number(bonusType);
-        if (!isNaN(id)) this.selectedBonusTypeId = id;
-      }
+      this.selectedProgramUuid = (bonusType && bonusType !== 'all') ? bonusType : 'all';
     }
     const month = params['month'];
     if (month && /^\d{4}-\d{2}$/.test(month)) {
@@ -118,9 +133,13 @@ export class BonusTypeReportPageComponent implements OnInit {
   }
 
   private updateUrlFromState(): void {
+    this.updateUrlFromStateWithBonusType(this.selectedProgramUuid);
+  }
+
+  private updateUrlFromStateWithBonusType(bonusType: string): void {
     const queryParams: Record<string, string | number | null> = {
       period: this.period,
-      bonusType: this.selectedBonusTypeId ?? 'all',
+      bonusType,
       year: this.chartYear
     };
     if (this.selectedMonthForBar) {
@@ -137,14 +156,14 @@ export class BonusTypeReportPageComponent implements OnInit {
     });
   }
 
-  private loadBonusTypes(): void {
-    this.bonusTypesService.getActiveBonusTypes().pipe(
+  private loadRewardPrograms(): void {
+    this.rewardProgramsService.listPrograms().pipe(
       catchError(() => of([]))
     ).subscribe(list => {
-      this.bonusTypes = list;
+      this.rewardPrograms = list;
+      this.rebuildBonusTypeOptions();
       if (!this._initialLoadDone) {
         this._initialLoadDone = true;
-        this.selectedBonusTypeId = this.selectedBonusTypeId ?? null;
         if (this.selectedMonthForBar) {
           const [y, m] = this.selectedMonthForBar.split('-').map(Number);
           const from = new Date(y, m - 1, 1, 0, 0, 0);
@@ -159,12 +178,14 @@ export class BonusTypeReportPageComponent implements OnInit {
     });
   }
 
-  onBonusTypeChange(id: number | string): void {
-    const num = id === '' || id === 'all' ? null : Number(id);
-    this.selectedBonusTypeId = num;
-    this.updateUrlFromState();
-    this.loadReport();
-    this.loadMonthlyChartData();
+  onBonusTypeChange(value: string | number | unknown): void {
+    const str = value == null || value === '' || value === 'undefined' ? 'all' : String(value);
+    this.selectedProgramUuid = str;
+    const programUuidForApi = str !== 'all' ? str : undefined;
+    this.updateUrlFromStateWithBonusType(str);
+    this.cdr.markForCheck();
+    this.loadReport(programUuidForApi);
+    this.loadMonthlyChartData(programUuidForApi);
   }
 
   onPeriodChange(p: PeriodKey): void {
@@ -190,6 +211,14 @@ export class BonusTypeReportPageComponent implements OnInit {
     return years;
   }
 
+  get chartYearStr(): string {
+    return String(this.chartYear);
+  }
+
+  get chartYearOptions(): SelectOption[] {
+    return this.availableChartYears.map(y => ({ value: String(y), label: String(y) }));
+  }
+
   /** Click on a month bar: load report for that month and update cards + charts. */
   selectMonth(yearMonth: string): void {
     this.selectedMonthForBar = yearMonth;
@@ -203,7 +232,7 @@ export class BonusTypeReportPageComponent implements OnInit {
   private loadReportForRange(from: string, to: string): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.analyticsService.getBonusTypeReport(this.selectedBonusTypeId, from, to).pipe(
+    this.analyticsService.getBonusTypeReport(null, from, to, this.selectedProgramUuid !== 'all' ? this.selectedProgramUuid : undefined).pipe(
       catchError(err => {
         this.errorMessage = err?.error?.message || 'Не удалось загрузить отчёт';
         return of(null);
@@ -249,13 +278,14 @@ export class BonusTypeReportPageComponent implements OnInit {
     return `${y}-${m}-${day}T${time}`;
   }
 
-  private loadReport(): void {
+  private loadReport(programUuid?: string): void {
     this.isLoading = true;
     this.errorMessage = null;
     this.selectedMonthForBar = null;
     this.updateUrlFromState();
     const { from, to } = this.getPeriodRange();
-    this.analyticsService.getBonusTypeReport(this.selectedBonusTypeId, from, to).pipe(
+    const uuid = programUuid !== undefined ? programUuid : (this.selectedProgramUuid !== 'all' ? this.selectedProgramUuid : undefined);
+    this.analyticsService.getBonusTypeReport(null, from, to, uuid).pipe(
       catchError(err => {
         this.errorMessage = err?.error?.message || 'Не удалось загрузить отчёт';
         return of(null);
@@ -268,11 +298,12 @@ export class BonusTypeReportPageComponent implements OnInit {
   }
 
   /** Load only monthly chart data (12 months of chartYear); does not change report. */
-  private loadMonthlyChartData(): void {
+  private loadMonthlyChartData(programUuid?: string): void {
     this.isMonthlyChartLoading = true;
     const from = `${this.chartYear}-01-01T00:00:00`;
     const to = `${this.chartYear}-12-31T23:59:59`;
-    this.analyticsService.getBonusTypeReport(this.selectedBonusTypeId, from, to).pipe(
+    const uuid = programUuid !== undefined ? programUuid : (this.selectedProgramUuid !== 'all' ? this.selectedProgramUuid : undefined);
+    this.analyticsService.getBonusTypeReport(null, from, to, uuid).pipe(
       catchError(() => of(null))
     ).subscribe(data => {
       this.monthlyChartData = data?.monthlyData ?? null;

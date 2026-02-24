@@ -752,6 +752,8 @@ export interface SidebarMenuItem {
   `]
 })
 export class SidebarComponent implements OnInit {
+  private static readonly SIDEBAR_COLLAPSED_KEY = 'tinta-sidebar-collapsed';
+
   isCollapsed = signal(false);
   isClosed = signal(false);
   isMobile = false;
@@ -849,7 +851,10 @@ export class SidebarComponent implements OnInit {
   constructor(private sanitizer: DomSanitizer) {
     if (typeof window !== 'undefined') {
       this.checkMobile();
-      
+      if (!this.isMobile) {
+        const stored = SidebarComponent.getStoredCollapsed();
+        if (stored) this.isCollapsed.set(true);
+      }
       window.addEventListener('resize', () => {
         this.checkMobile();
       });
@@ -862,7 +867,15 @@ export class SidebarComponent implements OnInit {
       this.closedChange.emit(closed);
       this.sidebarService.setCollapsed(collapsed);
       this.sidebarService.setClosed(closed);
+      if (typeof localStorage !== 'undefined' && !this.isMobile) {
+        localStorage.setItem(SidebarComponent.SIDEBAR_COLLAPSED_KEY, collapsed ? 'true' : 'false');
+      }
     });
+  }
+
+  private static getStoredCollapsed(): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(SidebarComponent.SIDEBAR_COLLAPSED_KEY) === 'true';
   }
 
   private sidebarService = inject(SidebarService);
@@ -876,14 +889,15 @@ export class SidebarComponent implements OnInit {
   private checkMobile(): void {
     const wasMobile = this.isMobile;
     this.isMobile = window.innerWidth < 768;
-    
+
     // На мобильных закрываем sidebar по умолчанию, на десктопе открываем
     if (this.isMobile && !wasMobile) {
       this.isClosed.set(true);
-      // На мобильных не используем collapsed состояние
       this.isCollapsed.set(false);
     } else if (!this.isMobile && wasMobile) {
       this.isClosed.set(false);
+      const stored = SidebarComponent.getStoredCollapsed();
+      if (stored) this.isCollapsed.set(true);
     }
   }
 

@@ -16,6 +16,7 @@ import { LoaderComponent } from '../../../../shared/components/loader/loader.com
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { PaymentViewModalComponent } from '../../../../shared/components/payment-view-modal/payment-view-modal.component';
 import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 
 interface Payment {
   id: string;
@@ -48,7 +49,7 @@ function clampPaymentPageSize(size: number): number {
 @Component({
   selector: 'app-payments-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent, PaymentViewModalComponent, SelectComponent],
+  imports: [CommonModule, FormsModule, RouterModule, BadgeComponent, RefundConfirmationModalComponent, IconButtonComponent, ButtonComponent, LoaderComponent, PaginationComponent, PaymentViewModalComponent, SelectComponent, DatePickerComponent],
   template: `
     <div class="page-wrapper">
       <div class="payments-container">
@@ -177,17 +178,17 @@ function clampPaymentPageSize(size: number): number {
             <div class="filter-group date-filter">
               <label class="filter-label">Период:</label>
               <div class="date-inputs">
-                <input 
-                  type="date" 
-                  [(ngModel)]="dateFrom" 
-                  placeholder="ДД ММ ГГГГ"
-                  class="date-input">
+                <app-date-picker
+                  placeholder="От"
+                  [(ngModel)]="dateFrom"
+                  [disablePast]="false">
+                </app-date-picker>
                 <span class="date-separator">—</span>
-                <input 
-                  type="date" 
-                  [(ngModel)]="dateTo" 
-                  placeholder="ДД ММ ГГГГ"
-                  class="date-input">
+                <app-date-picker
+                  placeholder="До"
+                  [(ngModel)]="dateTo"
+                  [disablePast]="false">
+                </app-date-picker>
               </div>
             </div>
           </div>
@@ -614,6 +615,7 @@ function clampPaymentPageSize(size: number): number {
       margin-bottom: 1rem;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       border: 1px solid #e5e7eb;
+      min-width: 0;
     }
 
     .filters-row {
@@ -621,6 +623,7 @@ function clampPaymentPageSize(size: number): number {
       gap: 1rem;
       align-items: flex-end;
       flex-wrap: wrap;
+      min-width: 0;
     }
 
     .filters-row + .filters-row {
@@ -689,37 +692,38 @@ function clampPaymentPageSize(size: number): number {
       color: #94a3b8;
     }
 
-    /* Date Filter */
-    .date-filter {
-      min-width: 280px;
-    }
-
     .date-inputs {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .date-input {
-      flex: 1;
-      padding: 0.625rem 0.875rem;
-      border: 1.5px solid var(--color-input-border);
+    .date-inputs ::ng-deep .dp-wrapper {
+      flex: 0 0 auto;
+      width: 180px;
+    }
+
+    .date-inputs ::ng-deep .dp-wrapper .dp-label {
+      display: none;
+    }
+
+    .date-inputs ::ng-deep .dp-trigger {
+      border: 1.5px solid #e2e8f0;
       border-radius: 10px;
-      font-size: 0.9rem;
       background: #f8fafc;
       color: #1f2937;
-      transition: all 0.2s;
     }
 
-    .date-input:hover {
-      border-color: var(--color-input-border-hover);
+    .date-inputs ::ng-deep .dp-trigger:hover {
+      border-color: #cbd5e1;
     }
 
-    .date-input:focus {
+    .date-inputs ::ng-deep .dp-trigger:focus,
+    .date-inputs ::ng-deep .dp-trigger.open {
       outline: none;
-      border-color: var(--color-input-border-focus);
+      border-color: #22c55e;
       background: white;
-      box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
     }
 
     .date-separator {
@@ -769,31 +773,49 @@ function clampPaymentPageSize(size: number): number {
     .sort-group {
       display: flex;
       flex-direction: row;
-      align-items: center;
+      align-items: flex-end;
       gap: 0.5rem;
     }
 
-    .sort-group .filter-label {
-      margin-bottom: 0;
+    .sort-group ::ng-deep .select-wrapper {
+      width: auto;
+      min-width: 180px;
+      gap: 0.35rem;
     }
 
-    .sort-select {
+    .sort-group ::ng-deep .select-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sort-group ::ng-deep .select-trigger {
+      height: 36px;
+      min-height: 36px;
       padding: 0.5rem 2rem 0.5rem 0.75rem;
       border: 1.5px solid #e2e8f0;
       border-radius: 8px;
       font-size: 0.85rem;
       background: #f8fafc;
       color: #1f2937;
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.5rem center;
+      box-sizing: border-box;
     }
 
-    .sort-select:focus {
+    .sort-group ::ng-deep .select-trigger:hover {
+      border-color: #cbd5e1;
+    }
+
+    .sort-group ::ng-deep .select-trigger:focus,
+    .sort-group ::ng-deep .select-trigger.open {
       outline: none;
       border-color: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+    }
+
+    .sort-group ::ng-deep .select-value.placeholder {
+      color: #94a3b8;
     }
 
     .sort-direction-btn {
@@ -1241,9 +1263,68 @@ function clampPaymentPageSize(size: number): number {
     }
 
     .page-size-filter-section {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0;
+    }
+
+    .page-size-filter-section ::ng-deep .select-wrapper {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.35rem;
+      width: auto;
+    }
+
+    .page-size-filter-section ::ng-deep .select-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #64748b;
+      white-space: nowrap;
+      margin: 0;
+    }
+
+    .page-size-filter-section ::ng-deep .select-trigger {
+      width: 48px;
+      min-width: 48px;
+      padding: 0.2rem 0.3rem;
+      min-height: unset;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      background: white;
+      color: #1f2937;
+    }
+
+    .page-size-filter-section ::ng-deep .select-trigger:hover {
+      border-color: #94a3b8;
+    }
+
+    .page-size-filter-section ::ng-deep .select-trigger:focus,
+    .page-size-filter-section ::ng-deep .select-trigger.open {
+      outline: none;
+      border-color: #16A34A;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
+    }
+
+    .page-size-filter-section ::ng-deep .select-chevron {
+      width: 14px;
+      height: 14px;
+    }
+
+    .page-size-filter-section ::ng-deep .select-dropdown {
+      width: 64px;
+      min-width: 64px;
+      left: auto;
+      right: 0;
+      top: auto;
+      bottom: 100%;
+      margin-top: 0;
+      margin-bottom: 4px;
+    }
+
+    .page-size-filter-section ::ng-deep .select-value.placeholder {
+      color: #94a3b8;
     }
 
     .page-size-label {

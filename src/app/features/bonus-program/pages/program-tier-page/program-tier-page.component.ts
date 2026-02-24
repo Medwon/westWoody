@@ -335,19 +335,19 @@ export class ProgramTierPageComponent implements OnInit {
     const t = this.tier();
     if (!p || !t) return;
     this.pageHeaderService.setPageHeader('Tier View', [
-      { label: 'Program View', route: '/bonus-program/view/' + p.uuid + '/tiers' },
+      { label: 'Program View', route: '/reward-programs/view/' + p.uuid + '/tiers' },
       { label: 'Tier View' }
     ]);
   }
 
   programViewLink(): string[] {
     const u = this.program()?.uuid;
-    return u ? ['/bonus-program', 'view', u, 'tiers'] : ['/bonus-program'];
+    return u ? ['/reward-programs', 'view', u, 'tiers'] : ['/reward-programs'];
   }
 
   programBackUrl(): string {
     const u = this.program()?.uuid ?? this.programUuid;
-    return u ? `/bonus-program/view/${u}/tiers` : '/bonus-program';
+    return u ? `/reward-programs/view/${u}/tiers` : '/reward-programs';
   }
 
   formatTierRange(t: CashbackTierResponse): string {

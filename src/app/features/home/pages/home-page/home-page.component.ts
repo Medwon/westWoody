@@ -146,12 +146,16 @@ interface RecentPayment {
             </div>
           </div>
             <div class="metric-list">
-            <div class="metric-row kpi-metric-row" *ngFor="let kpi of kpiMetricCards" [title]="kpi.tooltip">
+            <div class="metric-row kpi-metric-row" *ngFor="let kpi of kpiMetricCards">
               <span class="metric-label">
-                {{ kpi.label }}
-                <span class="metric-tooltip-icon" *ngIf="kpi.tooltip" [title]="kpi.tooltip" tabindex="0">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span class="kpi-metric-tooltip-trigger" *ngIf="kpi.tooltip">
+                  {{ kpi.label }}
+                  <span class="metric-tooltip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                  </span>
+                  <span class="kpi-metric-tooltip">{{ kpi.tooltip }}</span>
                 </span>
+                <ng-container *ngIf="!kpi.tooltip">{{ kpi.label }}</ng-container>
               </span>
               <span class="metric-value">{{ kpi.value }}</span>
             </div>
@@ -162,7 +166,7 @@ interface RecentPayment {
             <div class="card-group-icon card-group-icon-users">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             </div>
-            <h3 class="card-group-title">Пользователи</h3>
+            <h3 class="card-group-title">Ваши клиенты</h3>
           </div>
           <div class="metric-list">
             <div class="metric-row" *ngFor="let kpi of userCards">
@@ -715,27 +719,90 @@ interface RecentPayment {
 
     .kpi-period-select-wrapper {
       flex-shrink: 0;
-      min-width: 120px;
+      min-width: 150px;
+      width: 150px;
+    }
+
+    :host ::ng-deep .kpi-period-select-wrapper .select-trigger {
+      padding: 0.35rem 0.75rem;
+      min-height: unset;
+      font-size: 0.8125rem;
+    }
+
+    :host ::ng-deep .kpi-period-select-wrapper .select-value {
+      white-space: nowrap;
+    }
+
+    .kpi-metric-tooltip-trigger {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: help;
     }
 
     .metric-tooltip-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      margin-left: 0.25rem;
-      cursor: help;
-      vertical-align: middle;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
       color: #64748b;
+      border-radius: 50%;
+      transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .metric-tooltip-icon svg {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       display: block;
     }
 
-    .metric-tooltip-icon:hover {
+    .kpi-metric-tooltip-trigger:hover .metric-tooltip-icon {
       color: #22c55e;
+      background-color: rgba(34, 197, 94, 0.12);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+    }
+
+    .kpi-metric-tooltip {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      right: 0;
+      left: auto;
+      z-index: 20;
+      min-width: 220px;
+      max-width: 320px;
+      width: max-content;
+      padding: 0.625rem 0.875rem;
+      background: #1f2937;
+      color: #f3f4f6;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      white-space: normal;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(6px) scale(0.97);
+      transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+
+    .kpi-metric-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: auto;
+      right: 0.5rem;
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+
+    .kpi-metric-tooltip-trigger:hover .kpi-metric-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
     }
 
     .card-group-title {

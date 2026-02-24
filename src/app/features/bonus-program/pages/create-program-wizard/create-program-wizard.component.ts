@@ -663,16 +663,16 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
 
   onCancel(): void {
     if (!this.draftUuid) {
-      this.router.navigate(['/reward-programs']);
+      this.router.navigate(['/reward-programs', 'programs']);
       return;
     }
     if (this.preserveDraftOnCancel) {
-       this.router.navigate(['/reward-programs']);
+      this.router.navigate(['/reward-programs', 'programs']);
       return;
     }
     this.rewardProgramsService.deleteProgram(this.draftUuid).subscribe({
-      next: () => this.router.navigate(['/reward-programs']),
-      error: () => this.router.navigate(['/reward-programs'])
+      next: () => this.router.navigate(['/reward-programs', 'programs']),
+      error: () => this.router.navigate(['/reward-programs', 'programs'])
     });
   }
 

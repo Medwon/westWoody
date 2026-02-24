@@ -27,6 +27,22 @@
   gap: 0.35rem;
 }
 
+.type-control ::ng-deep .select-wrapper {
+  min-width: 200px;
+}
+
+type-control ::ng-deep .select-value {
+  white-space: nowrap;
+}
+
+.period-control ::ng-deep .select-wrapper {
+  min-width: 180px;
+}
+
+.period-control ::ng-deep .select-value {
+  white-space: nowrap;
+}
+
 .control-label {
   font-size: 0.7rem;
   font-weight: 600;
@@ -482,12 +498,17 @@
 
 .month-chart-year-select {
   flex-shrink: 0;
-}
+  width: 100px;
 
-.year-select {
-  min-width: 90px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.8125rem;
+  ::ng-deep .select-trigger {
+    padding: 0.35rem 0.6rem;
+    min-height: unset;
+    font-size: 0.8125rem;
+  }
+
+  ::ng-deep .select-value {
+    white-space: nowrap;
+  }
 }
 
 .monthly-chart {
