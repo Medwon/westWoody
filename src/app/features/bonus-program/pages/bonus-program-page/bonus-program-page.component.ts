@@ -254,8 +254,14 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
     </app-dialog>
   `,
   styles: [`
+<<<<<<< Updated upstream
     :host { display: block; height: 100%; min-width: 0; }
     .programs-container { width: 100%; box-sizing: border-box; }
+=======
+    :host { display: block; height: 100%; }
+    // .page-wrapper { min-height: 100%; margin: -2rem; padding: 2rem; background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%); }
+    .programs-container { max-width: 1200px; margin: 0 auto; }
+>>>>>>> Stashed changes
 
     .intro-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .intro-text { flex: 1; min-width: 0; font-size: 0.95rem; color: #475569; line-height: 1.6; margin: 0; max-width: 720px; }

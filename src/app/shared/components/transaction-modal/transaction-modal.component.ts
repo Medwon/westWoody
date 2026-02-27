@@ -258,7 +258,7 @@ type ModalStep = 'search' | 'found' | 'new' | 'notify';
             <span class="summary-label">К оплате:</span>
             <span class="summary-value">{{ getFinalAmount() }} ₸</span>
           </div>
-          <div class="summary-row earned" *ngIf="!useBonuses && cashbackContext?.active && !isBelowMinSpend">
+          <div class="summary-row earned" *ngIf="!useBonuses && cashbackContext?.active && !isBelowMinSpend && isPaymentInBonusProgramWindow">
             <span class="summary-label">Будет начислено:</span>
             <span class="summary-value bonus">+{{ calculatedBonus }} бонусов <span class="rate-hint" *ngIf="bonusRateLabel">({{ bonusRateLabel }})</span></span>
           </div>
@@ -1712,6 +1712,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   newClientBirthday = '';
   isCommentExpanded = false;
   showTagsDropdown = false;
+  isPaymentInBonusProgramWindow: boolean = false;
 
   // Send message
   isSendingMessage = false;
@@ -1734,6 +1735,7 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
   // Frequent clients
   frequentClients: FrequentClientDto[] = [];
   isLoadingFrequentClients = false;
+
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
@@ -1989,6 +1991,8 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       .subscribe({
         next: (ctx) => {
           this.cashbackContext = ctx;
+          this.isPaymentInBonusProgramWindow = ctx ? (ctx.isPaymentInBonusProgramWindow ?? (ctx as any).paymentInBonusProgramWindow) : false;
+          this.calculateBonus();
           // Backwards-compat: set bonusPercentage from context
           if (ctx && ctx.active && ctx.cashbackType === 'PERCENTAGE') {
             this.bonusPercentage = ctx.effectiveRate / 100;
@@ -2034,8 +2038,11 @@ export class TransactionModalComponent implements OnChanges, OnDestroy {
       });
   }
 
+
+
   calculateBonus(): void {
-    if (this.useBonuses || !this.cashbackContext?.active) {
+    console.log('Флаг окна бонусов:', this.isPaymentInBonusProgramWindow);
+    if (this.useBonuses || !this.cashbackContext?.active || !this.cashbackContext?.isPaymentInBonusProgramWindow) {
       this.calculatedBonus = 0;
       return;
     }

@@ -121,6 +121,7 @@ export interface CashbackContext {
   currentTier: TierInfo | null;
   effectiveRate: number;
   clientTotalSpend: number;
+  isPaymentInBonusProgramWindow: boolean;
 }
 
 @Injectable({
