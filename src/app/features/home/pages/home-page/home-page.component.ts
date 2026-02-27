@@ -105,10 +105,20 @@ interface RecentPayment {
           </div>
           <div class="metric-list">
             <div class="metric-row" *ngFor="let kpi of paymentCards">
-              <span class="metric-label">{{ kpi.label }}</span>
+              <span class="metric-label">
+                <span class="kpi-metric-tooltip-trigger" *ngIf="kpi.tooltip">
+                  {{ kpi.label }}
+                  <span class="metric-tooltip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                  </span>
+                  <span class="kpi-metric-tooltip pos-right">{{ kpi.tooltip }}</span>
+                </span>
+                <ng-container *ngIf="!kpi.tooltip">{{ kpi.label }}</ng-container>
+              </span>
+
               <span class="metric-right">
                 <span class="metric-value">{{ kpi.value }}</span>
-                <span class="metric-change" *ngIf="kpi.change" [class.positive]="kpi.changeType === 'positive'" [class.negative]="kpi.changeType === 'negative'">{{ kpi.change }}</span>
+                <span class="metric-change" *ngIf="kpi.change" ...>{{ kpi.change }}</span>
               </span>
             </div>
           </div>
@@ -219,7 +229,7 @@ interface RecentPayment {
                     </linearGradient>
                   </defs>
                   <!-- Grid lines -->
-                  <g stroke="#e2e8f0" stroke-width="1" opacity="0.5">
+                  <g stroke="#94a3b8" stroke-width="1" opacity="0.5">
                     <line x1="50" y1="50" x2="550" y2="50" vector-effect="non-scaling-stroke"/>
                     <line x1="50" y1="100" x2="550" y2="100" vector-effect="non-scaling-stroke"/>
                     <line x1="50" y1="150" x2="550" y2="150" vector-effect="non-scaling-stroke"/>
@@ -278,11 +288,11 @@ interface RecentPayment {
           <h3 class="chart-title">Продажи</h3>
           <div class="donut-container">
             <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="16"/>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
               <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
                 [attr.stroke-dasharray]="getDonutLoyaltyDash()"
                 stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="16"
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
                 [attr.stroke-dasharray]="getDonutNonLoyaltyDash()"
                 [attr.stroke-dashoffset]="getDonutNonLoyaltyOffset()" transform="rotate(-90 50 50)"/>
             </svg>
@@ -804,8 +814,15 @@ interface RecentPayment {
       visibility: visible;
       transform: translateY(0) scale(1);
     }
-
-    .card-group-title {
+    .kpi-metric-tooltip.pos-right {
+      right: auto;
+      left: 0;
+    }
+    .kpi-metric-tooltip.pos-right::after {
+      right: auto;
+      left: 0.5rem;
+    }
+      .card-group-title {
       font-size: 0.875rem;
       font-weight: 700;
       color: #0f172a;
@@ -1294,7 +1311,7 @@ interface RecentPayment {
     }
 
     .legend-color.non-loyalty {
-      background: #e2e8f0;
+      background: #94a3b8;
     }
 
     .legend-label {
@@ -2038,21 +2055,21 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
     // 1. Платежи
     this.paymentCards = [
-      { iconId: 'month', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(monthlyRevenue), label: 'Выручка за месяц', change: monthlyRevenueChange != null ? `${monthlyRevenueChange > 0 ? '+' : ''}${monthlyRevenueChange.toFixed(0)}%` : undefined, changeType: monthlyRevenueChange != null && monthlyRevenueChange >= 0 ? 'positive' : 'negative' },
-      { iconId: 'today', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(dailyRevenue), label: 'Выручка за сегодня', change: dailyRevenueChange != null ? `${dailyRevenueChange > 0 ? '+' : ''}${dailyRevenueChange.toFixed(0)}%` : undefined, changeType: dailyRevenueChange != null && dailyRevenueChange >= 0 ? 'positive' : 'negative' },
-      { iconId: 'average', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(averageCheck), label: 'Средний чек', change: averageCheckChange != null ? `${averageCheckChange > 0 ? '+' : ''}${averageCheckChange.toFixed(0)}%` : undefined, changeType: averageCheckChange != null && averageCheckChange >= 0 ? 'positive' : 'negative' },
-      { iconId: 'transactions', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: (data.dailyTransactions?.count ?? 0).toString(), label: 'Кол-во транзакций', change: data.dailyTransactions?.changeAbsolute != null ? `${data.dailyTransactions.changeAbsolute > 0 ? '+' : ''}${data.dailyTransactions.changeAbsolute}` : undefined, changeType: data.dailyTransactions?.changeAbsolute != null && data.dailyTransactions.changeAbsolute >= 0 ? 'positive' : 'negative' },
-      { iconId: 'average', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.uplift?.avgCheckWithBonus != null ? this.formatCurrency(Number(kpi.uplift.avgCheckWithBonus)) : '—', label: 'Средний чек с бонусами' },
-      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0f2fe, #bae6fd)', value: kpi?.uplift?.avgCheckRegular != null ? this.formatCurrency(Number(kpi.uplift.avgCheckRegular)) : '—', label: 'Средний чек без бонусов' }
+      { iconId: 'transactions', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: (data.dailyTransactions?.count ?? 0).toString(), label: 'Транзакций', change: data.dailyTransactions?.changeAbsolute != null ? `${data.dailyTransactions.changeAbsolute > 0 ? '+' : ''}${data.dailyTransactions.changeAbsolute}` : undefined, changeType: data.dailyTransactions?.changeAbsolute != null && data.dailyTransactions.changeAbsolute >= 0 ? 'positive' : 'negative', tooltip: 'Количество транзакций за выбранный период.' },
+      { iconId: 'month', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(monthlyRevenue), label: 'За месяц', change: monthlyRevenueChange != null ? `${monthlyRevenueChange > 0 ? '+' : ''}${monthlyRevenueChange.toFixed(0)}%` : undefined, changeType: monthlyRevenueChange != null && monthlyRevenueChange >= 0 ? 'positive' : 'negative', tooltip: 'Выручка за выбранный месяц.' },
+      { iconId: 'today', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(dailyRevenue), label: 'За сегодня', change: dailyRevenueChange != null ? `${dailyRevenueChange > 0 ? '+' : ''}${dailyRevenueChange.toFixed(0)}%` : undefined, changeType: dailyRevenueChange != null && dailyRevenueChange >= 0 ? 'positive' : 'negative', tooltip: 'Выручка за сегодня.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(averageCheck), label: 'Средний чек', change: averageCheckChange != null ? `${averageCheckChange > 0 ? '+' : ''}${averageCheckChange.toFixed(0)}%` : undefined, changeType: averageCheckChange != null && averageCheckChange >= 0 ? 'positive' : 'negative', tooltip: 'Средний чек клиентов.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.uplift?.avgCheckWithBonus != null ? this.formatCurrency(Number(kpi.uplift.avgCheckWithBonus)) : '—', label: 'С бонусами', tooltip: 'Средний чек с использованием бонусов за выбранный период.' },
+      { iconId: 'average', iconBg: 'linear-gradient(135deg, #e0f2fe, #bae6fd)', value: kpi?.uplift?.avgCheckRegular != null ? this.formatCurrency(Number(kpi.uplift.avgCheckRegular)) : '—', label: 'Без бонусов', tooltip: 'Средний чек без использования бонусов за выбранный период.' }
     ];
 
     // 2. Бонусы
     const inCirculation = data.bonusesInCirculation?.amount ?? this.bonusesInCirculationAmount ?? 0;
     this.bonusCards = [
-      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(inCirculation), label: 'Бонусы в обороте' },
-      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(bonusesAccrued), label: 'Начисленные бонусы', change: bonusesAccruedChange != null ? `${bonusesAccruedChange > 0 ? '+' : ''}${bonusesAccruedChange.toFixed(0)}%` : undefined, changeType: bonusesAccruedChange != null && bonusesAccruedChange >= 0 ? 'positive' : 'negative' },
-      { iconId: 'refunds', iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)', value: (data.dailyRefunds?.count ?? 0).toString(), label: 'Возвраты', change: data.dailyRefunds?.changeAbsolute != null ? `${data.dailyRefunds.changeAbsolute > 0 ? '+' : ''}${data.dailyRefunds.changeAbsolute}` : undefined, changeType: data.dailyRefunds?.changeAbsolute != null && data.dailyRefunds.changeAbsolute >= 0 ? 'positive' : 'negative' },
-      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.efficiency?.burnedAmount != null ? this.formatCurrency(Number(kpi.efficiency.burnedAmount)) : '0 ₸', label: 'Сгоревшие бонусы (сумма)' }
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(inCirculation), label: 'В обороте' },
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', value: this.formatCurrency(bonusesAccrued), label: 'Начисленные', change: bonusesAccruedChange != null ? `${bonusesAccruedChange > 0 ? '+' : ''}${bonusesAccruedChange.toFixed(0)}%` : undefined, changeType: bonusesAccruedChange != null && bonusesAccruedChange >= 0 ? 'positive' : 'negative' },
+      { iconId: 'bonus', iconBg: 'linear-gradient(135deg, #fef3c7, #fde68a)', value: kpi?.efficiency?.burnedAmount != null ? this.formatCurrency(Number(kpi.efficiency.burnedAmount)) : '0 ₸', label: 'Сгоревшие' },
+      { iconId: 'refunds', iconBg: 'linear-gradient(135deg, #fef2f2, #fee2e2)', value: (data.dailyRefunds?.count ?? 0).toString(), label: 'Возвраты', change: data.dailyRefunds?.changeAbsolute != null ? `${data.dailyRefunds.changeAbsolute > 0 ? '+' : ''}${data.dailyRefunds.changeAbsolute}` : undefined, changeType: data.dailyRefunds?.changeAbsolute != null && data.dailyRefunds.changeAbsolute >= 0 ? 'positive' : 'negative' }
     ];
 
     // 3. KPI (with tooltips)

@@ -16,6 +16,7 @@ import { CreateClientModalComponent } from '../../../../shared/components/create
 import { PhoneFormatPipe } from '../../../../shared/pipes/phone-format.pipe';
 import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { DateRangePickerComponent } from '../../../../shared/components/date-range-picker/date-range-picker.component';
 
 interface Client {
   id: string;
@@ -44,7 +45,7 @@ function clampPageSize(size: number): number {
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent, PhoneFormatPipe, SelectComponent, DatePickerComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, IconButtonComponent, PaginationComponent, LoaderComponent, CreateClientModalComponent, PhoneFormatPipe, SelectComponent, DatePickerComponent, DateRangePickerComponent],
   template: `
     
       <div class="clients-container">
@@ -124,74 +125,53 @@ function clampPageSize(size: number): number {
 
         <!-- Filters Section -->
         <div class="filters-section">
-          <div class="filters-row">
-            <!-- Search by name -->
+          <!-- Top row: unified search + actions -->
+          <div class="filters-row filters-row-top">
             <div class="filter-group search-group">
-              <div class="search-input-wrapper">
+              <div class="search-input-wrapper search-input-unified">
                 <svg viewBox="0 0 24 24" fill="none" class="search-icon">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
                   <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-                <input 
-                  type="text" 
-                  [(ngModel)]="searchName"
+                <input
+                  type="text"
+                  [(ngModel)]="searchQuery"
                   (keydown.enter)="applyFilters()"
-                  placeholder="Поиск по имени..."
+                  placeholder="Поиск по имени, телефону или email..."
                   class="filter-input">
+                <button
+                  type="button"
+                  class="search-clear-btn"
+                  *ngIf="searchQuery?.trim()"
+                  (click)="onClearSearch()">
+                  ×
+                </button>
               </div>
             </div>
 
-            <!-- Search by phone -->
-            <div class="filter-group">
-              <div class="search-input-wrapper">
-                <svg viewBox="0 0 24 24" fill="none" class="search-icon">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.5"/>
+            <div class="filters-actions">
+              <app-button
+                buttonType="primary"
+                size="medium"
+                (onClick)="applyFilters()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-                <input 
-                  type="text" 
-                  [(ngModel)]="searchPhone"
-                  (keydown.enter)="applyFilters()"
-                  placeholder="Поиск по телефону..."
-                  class="filter-input">
-              </div>
-            </div>
-
-            <!-- Search by email -->
-            <div class="filter-group">
-              <div class="search-input-wrapper">
-                <svg viewBox="0 0 24 24" fill="none" class="search-icon">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-                <input 
-                  type="text" 
-                  [(ngModel)]="searchEmail"
-                  (keydown.enter)="applyFilters()"
-                  placeholder="Поиск по email..."
-                  class="filter-input">
-              </div>
-            </div>
-
-            <!-- Date filter -->
-            <div class="filter-group date-filter">
-              <label class="filter-label">Период последнего визита:</label>
-              <div class="date-inputs">
-                <app-date-picker
-                  placeholder="От"
-                  [(ngModel)]="dateFrom"
-                  [disablePast]="false">
-                </app-date-picker>
-                <span class="date-separator">—</span>
-                <app-date-picker
-                  placeholder="До"
-                  [(ngModel)]="dateTo"
-                  [disablePast]="false">
-                </app-date-picker>
-              </div>
+                Поиск
+              </app-button>
+              <app-button
+                *ngIf="hasActiveFilters()"
+                buttonType="secondary"
+                size="medium"
+                (onClick)="clearFilters()">
+                Сбросить
+              </app-button>
             </div>
           </div>
 
-          <div class="filters-row">
+          <!-- Bottom row: tags + period + sort + type -->
+          <div class="filters-row filters-row-bottom">
             <!-- Tags filter -->
             <div class="filter-group tags-filter">
               <label class="filter-label">Фильтр по тэгам:</label>
@@ -219,6 +199,18 @@ function clampPageSize(size: number): number {
                   </button>
                 </div>
               </div>
+            </div>
+
+            <!-- Date range (period of last visit) -->
+            <div class="filter-group date-filter">
+              <label class="filter-label">Период последнего визита:</label>
+              <app-date-range-picker
+                [start]="dateFrom"
+                [end]="dateTo"
+                (startChange)="dateFrom = $event"
+                (endChange)="dateTo = $event"
+                [disablePast]="false">
+              </app-date-range-picker>
             </div>
 
             <!-- Sort -->
@@ -257,31 +249,6 @@ function clampPageSize(size: number): number {
 
           </div>
 
-          <!-- Filter Actions Footer -->
-          <div class="filters-footer">
-            <div class="button-group">
-              <app-button 
-                buttonType="danger-outline" 
-                size="medium" 
-                (onClick)="clearFilters()"
-                *ngIf="hasActiveFilters()">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Сбросить
-              </app-button>
-              <app-button 
-                buttonType="primary-outline" 
-                size="medium" 
-                (onClick)="applyFilters()">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-                Поиск
-              </app-button>
-            </div>
-          </div>
         </div>
 
         <!-- Results count -->
@@ -622,6 +589,16 @@ function clampPageSize(size: number): number {
       border-top: 1px solid #f1f5f9;
     }
 
+    .filters-row-top {
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.25rem;
+    }
+
+    .filters-row-bottom {
+      align-items: flex-end;
+    }
+
     .filter-group {
       display: flex;
       flex-direction: column;
@@ -638,13 +615,17 @@ function clampPageSize(size: number): number {
 
     .search-group {
       flex: 1;
-      min-width: 200px;
+      min-width: 260px;
     }
 
     .search-input-wrapper {
       position: relative;
       display: flex;
       align-items: center;
+    }
+
+    .search-input-unified .filter-input {
+      padding-right: 2.25rem;
     }
 
     .search-icon {
@@ -682,50 +663,64 @@ function clampPageSize(size: number): number {
       color: #94a3b8;
     }
 
-    .date-inputs {
+    .search-clear-btn {
+      position: absolute;
+      right: 10px;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
+      padding: 0;
     }
 
-    .date-inputs ::ng-deep .dp-wrapper {
-      flex: 0 0 auto;
-      width: 180px;
+    .search-clear-btn:hover {
+      color: #64748b;
+      background: #e5e7eb;
     }
 
-    .date-inputs ::ng-deep .dp-wrapper .dp-label {
-      display: none;
+    .filters-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-shrink: 0;
     }
 
-    .date-inputs ::ng-deep .dp-trigger {
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      background: #f8fafc;
-      color: #1f2937;
+    .filters-actions app-button {
+      min-width: 110px;
     }
 
-    .date-inputs ::ng-deep .dp-trigger:hover {
-      border-color: #cbd5e1;
+    .filters-actions app-button svg {
+      width: 14px;
+      height: 14px;
     }
 
-    .date-inputs ::ng-deep .dp-trigger:focus,
-    .date-inputs ::ng-deep .dp-trigger.open {
-      outline: none;
-      border-color: #22c55e;
-      background: white;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
-    }
-
-    .date-separator {
-      color: #94a3b8;
+    .link-reset-btn {
+      border: none;
+      background: transparent;
+      padding: 0;
+      font-size: 0.875rem;
       font-weight: 500;
-      font-size: 0.9rem;
+      color: #6b7280;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .link-reset-btn:hover {
+      color: #374151;
     }
 
     /* Tags Filter */
     .tags-filter {
-      flex: 1;
-      min-width: 250px;
+      flex: 0 0 260px;
     }
 
     .tags-select-wrapper {
@@ -901,8 +896,8 @@ function clampPageSize(size: number): number {
 
     /* Type Filter */
     .type-filter {
-      flex-direction: row;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
     }
 
     .type-buttons {
@@ -936,27 +931,9 @@ function clampPageSize(size: number): number {
       background: #f1f5f9;
     }
 
-    /* Filter Actions Footer */
+    /* Filter Actions Footer (legacy, hidden after redesign) */
     .filters-footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #f1f5f9;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 2rem;
-    }
-
-    .button-group app-button {
-      width: 110px;
-    }
-
-    .button-group app-button svg {
-      width: 14px;
-      height: 14px;
+      display: none;
     }
 
     /* Results Info */
@@ -1586,6 +1563,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   isLoadingDashboard = true;
 
   // Filters
+  searchQuery = '';
   searchName = '';
   searchPhone = '';
   searchEmail = '';
@@ -1646,6 +1624,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
     this.searchName = params['name'] ?? '';
     this.searchPhone = params['phone'] ?? '';
     this.searchEmail = params['email'] ?? '';
+    this.searchQuery = this.searchName || this.searchPhone || '';
     this.dateFrom = params['dateFrom'] ?? '';
     this.dateTo = params['dateTo'] ?? '';
     const tagsParam = params['tags'];
@@ -1670,9 +1649,16 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
       order: this.sortDirection,
       type: this.filterType
     };
-    if (this.searchName.trim()) queryParams['name'] = this.searchName.trim();
-    if (this.searchPhone.trim()) queryParams['phone'] = this.searchPhone.trim();
-    if (this.searchEmail.trim()) queryParams['email'] = this.searchEmail.trim();
+    const trimmed = this.searchQuery.trim();
+    if (trimmed) {
+      const { name, phone } = this.resolveSearchFieldsFromQuery(trimmed);
+      if (name) {
+        queryParams['name'] = name;
+      }
+      if (phone) {
+        queryParams['phone'] = phone;
+      }
+    }
     if (this.dateFrom) queryParams['dateFrom'] = this.dateFrom;
     if (this.dateTo) queryParams['dateTo'] = this.dateTo;
     if (this.selectedTags.length > 0) queryParams['tags'] = this.selectedTags.join(',');
@@ -1785,10 +1771,13 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   }
 
   buildSearchRequest() {
+    const trimmed = this.searchQuery.trim();
+    const { name, phone } = this.resolveSearchFieldsFromQuery(trimmed);
+
     const request: any = {
-      name: this.searchName.trim() || '',
-      phone: this.searchPhone.trim() || '',
-      email: this.searchEmail.trim() || '',
+      name,
+      phone,
+      email: '',
       lastVisitFrom: this.dateFrom ? `${this.dateFrom}T00:00:00` : null,
       lastVisitTo: this.dateTo ? `${this.dateTo}T23:59:59` : null,
       tags: this.selectedTags.length > 0 ? this.selectedTags : [],
@@ -1929,9 +1918,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   }
 
   hasActiveFilters(): boolean {
-    return this.searchName.trim() !== '' ||
-           this.searchPhone.trim() !== '' ||
-           this.searchEmail.trim() !== '' ||
+    return this.searchQuery.trim() !== '' ||
            this.dateFrom !== '' ||
            this.dateTo !== '' ||
            this.selectedTags.length > 0 ||
@@ -1939,6 +1926,7 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
   }
 
   clearFilters(): void {
+    this.searchQuery = '';
     this.searchName = '';
     this.searchPhone = '';
     this.searchEmail = '';
@@ -1954,6 +1942,47 @@ export class ClientsPageComponent implements OnInit, OnDestroy {
     this.mobileClients = [];
     this.updateUrlFromState();
     // loadClients() will run from queryParams subscription
+  }
+
+  onClearSearch(): void {
+    this.searchQuery = '';
+  }
+
+  private resolveSearchFieldsFromQuery(query: string): { name: string; phone: string } {
+    const q = query.trim();
+    if (!q) {
+      return { name: '', phone: '' };
+    }
+    const hasLetters = /[A-Za-zА-Яа-яЁё]/.test(q);
+    const hasDigits = /\d/.test(q);
+
+    if (hasDigits && !hasLetters) {
+      const phone = this.normalizePhone(q);
+      return { name: '', phone };
+    }
+
+    return { name: q, phone: '' };
+  }
+
+  private normalizePhone(input: string): string {
+    let digits = input.replace(/\D/g, '');
+    if (!digits) return '';
+
+    // 8775... -> 7xxxxxxxxxx
+    if (digits.length === 11 && digits[0] === '8') {
+      digits = '7' + digits.slice(1);
+    }
+
+    // Если ввели без ведущей 7, но 10 цифр, добавим 7 спереди
+    if (digits.length === 10 && digits[0] !== '7') {
+      digits = '7' + digits;
+    }
+
+    if (digits.length === 11 && digits[0] === '7') {
+      return '+' + digits;
+    }
+
+    return '+' + digits;
   }
 
   // Create client modal methods

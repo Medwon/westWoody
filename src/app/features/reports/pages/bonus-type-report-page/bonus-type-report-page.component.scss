@@ -122,14 +122,9 @@ type-control ::ng-deep .select-value {
   flex-wrap: nowrap;
   align-items: stretch;
 }
-.report-row-two .report-card-group {
-  flex: 0 1 280px;
-  min-width: 0;
-}
-.report-row-two .report-block.monthly-block.report-monthly-inline {
+.report-row-two .report-chart-card {
   flex: 1;
   min-width: 0;
-  margin-bottom: 0;
 }
 
 @media (max-width: 1024px) {
@@ -194,6 +189,21 @@ type-control ::ng-deep .select-value {
   color: #4338ca;
 }
 
+.card-group-icon-sales {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1d4ed8;
+}
+
+.card-group-icon-avg-check {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  color: #b45309;
+}
+
+.card-group-icon-bonus-flow {
+  background: linear-gradient(135deg, #fce7f3 0%, #f9a8d4 100%);
+  color: #be185d;
+}
+
 .report-card-group .card-group-title {
   font-size: 0.8125rem;
   font-weight: 700;
@@ -248,6 +258,29 @@ type-control ::ng-deep .select-value {
   min-width: 0;
 }
 
+.chart-card-header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.chart-card-body {
+  display: flex;
+  align-items: stretch;
+  gap: 1.25rem;
+}
+
+.chart-card-body .donut-container,
+.chart-card-body .avg-check-chart-inner {
+  flex: 0 0 45%;
+  min-width: 0;
+}
+
+.chart-card-body .donut-legend-right,
+.chart-card-body .chart-side-legend {
+  flex: 1;
+}
+
 .report-chart-card .chart-title {
   font-size: 0.875rem;
   font-weight: 600;
@@ -264,25 +297,25 @@ type-control ::ng-deep .select-value {
 }
 
 .report-chart-card .donut-chart {
-  width: 140px;
-  height: 140px;
-  display: block;
+  width: 120px;
+  height: 120px;
 }
 
 // Donut legend: numbers on the right (one row: dot, label, %, value)
 .donut-legend-right {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.6rem;
   padding-top: 0.5rem;
+  margin-right: 1rem;
   font-size: 0.8125rem;
 }
 
 .donut-legend-right .legend-item {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
 }
 
 .donut-legend-right .legend-color {
@@ -290,6 +323,18 @@ type-control ::ng-deep .select-value {
   height: 10px;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.legend-main-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-values-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .donut-legend-right .legend-color.loyalty {
@@ -302,7 +347,6 @@ type-control ::ng-deep .select-value {
 
 .donut-legend-right .legend-label {
   color: #64748b;
-  flex-shrink: 0;
 }
 
 .donut-legend-right .legend-value {
@@ -312,7 +356,6 @@ type-control ::ng-deep .select-value {
 }
 
 .donut-legend-right .legend-count {
-  margin-left: auto;
   font-size: 0.8125rem;
   color: #64748b;
   font-weight: 500;
@@ -328,6 +371,7 @@ type-control ::ng-deep .select-value {
   flex: 1;
   min-height: 180px;
   align-items: stretch;
+  margin-right: .5rem;
 }
 
 .avg-check-y-axis {
@@ -395,6 +439,7 @@ type-control ::ng-deep .select-value {
 }
 
 .avg-check-bar-fill {
+  position: relative;
   width: 100%;
   border-radius: 4px 4px 0 0;
   min-height: 4px;
@@ -409,15 +454,66 @@ type-control ::ng-deep .select-value {
   background: #94a3b8;
 }
 
+.avg-check-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%) translateY(-6px);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #f9fafb;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 5;
+}
+
+.avg-check-tooltip .tooltip-title {
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.avg-check-tooltip .tooltip-row {
+  font-weight: 500;
+}
+
+.avg-check-bar-fill:hover .avg-check-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+
 .avg-check-legend-inline {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.35rem;
   margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #f1f5f9;
+  padding-top: 0.25rem;
+  border-top: none;
   font-size: 0.75rem;
   color: #64748b;
 }
+
+.avg-leg-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8125rem;
+}
+
+.avg-leg-main {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.avg-leg-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
 
 .avg-check-legend-inline .leg.green::before {
   content: '';
@@ -499,16 +595,23 @@ type-control ::ng-deep .select-value {
 .month-chart-year-select {
   flex-shrink: 0;
   width: 100px;
+}
 
-  ::ng-deep .select-trigger {
-    padding: 0.35rem 0.6rem;
-    min-height: unset;
-    font-size: 0.8125rem;
-  }
+.month-year-native-select {
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-input-border, #e2e8f0);
+  font-size: 0.8125rem;
+  background-color: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  outline: none;
+}
 
-  ::ng-deep .select-value {
-    white-space: nowrap;
-  }
+.month-year-native-select:focus {
+  border-color: var(--color-input-border-focus, #22c55e);
+  box-shadow: 0 0 0 3px var(--color-input-shadow-focus, rgba(34, 197, 94, 0.15));
 }
 
 .monthly-chart {
@@ -589,7 +692,7 @@ type-control ::ng-deep .select-value {
 }
 
 .month-cell .month-label {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: #64748b;
   text-align: center;
   white-space: nowrap;

@@ -33,7 +33,7 @@
         <p class="report-period">{{ formatPeriod(report.periodFrom, report.periodTo) }}</p>
       </div>
 
-      <!-- Row 1: Транзакции | Продажи | Средний чек | В обороте/Потрачено (one row) -->
+      <!-- Row 1: карточки Транзакции | Бонусы | Эффективность -->
       <div class="report-card-groups report-row-one">
         <section class="report-card-group">
           <div class="card-group-header">
@@ -57,87 +57,7 @@
             </div>
           </div>
         </section>
-        <div class="report-chart-card donut-chart-card">
-          <h3 class="chart-title">Продажи</h3>
-          <div class="donut-container">
-            <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
-                [attr.stroke-dasharray]="getDonutSalesDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
-                [attr.stroke-dasharray]="getDonutSalesDash()" [attr.stroke-dashoffset]="getDonutSalesOffset()" transform="rotate(-90 50 50)"/>
-            </svg>
-          </div>
-          <div class="donut-legend donut-legend-right">
-            <div class="legend-item">
-              <span class="legend-color loyalty"></span>
-              <span class="legend-label">С бонусами</span>
-              <span class="legend-value">{{ donutSalesWithPercent | number:'1.0-0' }}%</span>
-              <span class="legend-count">{{ report.transactionCount | number }}</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color non-loyalty"></span>
-              <span class="legend-label">Без бонусов</span>
-              <span class="legend-value">{{ donutSalesWithoutPercent | number:'1.0-0' }}%</span>
-              <span class="legend-count">{{ (report.transactionCountWithoutBonus ?? 0) | number }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="report-chart-card avg-check-chart-card">
-          <h3 class="chart-title">Средний чек</h3>
-          <div class="avg-check-chart-inner">
-            <div class="avg-check-y-axis">
-              <span *ngFor="let label of getAvgCheckAxisLabels()">{{ label }}</span>
-            </div>
-            <div class="avg-check-chart-area">
-              <div class="avg-check-grid" aria-hidden="true">
-                <span *ngFor="let label of getAvgCheckAxisLabels(); let i = index" class="avg-check-grid-line" [style.top.%]="(i / 4) * 100"></span>
-              </div>
-              <div class="avg-check-bars-row">
-                <div class="avg-check-bar-track">
-                  <div class="avg-check-bar-fill with-bonus" [style.height.%]="(report.avgCheckWithBonus / maxAvgForBarRounded) * 100"></div>
-                </div>
-                <div class="avg-check-bar-track">
-                  <div class="avg-check-bar-fill without-bonus" [style.height.%]="(report.avgCheckWithoutBonus / maxAvgForBarRounded) * 100"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="avg-check-legend-inline">
-            <span class="leg green">С бонусом</span>
-            <span class="leg grey">Без бонуса</span>
-          </div>
-        </div>
-        <div class="report-chart-card donut-chart-card donut-in-circulation">
-          <h3 class="chart-title">В обороте / Потрачено</h3>
-          <div class="donut-container">
-            <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
-                [attr.stroke-dasharray]="getDonutBonusDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
-                [attr.stroke-dasharray]="getDonutBonusSpentDash()" [attr.stroke-dashoffset]="getDonutBonusOffset()" transform="rotate(-90 50 50)"/>
-            </svg>
-          </div>
-          <div class="donut-legend donut-legend-right">
-            <div class="legend-item">
-              <span class="legend-color loyalty"></span>
-              <span class="legend-label">В обороте</span>
-              <span class="legend-value">{{ donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
-              <span class="legend-count">{{ formatMoney(report.inCirculation) }} ₸</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color non-loyalty"></span>
-              <span class="legend-label">Потрачено</span>
-              <span class="legend-value">{{ 100 - donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
-              <span class="legend-count">{{ formatMoney(report.spentAmount) }} ₸</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Row 2: Бонусы | Эффективность | Средний чек и выручка по месяцам (monthly chart on the right) -->
-      <div class="report-card-groups report-row-two">
         <section class="report-card-group">
           <div class="card-group-header">
             <div class="card-group-icon card-group-icon-bonus">
@@ -164,6 +84,7 @@
             </div>
           </div>
         </section>
+
         <section class="report-card-group">
           <div class="card-group-header">
             <div class="card-group-icon card-group-icon-kpi">
@@ -189,7 +110,141 @@
             <span class="metric-value">{{ formatMoney(report.cac) }} ₸</span>
           </div>
         </section>
-        <section class="report-block monthly-block report-monthly-inline" *ngIf="monthlyChartData?.length">
+      </div>
+
+      <!-- Row 2: графики Продажи | Средний чек | В обороте / Потрачено -->
+      <div class="report-card-groups report-row-two">
+        <div class="report-chart-card donut-chart-card">
+          <div class="card-group-header chart-card-header">
+            <h3 class="card-group-title">Продажи</h3>
+          </div>
+          <div class="chart-card-body">
+            <div class="donut-container">
+              <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
+                  [attr.stroke-dasharray]="getDonutSalesDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
+                  [attr.stroke-dasharray]="getDonutSalesDash()" [attr.stroke-dashoffset]="getDonutSalesOffset()" transform="rotate(-90 50 50)"/>
+              </svg>
+            </div>
+            <div class="donut-legend donut-legend-right">
+              <div class="legend-item">
+                <div class="legend-main-row">
+                  <span class="legend-color loyalty"></span>
+                  <span class="legend-label">С бонусами</span>
+                </div>
+                <div class="legend-values-row">
+                  <span class="legend-value">{{ donutSalesWithPercent | number:'1.0-0' }}%</span>
+                  <span class="legend-count">{{ report.transactionCount | number }}</span>
+                </div>
+              </div>
+              <div class="legend-item">
+                <div class="legend-main-row">
+                  <span class="legend-color non-loyalty"></span>
+                  <span class="legend-label">Без бонусов</span>
+                </div>
+                <div class="legend-values-row">
+                  <span class="legend-value">{{ donutSalesWithoutPercent | number:'1.0-0' }}%</span>
+                  <span class="legend-count">{{ (report.transactionCountWithoutBonus ?? 0) | number }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-chart-card avg-check-chart-card">
+          <div class="card-group-header chart-card-header">
+            <h3 class="card-group-title">Средний чек</h3>
+          </div>
+          <div class="chart-card-body">
+            <div class="avg-check-chart-inner">
+              <div class="avg-check-y-axis">
+                <span *ngFor="let label of getAvgCheckAxisLabels()">{{ label }}</span>
+              </div>
+              <div class="avg-check-chart-area">
+                <div class="avg-check-grid" aria-hidden="true">
+                  <span *ngFor="let label of getAvgCheckAxisLabels(); let i = index" class="avg-check-grid-line" [style.top.%]="(i / 4) * 100"></span>
+                </div>
+                <div class="avg-check-bars-row">
+                  <div class="avg-check-bar-track">
+                    <div class="avg-check-bar-fill with-bonus" [style.height.%]="(report.avgCheckWithBonus / maxAvgForBarRounded) * 100">
+                      <div class="month-bar-tooltip">
+                        <div class="tooltip-title">С бонусом</div>
+                        <div class="tooltip-row">Средний чек: {{ formatMoney(report.avgCheckWithBonus) }} ₸</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="avg-check-bar-track">
+                    <div class="avg-check-bar-fill without-bonus" [style.height.%]="(report.avgCheckWithoutBonus / maxAvgForBarRounded) * 100">
+                      <div class="month-bar-tooltip">
+                        <div class="tooltip-title">Без бонуса</div>
+                        <div class="tooltip-row">Средний чек: {{ formatMoney(report.avgCheckWithoutBonus) }} ₸</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="avg-check-legend-inline chart-side-legend">
+              <div class="avg-leg-item">
+                <div class="avg-leg-main">
+                  <span class="leg green">С бонусом</span>
+                </div>
+                <div class="avg-leg-value">{{ formatMoney(report.avgCheckWithBonus) }} ₸</div>
+              </div>
+              <div class="avg-leg-item">
+                <div class="avg-leg-main">
+                  <span class="leg grey">Без бонуса</span>
+                </div>
+                <div class="avg-leg-value">{{ formatMoney(report.avgCheckWithoutBonus) }} ₸</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-chart-card donut-chart-card donut-in-circulation">
+          <div class="card-group-header chart-card-header">
+            <h3 class="card-group-title">В обороте / Потрачено</h3>
+          </div>
+          <div class="chart-card-body">
+            <div class="donut-container">
+              <svg class="donut-chart" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#22c55e" stroke-width="16"
+                  [attr.stroke-dasharray]="getDonutBonusDash()" stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="16"
+                  [attr.stroke-dasharray]="getDonutBonusSpentDash()" [attr.stroke-dashoffset]="getDonutBonusOffset()" transform="rotate(-90 50 50)"/>
+              </svg>
+            </div>
+            <div class="donut-legend donut-legend-right">
+              <div class="legend-item">
+                <div class="legend-main-row">
+                  <span class="legend-color loyalty"></span>
+                  <span class="legend-label">В обороте</span>
+                </div>
+                <div class="legend-values-row">
+                  <span class="legend-value">{{ donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
+                  <span class="legend-count">{{ formatMoney(report.inCirculation) }} ₸</span>
+                </div>
+              </div>
+              <div class="legend-item">
+                <div class="legend-main-row">
+                  <span class="legend-color non-loyalty"></span>
+                  <span class="legend-label">Потрачено</span>
+                </div>
+                <div class="legend-values-row">
+                  <span class="legend-value">{{ 100 - donutBonusInCirculationPercent | number:'1.0-0' }}%</span>
+                  <span class="legend-count">{{ formatMoney(report.spentAmount) }} ₸</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Средний чек и выручка по месяцам -->
+      <section class="report-block monthly-block report-monthly-inline" *ngIf="monthlyChartData?.length">
         <div class="block-header">
           <div class="block-icon block-icon-chart">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
@@ -264,8 +319,7 @@
         <div class="monthly-chart-loading" *ngIf="isMonthlyChartLoading">
           <app-loader [visible]="true" [overlay]="false" type="logo" size="small"></app-loader>
         </div>
-        </section>
-      </div>
+      </section>
     </div>
   </ng-container>
 
