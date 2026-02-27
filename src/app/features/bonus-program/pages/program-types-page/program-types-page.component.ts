@@ -5,7 +5,7 @@ import { PageHeaderService } from '../../../../core/services/page-header.service
 import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
 import { RewardProgramSlot, RewardProgramType } from '../../../../core/models/reward-program.model';
 
-type ProgramTypeId = 'welcome' | 'birthday' | 'referral' | 'cashback';
+type ProgramTypeId = 'welcome' | 'referral' | 'cashback';
 
 interface ProgramTypeCard {
   id: ProgramTypeId;
@@ -16,10 +16,9 @@ interface ProgramTypeCard {
 }
 
 const PROGRAM_TYPES: ProgramTypeCard[] = [
-  { id: 'welcome', title: 'Welcome reward', description: 'Fixed bonus after the first purchase.', section: 'Acquisition', icon: 'welcome' },
-  { id: 'birthday', title: 'Birthday reward', description: 'Bonus to customers on their birthday.', section: 'Events', icon: 'gift' },
-  { id: 'referral', title: 'Referral', description: 'Rewards for successful client referrals.', section: 'Growth', icon: 'referral' },
-  { id: 'cashback', title: 'Cashback', description: 'Percentage cashback on each payment.', section: 'Growth', icon: 'percent' }
+  { id: 'cashback', title: 'Cashback', description: 'Percentage cashback on each payment.', section: 'Growth', icon: 'percent' },
+  { id: 'welcome', title: 'Event (Событийный)', description: 'Reward customers on events: first payment, joining, birthday, and more.', section: 'Acquisition', icon: 'welcome' },
+  { id: 'referral', title: 'Referral', description: 'Rewards for successful client referrals.', section: 'Growth', icon: 'referral' }
 ];
 
 @Component({
@@ -41,7 +40,6 @@ const PROGRAM_TYPES: ProgramTypeCard[] = [
             <div class="type-card-icon">
               <ng-container [ngSwitch]="card.icon">
                 <svg *ngSwitchCase="'welcome'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M7 4v4M17 4v4"/></svg>
-                <svg *ngSwitchCase="'gift'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12v9H4v-9"/><rect x="2" y="7" width="20" height="5" rx="1"/><path d="M12 22V7"/><path d="M12 7c-2-2-4-2.5-4-4.5a2 2 0 0 1 4 0c0 1.5-2 2-4 4.5"/><path d="M12 7c2-2 4-2.5 4-4.5a2 2 0 0 0-4 0c0 1.5 2 2 4 4.5"/></svg>
                 <svg *ngSwitchCase="'referral'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.5 13.5l7 4M15.5 6.5l-7 4"/></svg>
                 <svg *ngSwitchCase="'percent'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="2"/><circle cx="15" cy="15" r="2"/><path d="M5 19L19 5"/></svg>
               </ng-container>
@@ -138,7 +136,6 @@ export class ProgramTypesPageComponent implements OnInit {
   private toRewardProgramType(id: ProgramTypeId): RewardProgramType {
     switch (id) {
       case 'welcome': return 'WELCOME';
-      case 'birthday': return 'BIRTHDAY';
       case 'referral': return 'REFERRAL';
       case 'cashback':
       default:

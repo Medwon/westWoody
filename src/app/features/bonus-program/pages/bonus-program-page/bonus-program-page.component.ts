@@ -93,8 +93,8 @@ function formatBonusType(program: RewardProgramListItem): { line1: string; line2
             Increase engagement with your loyalty program. Create a promotion where members can earn extra points when they shop at designated times — perfect for happy hour or holidays.
           </p>
           <a routerLink="/reward-programs/programs" class="btn-create-program">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 5v14M5 12h14"/>
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 12H18M12 6V18"/>
             </svg>
             Create program
           </a>

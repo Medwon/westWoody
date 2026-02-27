@@ -26,7 +26,7 @@ import { SelectComponent, SelectOption } from '../../../../../shared/components/
         <textarea
           class="field-textarea"
           rows="3"
-          placeholder="Describe this welcome program for your team."
+          placeholder="Describe this event program for your team."
           formControlName="description"
         ></textarea>
       </div>

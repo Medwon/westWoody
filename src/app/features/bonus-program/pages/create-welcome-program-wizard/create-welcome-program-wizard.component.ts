@@ -23,10 +23,10 @@ import { AlertComponent } from '../../../../shared/components/alert/alert.compon
 
 const WELCOME_STEPS = [
   { num: 1, label: 'Program details', hint: 'Name, description and type to grant (points or KZT).' },
-  { num: 2, label: 'Schedule', hint: 'Launch always-on or schedule with start/end dates.' },
-  { num: 3, label: 'Rules', hint: 'Bonus lifespan and when to grant (on join or first pay).' },
+  { num: 2, label: 'Rules', hint: 'Bonus lifespan and when to grant (on join, first pay, or birthday).' },
+  { num: 3, label: 'Schedule', hint: 'Launch always-on or schedule with start/end dates.' },
   { num: 4, label: 'Notifications', hint: 'Preview promotional messaging options.' },
-  { num: 5, label: 'Summary & Launch', hint: 'Review and launch the welcome program.' }
+  { num: 5, label: 'Summary & Launch', hint: 'Review and launch the event program.' }
 ];
 
 const ALL_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -54,13 +54,15 @@ const ALL_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATUR
           </app-alert>
 
           <app-step-welcome-details *ngIf="currentStep === 1" [form]="form"></app-step-welcome-details>
+          <app-step-welcome-rules *ngIf="currentStep === 2" [form]="form"></app-step-welcome-rules>
           <app-step-schedule
-            *ngIf="currentStep === 2"
+            *ngIf="currentStep === 3"
             [form]="form"
             [scheduleOverlap]="scheduleOverlap"
             [hideWeekly]="true"
+            [hidePeriodicOption]="isBirthdayProgram()"
+            [birthdayAlwaysOnInfo]="isBirthdayProgram()"
           ></app-step-schedule>
-          <app-step-welcome-rules *ngIf="currentStep === 3" [form]="form"></app-step-welcome-rules>
           <app-step-notifications *ngIf="currentStep === 4"></app-step-notifications>
           <app-step-welcome-summary
             *ngIf="currentStep === 5"
@@ -76,7 +78,7 @@ const ALL_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATUR
         </main>
 
         <aside class="steps-sidebar">
-          <h3 class="sidebar-title">Welcome Program</h3>
+          <h3 class="sidebar-title">Event (Событийный) Program</h3>
           <ul class="steps-list">
             <li *ngFor="let step of WELCOME_STEPS; let last = last"
                 class="step-item"
@@ -223,6 +225,15 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
         return !!(hasName && grantType && grantValue != null && Number(grantValue) > 0);
       }
       case 2: {
+        const trigger = this.form.get('grantTrigger')?.value;
+        if (trigger === 'ON_JOIN' || trigger === 'ON_BIRTHDAY') return true;
+        return !!this.form.get('firstPayMode')?.value;
+      }
+      case 3: {
+        if (this.isBirthdayProgram()) {
+          return this.form.get('scheduleMode')?.value === 'immediate_always_on'
+            && !(this.scheduleOverlap?.overlaps && this.scheduleOverlap?.alwaysOnConflict);
+        }
         const mode = this.form.get('scheduleMode')?.value;
         if (mode === 'immediate_always_on') {
           return !(this.scheduleOverlap?.overlaps && this.scheduleOverlap?.alwaysOnConflict);
@@ -234,11 +245,6 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
         return !!(start?.valid && end?.valid
           && sv != null && String(sv).trim().length > 0
           && ev != null && String(ev).trim().length > 0);
-      }
-      case 3: {
-        const trigger = this.form.get('grantTrigger')?.value;
-        if (trigger === 'ON_JOIN') return true;
-        return !!this.form.get('firstPayMode')?.value;
       }
       case 4:
       case 5:
@@ -257,6 +263,10 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
     return this.form?.get('scheduleMode')?.value === 'periodic';
   }
 
+  isBirthdayProgram(): boolean {
+    return this.form?.get('grantTrigger')?.value === 'ON_BIRTHDAY';
+  }
+
   ngOnInit(): void {
     this.preserveDraftOnCancel = this.route.snapshot.queryParamMap.get('continue-editing') != null;
     this.draftUuid = this.route.snapshot.paramMap.get('uuid') ?? '';
@@ -273,15 +283,32 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.pageHeaderService.setPageHeader('Create Welcome Program', [
+    this.pageHeaderService.setPageHeader('Create Event Program', [
       { label: 'Home', route: '/home' },
       { label: 'Reward Programs', route: '/reward-programs' },
-      { label: 'Create Welcome Program' }
+      { label: 'Create Event Program' }
     ]);
 
     this.buildForm();
+    this.setupBirthdayScheduleSync();
     this.loadExistingDraft();
     this.setupOverlapCheck();
+  }
+
+  /** When grant trigger is ON_BIRTHDAY, force schedule to always-on (no periodic option). */
+  private setupBirthdayScheduleSync(): void {
+    this.form.get('grantTrigger')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(trigger => {
+      if (trigger === 'ON_BIRTHDAY') {
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' }, { emitEvent: false });
+        this.form.get('startDate')?.clearValidators();
+        this.form.get('endDate')?.clearValidators();
+        this.form.get('startDate')?.updateValueAndValidity();
+        this.form.get('endDate')?.updateValueAndValidity();
+      }
+    });
   }
 
   private buildForm(): void {
@@ -342,6 +369,16 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
         grantTrigger: p.welcomeRule.grantTrigger,
         firstPayMode: p.welcomeRule.firstPayMode ?? null
       });
+      if (p.welcomeRule.grantTrigger === 'ON_BIRTHDAY') {
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' });
+        this.form.get('startDate')?.clearValidators();
+        this.form.get('endDate')?.clearValidators();
+        this.form.get('startDate')?.updateValueAndValidity();
+        this.form.get('endDate')?.updateValueAndValidity();
+      }
     }
   }
 
