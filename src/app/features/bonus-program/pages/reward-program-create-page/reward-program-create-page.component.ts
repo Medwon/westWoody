@@ -59,7 +59,7 @@ export class RewardProgramCreatePageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
 
   private readonly typeLabels: Record<string, string> = {
-    welcome: 'Welcome reward',
+    welcome: 'Event (Событийный)',
     birthday: 'Birthday reward',
     referral: 'Referral',
     cashback: 'Cashback'

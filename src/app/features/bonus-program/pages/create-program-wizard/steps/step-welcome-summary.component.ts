@@ -74,8 +74,32 @@ import { ScheduleOverlapCheckResponse } from '../../../../../core/models/reward-
       <div class="summary-section">
         <h3 class="section-heading">
           <span class="section-num">2</span>
-          Schedule
+          Rules
           <button type="button" class="btn-edit" (click)="goToStep.emit(2)" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </h3>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="item-label">Bonus lifespan</span>
+            <span class="item-value">{{ formValue.bonusLifespanDays ? formValue.bonusLifespanDays + ' days' : 'Never expires' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="item-label">When to grant</span>
+            <span class="item-value">{{ whenToGrantLabel(formValue.grantTrigger) }}</span>
+          </div>
+          <div class="summary-item" *ngIf="formValue.grantTrigger === 'ON_FIRST_PAY'">
+            <span class="item-label">On first payment</span>
+            <span class="item-value">{{ formValue.firstPayMode === 'WELCOME_ONLY' ? 'Grant only welcome bonus' : 'Grant alongside cashback' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <h3 class="section-heading">
+          <span class="section-num">3</span>
+          Schedule
+          <button type="button" class="btn-edit" (click)="goToStep.emit(3)" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
         </h3>
@@ -91,30 +115,6 @@ import { ScheduleOverlapCheckResponse } from '../../../../../core/models/reward-
           <div class="summary-item" *ngIf="formValue.scheduleMode !== 'immediate_always_on'">
             <span class="item-label">End date</span>
             <span class="item-value">{{ formValue.endDate ? formatDate(formValue.endDate) : '—' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="summary-section">
-        <h3 class="section-heading">
-          <span class="section-num">3</span>
-          Rules
-          <button type="button" class="btn-edit" (click)="goToStep.emit(3)" title="Edit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-        </h3>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="item-label">Bonus lifespan</span>
-            <span class="item-value">{{ formValue.bonusLifespanDays ? formValue.bonusLifespanDays + ' days' : 'Never expires' }}</span>
-          </div>
-          <div class="summary-item">
-            <span class="item-label">When to grant</span>
-            <span class="item-value">{{ formValue.grantTrigger === 'ON_JOIN' ? 'On client joining the program' : 'On first payment' }}</span>
-          </div>
-          <div class="summary-item" *ngIf="formValue.grantTrigger === 'ON_FIRST_PAY'">
-            <span class="item-label">On first payment</span>
-            <span class="item-value">{{ formValue.firstPayMode === 'WELCOME_ONLY' ? 'Grant only welcome bonus' : 'Grant alongside cashback' }}</span>
           </div>
         </div>
       </div>
@@ -178,5 +178,11 @@ export class StepWelcomeSummaryComponent {
     } catch {
       return iso;
     }
+  }
+
+  whenToGrantLabel(trigger: string): string {
+    if (trigger === 'ON_JOIN') return 'On client joining the program';
+    if (trigger === 'ON_BIRTHDAY') return "On client's birthday";
+    return 'On first payment';
   }
 }

@@ -1202,7 +1202,9 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
   }
 
   welcomeGrantTriggerLabel(trigger: string): string {
-    return trigger === 'ON_JOIN' ? 'On client joining' : 'On first payment';
+    if (trigger === 'ON_JOIN') return 'On client joining';
+    if (trigger === 'ON_BIRTHDAY') return "On client's birthday";
+    return 'On first payment';
   }
 
   welcomeFirstPayModeLabel(mode: string): string {

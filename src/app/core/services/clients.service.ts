@@ -76,6 +76,11 @@ export interface UpdateClientTagsRequest {
   tags: string[];
 }
 
+export interface ClientBirthdayStatsResponse {
+  withBirthdate: number;
+  grantedThisYear: number;
+}
+
 export interface ClientByPhoneResponse {
   clientId: string;
   name: string;
@@ -230,6 +235,13 @@ export class ClientsService {
    */
   getFrequentClients(limit: number = 5): Observable<FrequentClientDto[]> {
     return this.http.get<FrequentClientDto[]>(`${this.apiUrl}/frequent?limit=${limit}`);
+  }
+
+  /**
+   * Get birthday stats for event program: clients with birthdate set and how many will be granted this year (birthdays after today).
+   */
+  getBirthdayStats(): Observable<ClientBirthdayStatsResponse> {
+    return this.http.get<ClientBirthdayStatsResponse>(`${this.apiUrl}/birthday-stats`);
   }
 
   /**

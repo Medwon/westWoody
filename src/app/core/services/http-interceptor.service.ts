@@ -105,8 +105,9 @@ export const authInterceptor: HttpInterceptorFn = (
           );
         }
         
-        // If already refreshing or is an auth endpoint, dispatch session expired
-        if (!isAuthEndpoint) {
+        // If another request is already refreshing, do NOT dispatch session expired –
+        // let the in-flight refresh complete; only dispatch when we didn't attempt refresh at all (e.g. auth endpoint).
+        if (!isAuthEndpoint && !isRefreshing) {
           store.dispatch(AuthActions.sessionExpired());
         }
       }

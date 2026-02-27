@@ -23,12 +23,19 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   imports: [CommonModule, ReactiveFormsModule, SwitchComponent, SelectComponent, DatePickerComponent, AlertComponent],
   template: `
     <div class="step-form" [formGroup]="form">
-      <!-- Schedule mode: always-on or periodic. Always-on is disabled when one already exists for this type. -->
+      <!-- Schedule mode: always-on or periodic. For birthday programs only always-on is allowed. -->
       <div class="section">
         <h3 class="section-title">When to run</h3>
-        <p class="section-desc">Launch the program now as always-on, or schedule a periodic program with start and end dates.</p>
+        <p class="section-desc" *ngIf="!hidePeriodicOption">Launch the program now as always-on, or schedule a periodic program with start and end dates.</p>
+        <p class="section-desc" *ngIf="hidePeriodicOption">This program can only run as always-on.</p>
 
-        <div class="schedule-mode-toggle">
+        @if (birthdayAlwaysOnInfo) {
+          <app-alert type="info" [dismissible]="false" class="birthday-info">
+            This program runs only as always-on. Bonuses are granted on each client's birthday while the program is active.
+          </app-alert>
+        }
+
+        <div class="schedule-mode-toggle" [class.single-mode]="hidePeriodicOption">
           <button
             type="button"
             class="mode-btn"
@@ -43,15 +50,17 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
               <span class="mode-btn-reason">Only one always-on program per type allowed</span>
             }
           </button>
-          <button
-            type="button"
-            class="mode-btn"
-            [class.active]="!isImmediateAlwaysOn"
-            (click)="setScheduleMode('periodic')"
-          >
-            <span class="mode-btn-label">Schedule periodic program</span>
-            <span class="mode-btn-desc">Set start and end dates</span>
-          </button>
+          @if (!hidePeriodicOption) {
+            <button
+              type="button"
+              class="mode-btn"
+              [class.active]="!isImmediateAlwaysOn"
+              (click)="setScheduleMode('periodic')"
+            >
+              <span class="mode-btn-label">Schedule periodic program</span>
+              <span class="mode-btn-desc">Set start and end dates</span>
+            </button>
+          }
         </div>
       </div>
 
@@ -151,6 +160,8 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
     .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem 0; }
     .section-desc { font-size: 0.85rem; color: #64748b; margin: 0 0 1rem 0; line-height: 1.45; }
     .schedule-mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .schedule-mode-toggle.single-mode { grid-template-columns: 1fr; }
+    .birthday-info { margin-bottom: 1rem; }
     .mode-btn {
       display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;
       text-align: left; padding: 1rem 1.25rem; border-radius: 10px;
@@ -191,6 +202,10 @@ export class StepScheduleComponent implements OnInit {
   @Input() scheduleOverlap: ScheduleOverlapCheckResponse | null = null;
   /** When true, hide the weekly schedule section (e.g. for welcome program). */
   @Input() hideWeekly = false;
+  /** When true, hide the "Schedule periodic program" option (e.g. for birthday event program). */
+  @Input() hidePeriodicOption = false;
+  /** When true, show info that this program can only run as always-on. */
+  @Input() birthdayAlwaysOnInfo = false;
 
   timeOptions: SelectOption[] = [];
 

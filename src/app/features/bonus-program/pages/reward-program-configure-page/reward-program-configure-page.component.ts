@@ -33,7 +33,7 @@ export class RewardProgramConfigurePageComponent {
   typeLabel = '';
 
   private readonly typeLabels: Record<string, string> = {
-    welcome: 'Приветственное вознаграждение',
+    welcome: 'Event (Событийный)',
     birthday: 'День рождения',
     referral: 'Реферальная программа',
     cashback: 'Кэшбэк'

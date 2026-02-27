@@ -11,7 +11,7 @@ export type EligibilityType = 'ALL' | 'SPECIFIC_ITEMS' | 'SPECIFIC_CATEGORIES' |
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 export type WelcomeGrantType = 'POINTS' | 'FIXED_MONEY_KZT';
-export type GrantTrigger = 'ON_JOIN' | 'ON_FIRST_PAY';
+export type GrantTrigger = 'ON_JOIN' | 'ON_FIRST_PAY' | 'ON_BIRTHDAY';
 export type FirstPayMode = 'WELCOME_ONLY' | 'WELCOME_AND_CASHBACK';
 
 // ─── Slot (program type selection screen) ────────────────────────────

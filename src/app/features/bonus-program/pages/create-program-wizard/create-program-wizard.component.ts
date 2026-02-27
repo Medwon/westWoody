@@ -35,8 +35,8 @@ interface WizardStep {
 
 const STEPS: WizardStep[] = [
   { num: 1, label: 'Program details', hint: 'Define basic information about this cashback program.' },
-  { num: 2, label: 'Schedule', hint: 'Set program dates and weekly active hours.' },
-  { num: 3, label: 'Rules', hint: 'Configure spending rules and redeem limits.' },
+  { num: 2, label: 'Rules', hint: 'Configure spending rules and redeem limits.' },
+  { num: 3, label: 'Schedule', hint: 'Set program dates and weekly active hours.' },
   { num: 4, label: 'Tiers (optional)', hint: 'Optionally add tiers to reward loyal customers.' },
   { num: 5, label: 'Notifications', hint: 'Preview promotional messaging options.' },
   { num: 6, label: 'Summary & Launch', hint: 'Review all settings and launch the program.' }
@@ -72,18 +72,18 @@ const ALL_DAYS: DayOfWeek[] = [
             [form]="form"
           ></app-step-program-details>
 
-          <!-- Step 2: Schedule -->
-          <app-step-schedule
+          <!-- Step 2: Rules -->
+          <app-step-rules
             *ngIf="currentStep === 2"
+            [form]="form"
+          ></app-step-rules>
+
+          <!-- Step 3: Schedule -->
+          <app-step-schedule
+            *ngIf="currentStep === 3"
             [form]="form"
             [scheduleOverlap]="scheduleOverlap"
           ></app-step-schedule>
-
-          <!-- Step 3: Rules -->
-          <app-step-rules
-            *ngIf="currentStep === 3"
-            [form]="form"
-          ></app-step-rules>
 
           <!-- Step 4: Tiers -->
           <app-step-tiers
@@ -399,6 +399,10 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
           && (type !== 'BONUS_POINTS' || (pts?.value != null && Number(pts?.value) > 0)));
       }
       case 2: {
+        const minSpend = this.form.get('minSpendAmount');
+        return minSpend?.valid === true;
+      }
+      case 3: {
         const mode = this.form.get('scheduleMode')?.value;
         if (mode === 'immediate_always_on') {
           return !(this.scheduleOverlap?.overlaps && this.scheduleOverlap?.alwaysOnConflict);
@@ -410,10 +414,6 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
         return !!(start?.valid && end?.valid
           && sv != null && String(sv).trim().length > 0
           && ev != null && String(ev).trim().length > 0);
-      }
-      case 3: {
-        const minSpend = this.form.get('minSpendAmount');
-        return minSpend?.valid === true;
       }
       case 4: {
         const tiers = this.form.get('tiers') as FormArray;
