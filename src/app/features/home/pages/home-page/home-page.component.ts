@@ -110,8 +110,9 @@ interface RecentPayment {
                   {{ kpi.label }}
                   <span class="metric-tooltip-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                  </span>
                   <span class="kpi-metric-tooltip pos-right">{{ kpi.tooltip }}</span>
+                    
+                    </span>
                 </span>
                 <ng-container *ngIf="!kpi.tooltip">{{ kpi.label }}</ng-container>
               </span>
@@ -816,7 +817,7 @@ interface RecentPayment {
     }
     .kpi-metric-tooltip.pos-right {
       right: auto;
-      left: 0;
+      left: -10px;
     }
     .kpi-metric-tooltip.pos-right::after {
       right: auto;
@@ -1230,6 +1231,9 @@ interface RecentPayment {
       color: #f472b6;
       font-weight: 600;
     }
+      .metric-tooltip-icon {
+  position: relative; 
+}
 
     .chart-x-axis {
       display: flex;

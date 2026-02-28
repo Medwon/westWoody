@@ -81,7 +81,7 @@ export class UserActivityService implements OnDestroy {
       )
       .subscribe((user) => {
         if (user) {
-          this.store.dispatch(AuthActions.loginSuccess({ user }));
+          this.store.dispatch(AuthActions.refreshTokenSuccess({ user }));
         }
       });
   }

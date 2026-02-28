@@ -90,8 +90,8 @@ export const authInterceptor: HttpInterceptorFn = (
             switchMap((user) => {
               isRefreshing = false;
               console.log('[AuthInterceptor] Token refreshed successfully, retrying request');
-              // Update auth state with refreshed user
-              store.dispatch(AuthActions.loginSuccess({ user }));
+              // Update auth state without navigating (loginSuccess would redirect to /home)
+              store.dispatch(AuthActions.refreshTokenSuccess({ user }));
               // Retry the original request (cookies are automatically updated)
               return next(authReq);
             }),

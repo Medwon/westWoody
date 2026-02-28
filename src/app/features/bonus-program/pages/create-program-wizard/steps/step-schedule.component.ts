@@ -168,7 +168,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
       border: 2px solid #e2e8f0; background: #f8fafc;
       cursor: pointer; transition: all 0.2s;
     }
-    .mode-btn:hover:not(.disabled) { border-color: #cbd5e1; background: #f1f5f9; }
+    .mode-btn:hover:not(.disabled):not(.active) { border-color: #94a3b8; background: #e2e8f0; }
     .mode-btn.active { border-color: #16A34A; background: #f0fdf4; }
     .mode-btn.disabled { opacity: 0.65; cursor: not-allowed; }
     .mode-btn-label { font-weight: 600; font-size: 0.95rem; color: #0f172a; }

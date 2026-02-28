@@ -87,6 +87,14 @@ export const logoutFailure = createAction(
 );
 
 // ============================================================
+// Refresh Token Success (interceptor refreshed token – do NOT navigate)
+// ============================================================
+export const refreshTokenSuccess = createAction(
+  '[Auth] Refresh Token Success',
+  props<{ user: AuthUser }>()
+);
+
+// ============================================================
 // Session Expired (triggered by 401 interceptor)
 // ============================================================
 export const sessionExpired = createAction('[Auth] Session Expired');

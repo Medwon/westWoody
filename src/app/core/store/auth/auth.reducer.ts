@@ -135,6 +135,17 @@ export const authReducer = createReducer(
   })),
 
   // ============================================================
+  // Refresh Token Success (update state only, no navigation)
+  // ============================================================
+  on(AuthActions.refreshTokenSuccess, (state, { user }) => ({
+    ...state,
+    user,
+    isAuthenticated: true,
+    isLoading: false,
+    error: null
+  })),
+
+  // ============================================================
   // Session Expired (401 from interceptor)
   // ============================================================
   on(AuthActions.sessionExpired, (state) => ({

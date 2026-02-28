@@ -13,13 +13,14 @@ import { NotFoundStateComponent } from '../../../../shared/components/not-found-
 import { LoaderComponent } from '../../../../shared/components/loader/loader.component';
 import { SelectComponent, SelectOption } from '../../../../shared/components/select/select.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
 
 @Component({
   selector: 'app-program-tier-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NotFoundStateComponent, LoaderComponent, SelectComponent, PaginationComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NotFoundStateComponent, LoaderComponent, SelectComponent, PaginationComponent, ButtonComponent],
   template: `
     <div class="page-shell">
       @if (loading()) {
@@ -60,27 +61,59 @@ const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
           </div>
         </section>
 
-        <!-- Search and sort (all sent to backend) -->
+        <!-- Search and sort (same layout as clients page) -->
         <div class="toolbar">
-          <input
-            type="text"
-            class="tier-input"
-            placeholder="Search by client name…"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="onSearchChange($event)" />
-          <input
-            type="text"
-            class="tier-input"
-            placeholder="Search by phone…"
-            [ngModel]="searchPhoneQuery()"
-            (ngModelChange)="onSearchPhoneChange($event)" />
-          <div class="sort-control">
+          <div class="filter-group search-group">
+            <div class="search-input-wrapper search-input-unified">
+              <svg viewBox="0 0 24 24" fill="none" class="search-icon">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <input
+                type="text"
+                [ngModel]="searchQuery()"
+                (ngModelChange)="searchQuery.set($event)"
+                (keydown.enter)="applyFilters()"
+                placeholder="Поиск по имени или телефону..."
+                class="filter-input">
+              <button
+                type="button"
+                class="search-clear-btn"
+                *ngIf="searchQuery()?.trim()"
+                (click)="onClearSearch()">
+                ×
+              </button>
+            </div>
+          </div>
+          <div class="filters-actions">
+            <app-button buttonType="primary" size="medium" (onClick)="applyFilters()">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              Поиск
+            </app-button>
+            <app-button
+              *ngIf="hasActiveFilters()"
+              buttonType="secondary"
+              size="medium"
+              (onClick)="clearFilters()">
+              Сбросить
+            </app-button>
+          </div>
+          <div class="filter-group sort-group">
             <app-select
+              label="Сортировка:"
               [options]="sortOptions"
               [(ngModel)]="sortValue"
               (ngModelChange)="onSortValueChange($event)"
-              placeholder="Sort by…">
+              placeholder="Сортировка">
             </app-select>
+            <button type="button" class="sort-direction-btn" (click)="toggleSortDirection()">
+              <svg viewBox="0 0 24 24" fill="none" [class.desc]="sortDirection() === 'desc'">
+                <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -199,20 +232,50 @@ const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
     .glance-value-nowrap { white-space: nowrap; width: 100%; }
 
     .toolbar {
-      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+      display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+      background: #fff; border-radius: 16px; padding: 1.25rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .tier-input {
-      padding: 0.625rem 0.875rem; border: 1px solid var(--color-input-border, #cbd5e1);
-      border-radius: 6px; font-size: 0.875rem; background: #fff; color: #1a202c;
-      transition: border-color 0.2s, box-shadow 0.2s;
+    .filter-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .search-group { flex: 1; min-width: 260px; }
+    .search-input-wrapper { position: relative; display: flex; align-items: center; }
+    .search-input-unified .filter-input { padding-right: 2.25rem; }
+    .search-icon { position: absolute; left: 12px; width: 18px; height: 18px; color: #94a3b8; pointer-events: none; }
+    .filter-input {
+      width: 100%; padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+      border: 1.5px solid var(--color-input-border, #cbd5e1); border-radius: 10px; font-size: 0.9rem;
+      background: #f8fafc; color: #1f2937; transition: all 0.2s;
     }
-    .tier-input:hover { border-color: var(--color-input-border-hover, #94a3b8); }
-    .tier-input:focus {
-      outline: none; border-color: var(--color-input-border-focus, var(--primary-color, #15803d));
+    .filter-input:hover { border-color: var(--color-input-border-hover, #94a3b8); }
+    .filter-input:focus {
+      outline: none; border-color: var(--color-input-border-focus, #15803d); background: #fff;
       box-shadow: 0 0 0 3px var(--color-input-shadow-focus, rgba(22, 163, 74, 0.1));
     }
-    .tier-input::placeholder { color: #94a3b8; }
-    .sort-control { min-width: 200px; }
+    .filter-input::placeholder { color: #94a3b8; }
+    .search-clear-btn {
+      position: absolute; right: 10px; width: 20px; height: 20px; border-radius: 999px; border: none;
+      background: transparent; color: #94a3b8; font-size: 16px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .search-clear-btn:hover { color: #64748b; background: #e5e7eb; }
+    .filters-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+    .filters-actions app-button { min-width: 110px; }
+    .filters-actions app-button svg { width: 14px; height: 14px; }
+    .sort-group {
+      display: flex; flex-direction: row; align-items: center; gap: 0.5rem;
+    }
+    .sort-group ::ng-deep .select-wrapper { width: auto; min-width: 180px; gap: 0.35rem; }
+    .sort-group ::ng-deep .select-label { font-size: 0.75rem; font-weight: 600; color: #64748b; }
+    .sort-group ::ng-deep .select-trigger { height: 36px; min-height: 36px; padding: 0.5rem 2rem 0.5rem 0.75rem; }
+    .sort-group ::ng-deep .select-trigger:hover { border-color: #cbd5e1; }
+    .sort-group ::ng-deep .select-trigger:focus,
+    .sort-group ::ng-deep .select-trigger.open { outline: none; border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15); }
+    .sort-direction-btn {
+      width: 36px; height: 36px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff;
+      color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; margin-top: auto;
+    }
+    .sort-direction-btn svg { width: 18px; height: 18px; transition: transform 0.2s; }
+    .sort-direction-btn svg.desc { transform: rotate(180deg); }
+    .sort-direction-btn:hover { border-color: #22c55e; color: #16A34A; }
 
     .table-loading { padding: 2rem; text-align: center; }
     .table-container {
@@ -275,19 +338,15 @@ export class ProgramTierPageComponent implements OnInit {
   tier = signal<CashbackTierResponse | null>(null);
   tieredData = signal<PagedTieredClientsResponse | null>(null);
   searchQuery = signal('');
-  searchPhoneQuery = signal('');
   currentPage = signal(0);
   sortValue = 'programPeriodSpend,desc';
 
   sortOptions: SelectOption[] = [
-    { value: 'programPeriodSpend,desc', label: 'Spending (high to low)' },
-    { value: 'programPeriodSpend,asc', label: 'Spending (low to high)' },
-    { value: 'percentToNextTier,desc', label: '% to next level (high to low)' },
-    { value: 'percentToNextTier,asc', label: '% to next level (low to high)' }
+    { value: 'programPeriodSpend,desc', label: 'Spending' },
+    { value: 'percentToNextTier,desc', label: '% to next level' }
   ];
 
-  private searchDebounce: ReturnType<typeof setTimeout> | null = null;
-  private searchPhoneDebounce: ReturnType<typeof setTimeout> | null = null;
+  sortDirection = signal<'asc' | 'desc'>('desc');
   pageSize = 15;
   readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
   readonly Math = Math;
@@ -356,26 +415,40 @@ export class ProgramTierPageComponent implements OnInit {
     return `${min} – ${max}`;
   }
 
-  onSearchChange(q: string): void {
-    this.searchQuery.set(q);
-    if (this.searchDebounce) clearTimeout(this.searchDebounce);
-    this.searchDebounce = setTimeout(() => {
-      this.currentPage.set(0);
-      this.loadClients();
-    }, 300);
+  applyFilters(): void {
+    this.currentPage.set(0);
+    this.loadClients();
   }
 
-  onSearchPhoneChange(q: string): void {
-    this.searchPhoneQuery.set(q);
-    if (this.searchPhoneDebounce) clearTimeout(this.searchPhoneDebounce);
-    this.searchPhoneDebounce = setTimeout(() => {
-      this.currentPage.set(0);
-      this.loadClients();
-    }, 300);
+  clearFilters(): void {
+    this.searchQuery.set('');
+    this.sortValue = 'programPeriodSpend,desc';
+    this.sortDirection.set('desc');
+    this.currentPage.set(0);
+    this.loadClients();
+  }
+
+  hasActiveFilters(): boolean {
+    return this.searchQuery().trim() !== '' || this.sortValue !== 'programPeriodSpend,desc';
+  }
+
+  onClearSearch(): void {
+    this.searchQuery.set('');
+  }
+
+  toggleSortDirection(): void {
+    const [field] = this.sortValue.split(',');
+    const next = this.sortDirection() === 'asc' ? 'desc' : 'asc';
+    this.sortDirection.set(next);
+    this.sortValue = `${field},${next}`;
+    this.currentPage.set(0);
+    this.loadClients();
   }
 
   onSortValueChange(value: string): void {
     this.sortValue = value;
+    const dir = value.endsWith(',desc') ? 'desc' : 'asc';
+    this.sortDirection.set(dir);
     this.currentPage.set(0);
     this.loadClients();
   }
@@ -398,12 +471,38 @@ export class ProgramTierPageComponent implements OnInit {
     this.goToPage(pageOneBased - 1);
   }
 
+  /**
+   * Backend applies search and searchPhone as AND. Send query to only one param:
+   * looks like phone (digits, +, -, spaces) → searchPhone (normalized like on Clients page); otherwise → search (name).
+   */
+  private resolveSearchParams(query: string): { search?: string; searchPhone?: string } {
+    const q = query.trim();
+    if (!q) return {};
+    const normalized = q.replace(/\s/g, '');
+    const looksLikePhone = /^\+?[\d\-]+$/.test(normalized) && /\d/.test(normalized);
+    if (looksLikePhone) return { searchPhone: this.normalizePhone(q) };
+    return { search: q };
+  }
+
+  /** Same as Clients page: 8 → +7, 7 → +7, +7 → +7 */
+  private normalizePhone(input: string): string {
+    let digits = input.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits[0] === '8') {
+      digits = '7' + digits.slice(1);
+    }
+    if (digits.length === 10 && digits[0] !== '7') {
+      digits = '7' + digits;
+    }
+    return '+' + digits;
+  }
+
   private loadClients(): void {
     const uuid = this.program()?.uuid;
     if (!uuid) return;
     this.loadingClients.set(true);
-    const search = this.searchQuery().trim() || undefined;
-    const searchPhone = this.searchPhoneQuery().trim() || undefined;
+    const q = this.searchQuery().trim();
+    const { search, searchPhone } = this.resolveSearchParams(q);
     this.rewardService.getTieredClients(
       uuid,
       this.currentPage(),
