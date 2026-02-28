@@ -31,7 +31,7 @@ function formatDateRange(startDate: string | null, endDate: string | null): stri
 
 function typeToLabel(type: RewardProgramType): string {
   const map: Record<RewardProgramType, string> = {
-    WELCOME: 'Welcome',
+    EVENT: 'Event',
     BIRTHDAY: 'Birthday',
     REFERRAL: 'Referral',
     CASHBACK: 'Cashback'
@@ -51,9 +51,9 @@ function statusToLabel(status: RewardProgramStatus): string {
 }
 
 function formatBonusType(program: RewardProgramListItem): { line1: string; line2: string } {
-  if (program.type === 'WELCOME') {
-    const gt = program.welcomeGrantType;
-    const val = program.welcomeGrantValue;
+  if (program.type === 'EVENT') {
+    const gt = program.eventGrantType;
+    const val = program.eventGrantValue;
     if (gt === 'POINTS' && val != null) {
       return { line1: 'Bonus Points', line2: `${val.toLocaleString('en-US')} pts` };
     }

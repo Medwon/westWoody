@@ -10,8 +10,8 @@ import {
   RewardProgramListItem,
   SaveCashbackDraftRequest,
   LaunchCashbackProgramRequest,
-  SaveWelcomeProgramDraftRequest,
-  LaunchWelcomeProgramRequest,
+  SaveEventProgramDraftRequest,
+  LaunchEventProgramRequest,
   PagedTieredClientsResponse,
   ScheduleOverlapCheckResponse
 } from '../models/reward-program.model';
@@ -39,8 +39,8 @@ export class RewardProgramsService {
     return this.http.put<RewardProgramResponse>(`${API}/${uuid}/cashback`, data);
   }
 
-  saveWelcomeDraft(uuid: string, data: SaveWelcomeProgramDraftRequest): Observable<RewardProgramResponse> {
-    return this.http.put<RewardProgramResponse>(`${API}/${uuid}/welcome`, data);
+  saveEventDraft(uuid: string, data: SaveEventProgramDraftRequest): Observable<RewardProgramResponse> {
+    return this.http.put<RewardProgramResponse>(`${API}/${uuid}/event`, data);
   }
 
   // ─── Get Program ─────────────────────────────────────────────────
@@ -93,8 +93,8 @@ export class RewardProgramsService {
     return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch`, data);
   }
 
-  launchWelcomeProgram(uuid: string, data: LaunchWelcomeProgramRequest): Observable<RewardProgramResponse> {
-    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch-welcome`, data);
+  launchEventProgram(uuid: string, data: LaunchEventProgramRequest): Observable<RewardProgramResponse> {
+    return this.http.post<RewardProgramResponse>(`${API}/${uuid}/launch-event`, data);
   }
 
   deactivateProgram(uuid: string): Observable<RewardProgramResponse> {

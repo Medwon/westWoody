@@ -77,16 +77,16 @@ export const routes: Routes = [
             loadComponent: () => import('./features/bonus-program/pages/create-program-wizard/create-program-wizard.component').then(m => m.CreateProgramWizardComponent),
             title: 'Create Cashback Program'
           },
-          /* Welcome: full wizard (no weekly schedule) */
+          /* Event program: full wizard (no weekly schedule) */
           {
-            path: 'create/welcome/:uuid',
-            redirectTo: 'create/welcome/:uuid/steps/1',
+            path: 'create/event/:uuid',
+            redirectTo: 'create/event/:uuid/steps/1',
             pathMatch: 'full'
           },
           {
-            path: 'create/welcome/:uuid/steps/:step',
+            path: 'create/event/:uuid/steps/:step',
             loadComponent: () => import('./features/bonus-program/pages/create-welcome-program-wizard/create-welcome-program-wizard.component').then(m => m.CreateWelcomeProgramWizardComponent),
-            title: 'Create Welcome Program'
+            title: 'Create Event Program'
           },
           /* Other types: in development */
           {

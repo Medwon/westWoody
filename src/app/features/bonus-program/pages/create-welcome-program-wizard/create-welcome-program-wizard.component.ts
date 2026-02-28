@@ -9,8 +9,8 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { RewardProgramsService } from '../../../../core/services/reward-programs.service';
 import {
   RewardProgramResponse,
-  SaveWelcomeProgramDraftRequest,
-  LaunchWelcomeProgramRequest,
+  SaveEventProgramDraftRequest,
+  LaunchEventProgramRequest,
   ScheduleOverlapCheckResponse
 } from '../../../../core/models/reward-program.model';
 
@@ -78,7 +78,7 @@ const ALL_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATUR
         </main>
 
         <aside class="steps-sidebar">
-          <h3 class="sidebar-title">Event (Событийный) Program</h3>
+          <h3 class="sidebar-title">Event Program</h3>
           <ul class="steps-list">
             <li *ngFor="let step of WELCOME_STEPS; let last = last"
                 class="step-item"
@@ -361,15 +361,15 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       startDate: p.startDate ? this.toLocalDatetime(p.startDate) : '',
       endDate: p.endDate ? this.toLocalDatetime(p.endDate) : ''
     });
-    if (p.welcomeRule) {
+    if (p.eventRule) {
       this.form.patchValue({
-        grantType: p.welcomeRule.grantType,
-        grantValue: p.welcomeRule.grantValue,
-        bonusLifespanDays: p.welcomeRule.bonusLifespanDays,
-        grantTrigger: p.welcomeRule.grantTrigger,
-        firstPayMode: p.welcomeRule.firstPayMode ?? null
+        grantType: p.eventRule.grantType,
+        grantValue: p.eventRule.grantValue,
+        bonusLifespanDays: p.eventRule.bonusLifespanDays,
+        grantTrigger: p.eventRule.grantTrigger,
+        firstPayMode: p.eventRule.firstPayMode ?? null
       });
-      if (p.welcomeRule.grantTrigger === 'ON_BIRTHDAY') {
+      if (p.eventRule.grantTrigger === 'ON_BIRTHDAY') {
         // For birthday programs loaded from draft, keep existing startDate if present, just enforce always-on + validators.
         this.form.patchValue({ scheduleMode: 'immediate_always_on', endDate: '' });
         this.form.get('startDate')?.setValidators(Validators.required);
@@ -416,7 +416,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       // Check if an always-on already exists (only one per type allowed)
       const nowIso = new Date().toISOString();
       this.rewardProgramsService
-        .checkScheduleOverlap('WELCOME', nowIso, null, this.draftUuid)
+        .checkScheduleOverlap('EVENT', nowIso, null, this.draftUuid)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (res) => (this.scheduleOverlap = res),
@@ -430,7 +430,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       const startIso = new Date(startVal).toISOString();
       const endIso = new Date(endVal).toISOString();
       this.rewardProgramsService
-        .checkScheduleOverlap('WELCOME', startIso, endIso, this.draftUuid)
+        .checkScheduleOverlap('EVENT', startIso, endIso, this.draftUuid)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (res) => (this.scheduleOverlap = res),
@@ -440,7 +440,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       // No dates yet: still check if always-on is allowed (for disabling the always-on button)
       const nowIso = new Date().toISOString();
       this.rewardProgramsService
-        .checkScheduleOverlap('WELCOME', nowIso, null, this.draftUuid)
+        .checkScheduleOverlap('EVENT', nowIso, null, this.draftUuid)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (res) => (this.scheduleOverlap = res),
@@ -456,14 +456,14 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
 
   goToStep(step: number): void {
     if (step >= 1 && step <= WELCOME_STEPS.length) {
-      this.router.navigate(['/reward-programs', 'create', 'welcome', this.draftUuid, 'steps', step.toString()], { queryParamsHandling: 'preserve' });
+      this.router.navigate(['/reward-programs', 'create', 'event', this.draftUuid, 'steps', step.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
   nextStep(): void {
     if (this.currentStep < WELCOME_STEPS.length) {
       const next = this.currentStep + 1;
-      this.router.navigate(['/reward-programs', 'create', 'welcome', this.draftUuid, 'steps', next.toString()], { queryParamsHandling: 'preserve' });
+      this.router.navigate(['/reward-programs', 'create', 'event', this.draftUuid, 'steps', next.toString()], { queryParamsHandling: 'preserve' });
     }
   }
 
@@ -487,7 +487,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
     this.saving = true;
     this.globalError = '';
     const v = this.form.getRawValue();
-    const payload: SaveWelcomeProgramDraftRequest = {
+    const payload: SaveEventProgramDraftRequest = {
       name: v.name || undefined,
       description: v.description || undefined,
       grantType: v.grantType || undefined,
@@ -498,7 +498,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       startDate: v.startDate ? new Date(v.startDate).toISOString() : undefined,
       endDate: v.endDate ? new Date(v.endDate).toISOString() : null
     };
-    this.rewardProgramsService.saveWelcomeDraft(this.draftUuid, payload)
+    this.rewardProgramsService.saveEventDraft(this.draftUuid, payload)
       .pipe(takeUntil(this.destroy$), finalize(() => (this.saving = false)))
       .subscribe({
         next: () => {
@@ -518,7 +518,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
     this.globalError = '';
     const v = this.form.getRawValue();
     const isImmediate = this.form.get('scheduleMode')?.value === 'immediate_always_on';
-    const payload: LaunchWelcomeProgramRequest = {
+    const payload: LaunchEventProgramRequest = {
       immediate: isImmediate,
       name: v.name ?? null,
       description: v.description ?? null,
@@ -530,7 +530,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
       startDate: isImmediate ? null : (v.startDate ? new Date(v.startDate).toISOString() : null),
       endDate: isImmediate ? null : (v.endDate ? new Date(v.endDate).toISOString() : null)
     };
-    this.rewardProgramsService.launchWelcomeProgram(this.draftUuid, payload)
+    this.rewardProgramsService.launchEventProgram(this.draftUuid, payload)
       .pipe(takeUntil(this.destroy$), finalize(() => (this.launching = false)))
       .subscribe({
         next: () => {

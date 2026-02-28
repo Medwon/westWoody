@@ -90,7 +90,7 @@ import { ScheduleOverlapCheckResponse } from '../../../../../core/models/reward-
           </div>
           <div class="summary-item" *ngIf="formValue.grantTrigger === 'ON_FIRST_PAY'">
             <span class="item-label">On first payment</span>
-            <span class="item-value">{{ formValue.firstPayMode === 'WELCOME_ONLY' ? 'Grant only welcome bonus' : 'Grant alongside cashback' }}</span>
+            <span class="item-value">{{ formValue.firstPayMode === 'WELCOME_ONLY' ? 'Grant only event bonus' : 'Grant alongside cashback' }}</span>
           </div>
         </div>
       </div>

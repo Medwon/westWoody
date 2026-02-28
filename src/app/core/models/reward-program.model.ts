@@ -1,6 +1,6 @@
 // ─── Enums / Types ───────────────────────────────────────────────────
 
-export type RewardProgramType = 'WELCOME' | 'BIRTHDAY' | 'REFERRAL' | 'CASHBACK';
+export type RewardProgramType = 'EVENT' | 'BIRTHDAY' | 'REFERRAL' | 'CASHBACK';
 
 export type RewardProgramStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
@@ -10,7 +10,7 @@ export type EligibilityType = 'ALL' | 'SPECIFIC_ITEMS' | 'SPECIFIC_CATEGORIES' |
 
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
-export type WelcomeGrantType = 'POINTS' | 'FIXED_MONEY_KZT';
+export type EventGrantType = 'POINTS' | 'FIXED_MONEY_KZT';
 export type GrantTrigger = 'ON_JOIN' | 'ON_FIRST_PAY' | 'ON_BIRTHDAY';
 export type FirstPayMode = 'WELCOME_ONLY' | 'WELCOME_AND_CASHBACK';
 
@@ -66,12 +66,12 @@ export interface SaveCashbackDraftRequest {
   tiers?: CashbackTierEntry[];
 }
 
-// ─── Welcome Draft / Launch ───────────────────────────────────────────
+// ─── Event Program Draft / Launch ──────────────────────────────────────
 
-export interface SaveWelcomeProgramDraftRequest {
+export interface SaveEventProgramDraftRequest {
   name?: string;
   description?: string;
-  grantType?: WelcomeGrantType;
+  grantType?: EventGrantType;
   grantValue?: number;
   bonusLifespanDays?: number;
   grantTrigger?: GrantTrigger;
@@ -80,11 +80,11 @@ export interface SaveWelcomeProgramDraftRequest {
   endDate?: string | null;
 }
 
-export interface LaunchWelcomeProgramRequest {
+export interface LaunchEventProgramRequest {
   immediate: boolean;
   name?: string | null;
   description?: string | null;
-  grantType?: WelcomeGrantType | null;
+  grantType?: EventGrantType | null;
   grantValue?: number | null;
   bonusLifespanDays?: number | null;
   grantTrigger?: GrantTrigger | null;
@@ -139,8 +139,8 @@ export interface CashbackTierResponse {
   sortOrder: number;
 }
 
-export interface WelcomeProgramRuleResponse {
-  grantType: WelcomeGrantType;
+export interface EventProgramRuleResponse {
+  grantType: EventGrantType;
   grantValue: number;
   bonusLifespanDays: number | null;
   grantTrigger: GrantTrigger;
@@ -159,7 +159,7 @@ export interface RewardProgramResponse {
   weeklySchedules: WeeklyScheduleResponse[];
   cashbackRule: CashbackProgramRuleResponse | null;
   cashbackTiers: CashbackTierResponse[];
-  welcomeRule: WelcomeProgramRuleResponse | null;
+  eventRule: EventProgramRuleResponse | null;
   createdAt: string;
   updatedAt: string;
   /** When this program has an end date and an always-on program of same type exists. */
@@ -181,10 +181,10 @@ export interface RewardProgramListItem {
   cashbackValue?: number | null;
   minSpendAmount?: number | null;
   pointsSpendThreshold?: number | null;
-  /** Only for type WELCOME: POINTS or FIXED_MONEY_KZT */
-  welcomeGrantType?: WelcomeGrantType | null;
-  /** Only for type WELCOME: grant value (points or KZT amount) */
-  welcomeGrantValue?: number | null;
+  /** Only for type EVENT: POINTS or FIXED_MONEY_KZT */
+  eventGrantType?: EventGrantType | null;
+  /** Only for type EVENT: grant value (points or KZT amount) */
+  eventGrantValue?: number | null;
   /** When this program has an end date and an always-on program of same type exists. */
   alwaysOnProgramName?: string | null;
   /** When this program is always-on and a dated program of same type exists: that program's name (this program is not applied during that period). */

@@ -99,7 +99,10 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
             </span>
           </div>
           <div class="summary-actions">
-            <button type="button" class="btn-action btn-secondary" (click)="onAdjustProgram()">Adjust Program</button>
+            <button type="button" class="btn-action btn-secondary btn-with-icon" (click)="onAdjustProgram()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-action-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Adjust Program
+            </button>
             @if (program.status === 'ACTIVE') {
               <button type="button" class="btn-action btn-outline-danger" (click)="confirmAction = 'deactivate'">Deactivate</button>
             }
@@ -115,7 +118,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
         <!-- Tabs (routable). Tiers and Schedule hidden for Welcome program. -->
         <div class="tabs-bar" role="tablist">
           <a [routerLink]="['/reward-programs/view', viewUuid, 'overview']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'overview'">Overview</a>
-          @if (program.type !== 'WELCOME') {
+          @if (program.type !== 'EVENT') {
             <a [routerLink]="['/reward-programs/view', viewUuid, 'tiers']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'tiers'">Tiers</a>
             <a [routerLink]="['/reward-programs/view', viewUuid, 'schedule']" class="tab-item" role="tab" [attr.aria-selected]="activeTab === 'schedule'">Schedule</a>
           }
@@ -161,25 +164,25 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
                   </div>
                 </section>
               }
-              @if (program.type === 'WELCOME' && program.welcomeRule) {
-                <section class="card card-span welcome-rules-card">
+              @if (program.type === 'EVENT' && program.eventRule) {
+                <section class="card card-span event-rules-card">
                   <h2 class="card-title">Welcome Rules</h2>
                   <div class="stats-row">
                     <div class="stat-block">
-                      <span class="stat-value">{{ program.welcomeRule.grantType === 'POINTS' ? (program.welcomeRule.grantValue | number:'1.0-0') + ' pts' : (program.welcomeRule.grantValue | number:'1.0-0') + ' ₸' }}</span>
+                      <span class="stat-value">{{ program.eventRule.grantType === 'POINTS' ? (program.eventRule.grantValue | number:'1.0-0') + ' pts' : (program.eventRule.grantValue | number:'1.0-0') + ' ₸' }}</span>
                       <span class="stat-label">Grant</span>
                     </div>
                     <div class="stat-block">
-                      <span class="stat-value">{{ program.welcomeRule.bonusLifespanDays ? program.welcomeRule.bonusLifespanDays + ' days' : 'Never expires' }}</span>
+                      <span class="stat-value">{{ program.eventRule.bonusLifespanDays ? program.eventRule.bonusLifespanDays + ' days' : 'Never expires' }}</span>
                       <span class="stat-label">Bonus Lifespan</span>
                     </div>
                     <div class="stat-block">
-                      <span class="stat-value">{{ welcomeGrantTriggerLabel(program.welcomeRule.grantTrigger) }}</span>
+                      <span class="stat-value">{{ welcomeGrantTriggerLabel(program.eventRule.grantTrigger) }}</span>
                       <span class="stat-label">When to grant</span>
                     </div>
-                    @if (program.welcomeRule.grantTrigger === 'ON_FIRST_PAY' && program.welcomeRule.firstPayMode) {
+                    @if (program.eventRule.grantTrigger === 'ON_FIRST_PAY' && program.eventRule.firstPayMode) {
                       <div class="stat-block">
-                        <span class="stat-value">{{ welcomeFirstPayModeLabel(program.welcomeRule.firstPayMode) }}</span>
+                        <span class="stat-value">{{ welcomeFirstPayModeLabel(program.eventRule.firstPayMode) }}</span>
                         <span class="stat-label">On first payment</span>
                       </div>
                     }
@@ -294,7 +297,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
           }
 
           <!-- TIERS (hidden for Welcome) -->
-          @if (activeTab === 'tiers' && program.type !== 'WELCOME') {
+          @if (activeTab === 'tiers' && program.type !== 'EVENT') {
             <section class="card">
               <h2 class="card-title">Tiers</h2>
               @if (program.cashbackTiers && program.cashbackTiers.length > 0) {
@@ -365,7 +368,7 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
           }
 
           <!-- SCHEDULE (hidden for Welcome; Welcome has no weekly schedule) -->
-          @if (activeTab === 'schedule' && program.type !== 'WELCOME') {
+          @if (activeTab === 'schedule' && program.type !== 'EVENT') {
             <div class="tab-cards">
               <section class="card card-span program-period-card">
                 <h2 class="card-title">Program Period</h2>
@@ -472,6 +475,8 @@ type ConfirmAction = 'deactivate' | 'archive' | 'launchNow';
     .summary-badge[data-status="ARCHIVED"]  { background: #f1f5f9; color: #475569; }
 
     .summary-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .btn-action.btn-with-icon { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .btn-action .btn-action-icon { width: 1rem; height: 1rem; flex-shrink: 0; }
     .btn-action {
       padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8125rem;
       font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
@@ -1061,7 +1066,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
 
   private syncTabFromRoute(): void {
     const tab = this.route.snapshot.paramMap.get('tab') ?? 'overview';
-    if (this.program?.type === 'WELCOME' && (tab === 'tiers' || tab === 'schedule')) {
+    if (this.program?.type === 'EVENT' && (tab === 'tiers' || tab === 'schedule')) {
       this.router.navigate(['/reward-programs/view', this.uuid, 'overview'], { replaceUrl: true });
       this.activeTab = 'overview';
       return;
@@ -1086,7 +1091,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
         this.program = p;
         this.loading = false;
         this.setPageHeader();
-        if (p.type === 'WELCOME' && (this.activeTab === 'tiers' || this.activeTab === 'schedule')) {
+        if (p.type === 'EVENT' && (this.activeTab === 'tiers' || this.activeTab === 'schedule')) {
           this.router.navigate(['/reward-programs/view', this.uuid, 'overview'], { replaceUrl: true });
           this.activeTab = 'overview';
         }
@@ -1208,7 +1213,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
   }
 
   welcomeFirstPayModeLabel(mode: string): string {
-    return mode === 'WELCOME_ONLY' ? 'Grant only welcome bonus' : 'Grant alongside cashback';
+    return mode === 'WELCOME_ONLY' ? 'Grant only event bonus' : 'Grant alongside cashback';
   }
 
   openEligibilityPopover(event: MouseEvent, tier: CashbackTierResponse): void {
@@ -1237,7 +1242,7 @@ export class ProgramViewPageComponent implements OnInit, OnDestroy {
 
   typeLabel(t: RewardProgramType): string {
     const m: Record<RewardProgramType, string> = {
-      CASHBACK: 'Cashback', WELCOME: 'Welcome', BIRTHDAY: 'Birthday', REFERRAL: 'Referral'
+      CASHBACK: 'Cashback', EVENT: 'Event', BIRTHDAY: 'Birthday', REFERRAL: 'Referral'
     };
     return m[t] ?? t;
   }

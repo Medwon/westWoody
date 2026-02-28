@@ -109,10 +109,10 @@ import { ClientsService, ClientBirthdayStatsResponse } from '../../../../../core
           [errorMessage]="getError('firstPayMode')"
         ></app-select>
         <p class="field-hint" *ngIf="form.get('firstPayMode')?.value === 'WELCOME_ONLY'">
-          Grant only the welcome bonus; do not grant cashback for that payment.
+          Grant only the event bonus; do not grant cashback for that payment.
         </p>
         <p class="field-hint" *ngIf="form.get('firstPayMode')?.value === 'WELCOME_AND_CASHBACK'">
-          Grant welcome bonus and also apply cashback as usual for that payment.
+          Grant event bonus and also apply cashback as usual for that payment.
         </p>
       </div>
     </div>
@@ -175,7 +175,7 @@ export class StepWelcomeRulesComponent implements OnInit {
   }
 
   firstPayModeOptions: SelectOption[] = [
-    { value: 'WELCOME_ONLY', label: 'Grant only welcome bonus' },
+    { value: 'WELCOME_ONLY', label: 'Grant only event bonus' },
     { value: 'WELCOME_AND_CASHBACK', label: 'Grant alongside cashback program' }
   ];
 

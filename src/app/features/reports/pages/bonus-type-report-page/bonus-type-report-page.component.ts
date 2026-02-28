@@ -13,9 +13,9 @@ import type { RewardProgramListItem, RewardProgramType } from '../../../../core/
 type PeriodKey = '1m' | '3m' | '6m' | '1y' | 'all';
 
 const REWARD_PROGRAM_STATUSES_FOR_REPORT: string[] = ['ACTIVE', 'INACTIVE', 'ARCHIVED'];
-const PROGRAM_TYPE_ORDER: RewardProgramType[] = ['WELCOME', 'BIRTHDAY', 'REFERRAL', 'CASHBACK'];
+const PROGRAM_TYPE_ORDER: RewardProgramType[] = ['EVENT', 'BIRTHDAY', 'REFERRAL', 'CASHBACK'];
 const PROGRAM_TYPE_LABELS: Record<RewardProgramType, string> = {
-  WELCOME: 'Welcome',
+  EVENT: 'Event',
   BIRTHDAY: 'Birthday',
   REFERRAL: 'Referral',
   CASHBACK: 'Cashback'
@@ -81,7 +81,7 @@ export class BonusTypeReportPageComponent implements OnInit {
   get showRetention(): boolean {
     if (!this.report) return false;
     const program = this.getSelectedProgram();
-    return program != null && (program.type === 'WELCOME' || program.type === 'BIRTHDAY');
+    return program != null && (program.type === 'EVENT' || program.type === 'BIRTHDAY');
   }
 
   get showReferral(): boolean {

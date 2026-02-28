@@ -59,14 +59,15 @@ export class RewardProgramCreatePageComponent implements OnInit {
   private pageHeaderService = inject(PageHeaderService);
 
   private readonly typeLabels: Record<string, string> = {
-    welcome: 'Event (Событийный)',
+    event: 'Event',
+    welcome: 'Event', // legacy key if backend ever sends old type
     birthday: 'Birthday reward',
     referral: 'Referral',
     cashback: 'Cashback'
   };
 
   ngOnInit(): void {
-    // Type is in the path: create/welcome/:uuid, create/birthday/:uuid, create/referral/:uuid
+    // Type is in the path: create/event/:uuid, create/cashback/:uuid, create/birthday/:uuid, create/referral/:uuid
     const segments = this.route.snapshot.url;
     this.type = segments.length >= 2 ? segments[1].path : '';
     this.uuid = this.route.snapshot.paramMap.get('uuid') ?? '';

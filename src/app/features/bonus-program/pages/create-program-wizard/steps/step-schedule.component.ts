@@ -104,7 +104,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
         </div>
       </div>
 
-      <!-- Weekly time windows (hidden for welcome program) -->
+      <!-- Weekly time windows (hidden for event program) -->
       <div class="section" *ngIf="!hideWeekly">
         <h3 class="section-title">Weekly schedule</h3>
         <p class="section-desc">
@@ -200,7 +200,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 export class StepScheduleComponent implements OnInit {
   @Input() form!: FormGroup;
   @Input() scheduleOverlap: ScheduleOverlapCheckResponse | null = null;
-  /** When true, hide the weekly schedule section (e.g. for welcome program). */
+  /** When true, hide the weekly schedule section (e.g. for event program). */
   @Input() hideWeekly = false;
   /** When true, hide the "Schedule periodic program" option (e.g. for birthday event program). */
   @Input() hidePeriodicOption = false;
