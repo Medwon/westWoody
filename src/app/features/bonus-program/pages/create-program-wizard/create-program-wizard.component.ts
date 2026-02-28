@@ -389,18 +389,19 @@ export class CreateProgramWizardComponent implements OnInit, OnDestroy {
     switch (stepNum) {
       case 1: {
         const name = this.form.get('name');
+        const nameVal = name?.value;
+        const hasName = typeof nameVal === 'string' && nameVal.trim().length > 0;
+        return !!hasName;
+      }
+      case 2: {
         const cashbackType = this.form.get('cashbackType');
         const cashbackValue = this.form.get('cashbackValue');
         const pts = this.form.get('pointsSpendThreshold');
         const type = cashbackType?.value;
-        const nameVal = name?.value;
-        const hasName = typeof nameVal === 'string' && nameVal.trim().length > 0;
-        return !!(hasName && cashbackType?.valid && cashbackValue?.valid
-          && (type !== 'BONUS_POINTS' || (pts?.value != null && Number(pts?.value) > 0)));
-      }
-      case 2: {
         const minSpend = this.form.get('minSpendAmount');
-        return minSpend?.valid === true;
+        const hasCashbackCore = cashbackType?.valid && cashbackValue?.valid
+          && (type !== 'BONUS_POINTS' || (pts?.value != null && Number(pts?.value) > 0));
+        return !!(hasCashbackCore && minSpend?.valid === true);
       }
       case 3: {
         const mode = this.form.get('scheduleMode')?.value;

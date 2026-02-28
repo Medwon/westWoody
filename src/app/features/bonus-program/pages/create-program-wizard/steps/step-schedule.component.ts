@@ -64,8 +64,8 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
         </div>
       </div>
 
-      <!-- Date range: only for periodic (end date required for periodic) -->
-      <div class="section" *ngIf="!isImmediateAlwaysOn">
+      <!-- Program dates: start date required always; end date only for periodic -->
+      <div class="section">
         <h3 class="section-title">Program dates</h3>
         <p class="section-desc">Set when this program will be active.</p>
 
@@ -87,11 +87,11 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
               placeholder="Select start date"
               formControlName="startDate"
               [showTime]="true"
-              [required]="!isImmediateAlwaysOn"
+              [required]="true"
               [errorMessage]="form.get('startDate')?.touched && form.get('startDate')?.invalid ? 'Start date is required' : ''"
             ></app-date-picker>
           </div>
-          <div class="form-group flex-1">
+          <div class="form-group flex-1" *ngIf="!isImmediateAlwaysOn">
             <app-date-picker
               label="End date"
               placeholder="Select end date"
@@ -225,11 +225,9 @@ export class StepScheduleComponent implements OnInit {
   setScheduleMode(mode: 'immediate_always_on' | 'periodic'): void {
     this.form.patchValue({ scheduleMode: mode });
     if (mode === 'immediate_always_on') {
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      this.form.patchValue({ startDate: local, endDate: '' });
-      this.form.get('startDate')?.clearValidators();
+      // Always-on: start date is required but not auto-filled; end date cleared and optional.
+      this.form.patchValue({ endDate: '' });
+      this.form.get('startDate')?.setValidators(Validators.required);
       this.form.get('endDate')?.clearValidators();
       this.form.get('startDate')?.updateValueAndValidity();
       this.form.get('endDate')?.updateValueAndValidity();
@@ -245,11 +243,9 @@ export class StepScheduleComponent implements OnInit {
     this.timeOptions = this.generateTimeOptions();
     const mode = this.form.get('scheduleMode')?.value;
     if (mode === 'immediate_always_on') {
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' });
-      this.form.get('startDate')?.clearValidators();
+      // Ensure validators are set correctly for always-on; do not auto-fill start date.
+      this.form.patchValue({ scheduleMode: 'immediate_always_on', endDate: '' });
+      this.form.get('startDate')?.setValidators(Validators.required);
       this.form.get('endDate')?.clearValidators();
       this.form.get('startDate')?.updateValueAndValidity();
       this.form.get('endDate')?.updateValueAndValidity();

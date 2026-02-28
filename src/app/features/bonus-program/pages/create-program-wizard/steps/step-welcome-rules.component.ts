@@ -12,6 +12,47 @@ import { ClientsService, ClientBirthdayStatsResponse } from '../../../../../core
   imports: [CommonModule, ReactiveFormsModule, SelectComponent, NumberFieldComponent, AlertComponent],
   template: `
     <div class="step-form" [formGroup]="form">
+      <!-- Type to grant and amount -->
+      <div class="form-group">
+        <app-select
+          id="grantType"
+          label="Type to grant"
+          placeholder="Select type"
+          formControlName="grantType"
+          [options]="grantTypeOptions"
+          [required]="true"
+          [errorMessage]="getError('grantType')"
+        ></app-select>
+        <p class="field-hint" *ngIf="form.get('grantType')?.value === 'POINTS'">
+          Grant bonus points that customers can use toward future purchases.
+        </p>
+        <p class="field-hint" *ngIf="form.get('grantType')?.value === 'FIXED_MONEY_KZT'">
+          Grant a fixed amount in KZT (tenge) as bonus balance.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <app-number-field
+          *ngIf="form.get('grantType')?.value === 'POINTS'"
+          id="grantValue"
+          label="Points to grant"
+          placeholder="e.g. 500"
+          formControlName="grantValue"
+          [min]="0.01"
+          [errorMessage]="getError('grantValue')"
+        ></app-number-field>
+        <app-number-field
+          *ngIf="form.get('grantType')?.value === 'FIXED_MONEY_KZT'"
+          id="grantValue"
+          label="Amount (KZT)"
+          placeholder="e.g. 1000"
+          formControlName="grantValue"
+          [min]="0.01"
+          [suffix]="'₸'"
+          [errorMessage]="getError('grantValue')"
+        ></app-number-field>
+      </div>
+
       <div class="form-group">
         <app-number-field
           id="bonusLifespanDays"
@@ -88,6 +129,11 @@ export class StepWelcomeRulesComponent implements OnInit {
 
   private clientsService = inject(ClientsService);
 
+  grantTypeOptions: SelectOption[] = [
+    { value: 'POINTS', label: 'Points' },
+    { value: 'FIXED_MONEY_KZT', label: 'Fixed amount (KZT)' }
+  ];
+
   grantTriggerOptions: SelectOption[] = [
     { value: 'ON_JOIN', label: 'On client joining the program' },
     { value: 'ON_FIRST_PAY', label: 'On first payment' },
@@ -135,9 +181,9 @@ export class StepWelcomeRulesComponent implements OnInit {
 
   getError(field: string): string {
     const control = this.form.get(field);
-    if (control && control.touched && control.invalid && control.errors?.['required']) {
-      return 'This field is required';
-    }
+    if (!control || !control.touched || !control.invalid) return '';
+    if (control.errors?.['required']) return 'This field is required';
+    if (control.errors?.['min']) return `Minimum value is ${control.errors['min'].min}`;
     return '';
   }
 }

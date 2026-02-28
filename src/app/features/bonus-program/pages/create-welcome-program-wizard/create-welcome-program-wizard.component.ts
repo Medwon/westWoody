@@ -22,8 +22,8 @@ import { StepWelcomeSummaryComponent } from '../create-program-wizard/steps/step
 import { AlertComponent } from '../../../../shared/components/alert/alert.component';
 
 const WELCOME_STEPS = [
-  { num: 1, label: 'Program details', hint: 'Name, description and type to grant (points or KZT).' },
-  { num: 2, label: 'Rules', hint: 'Bonus lifespan and when to grant (on join, first pay, or birthday).' },
+  { num: 1, label: 'Program details', hint: 'Name and description of this event program.' },
+  { num: 2, label: 'Rules', hint: 'Type and value to grant, bonus lifespan and when to grant.' },
   { num: 3, label: 'Schedule', hint: 'Launch always-on or schedule with start/end dates.' },
   { num: 4, label: 'Notifications', hint: 'Preview promotional messaging options.' },
   { num: 5, label: 'Summary & Launch', hint: 'Review and launch the event program.' }
@@ -219,13 +219,15 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
     switch (stepNum) {
       case 1: {
         const name = this.form.get('name')?.value;
-        const grantType = this.form.get('grantType')?.value;
-        const grantValue = this.form.get('grantValue')?.value;
         const hasName = typeof name === 'string' && name.trim().length > 0;
-        return !!(hasName && grantType && grantValue != null && Number(grantValue) > 0);
+        return !!hasName;
       }
       case 2: {
+        const grantType = this.form.get('grantType')?.value;
+        const grantValue = this.form.get('grantValue')?.value;
         const trigger = this.form.get('grantTrigger')?.value;
+        const hasGrant = !!(grantType && grantValue != null && Number(grantValue) > 0);
+        if (!hasGrant) return false;
         if (trigger === 'ON_JOIN' || trigger === 'ON_BIRTHDAY') return true;
         return !!this.form.get('firstPayMode')?.value;
       }
@@ -299,11 +301,9 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
   private setupBirthdayScheduleSync(): void {
     this.form.get('grantTrigger')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(trigger => {
       if (trigger === 'ON_BIRTHDAY') {
-        const now = new Date();
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-        this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' }, { emitEvent: false });
-        this.form.get('startDate')?.clearValidators();
+        // Switch to always-on; require start date, but let user choose it.
+        this.form.patchValue({ scheduleMode: 'immediate_always_on', endDate: '' }, { emitEvent: false });
+        this.form.get('startDate')?.setValidators(Validators.required);
         this.form.get('endDate')?.clearValidators();
         this.form.get('startDate')?.updateValueAndValidity();
         this.form.get('endDate')?.updateValueAndValidity();
@@ -315,7 +315,7 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       name: ['', Validators.required],
       description: [''],
-      grantType: ['POINTS', Validators.required],
+      grantType: ['', Validators.required],
       grantValue: [null, [Validators.required, Validators.min(0.01)]],
 
       scheduleMode: ['periodic'],
@@ -370,11 +370,9 @@ export class CreateWelcomeProgramWizardComponent implements OnInit, OnDestroy {
         firstPayMode: p.welcomeRule.firstPayMode ?? null
       });
       if (p.welcomeRule.grantTrigger === 'ON_BIRTHDAY') {
-        const now = new Date();
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-        this.form.patchValue({ scheduleMode: 'immediate_always_on', startDate: local, endDate: '' });
-        this.form.get('startDate')?.clearValidators();
+        // For birthday programs loaded from draft, keep existing startDate if present, just enforce always-on + validators.
+        this.form.patchValue({ scheduleMode: 'immediate_always_on', endDate: '' });
+        this.form.get('startDate')?.setValidators(Validators.required);
         this.form.get('endDate')?.clearValidators();
         this.form.get('startDate')?.updateValueAndValidity();
         this.form.get('endDate')?.updateValueAndValidity();

@@ -31,63 +31,7 @@ import { SelectComponent, SelectOption } from '../../../../../shared/components/
         ></textarea>
       </div>
 
-      <div class="form-group">
-        <app-select
-          id="cashbackType"
-          label="Cashback type"
-          placeholder="Select cashback type"
-          formControlName="cashbackType"
-          [options]="cashbackTypeOptions"
-          [required]="true"
-          [errorMessage]="getError('cashbackType')"
-        ></app-select>
-        <p class="field-hint" *ngIf="form.get('cashbackType')?.value === 'PERCENTAGE'">
-          Customers earn a percentage of the transaction amount as bonus points.
-        </p>
-        <p class="field-hint" *ngIf="form.get('cashbackType')?.value === 'BONUS_POINTS'">
-          Customers earn a fixed number of bonus points per spend threshold (e.g. 1 point per 1,000 tg).
-        </p>
-      </div>
-
-      <div class="form-group" *ngIf="form.get('cashbackType')?.value === 'PERCENTAGE'">
-        <app-input
-          id="cashbackValue"
-          label="Cashback rate (%)"
-          type="number"
-          placeholder="e.g. 5"
-          suffix="%"
-          formControlName="cashbackValue"
-          [required]="true"
-          [errorMessage]="getError('cashbackValue')"
-        ></app-input>
-      </div>
-
-      <div class="form-row" *ngIf="form.get('cashbackType')?.value === 'BONUS_POINTS'">
-        <div class="form-group flex-1">
-          <app-input
-            id="cashbackValue"
-            label="Points earned"
-            type="number"
-            placeholder="e.g. 1"
-            formControlName="cashbackValue"
-            [required]="true"
-            hint="Points awarded per threshold"
-            [errorMessage]="getError('cashbackValue')"
-          ></app-input>
-        </div>
-        <div class="form-group flex-1">
-          <app-input
-            id="pointsSpendThreshold"
-            label="Per spend amount"
-            type="number"
-            placeholder="e.g. 1000"
-            formControlName="pointsSpendThreshold"
-            [required]="true"
-            hint="Spend amount required to earn above points"
-            [errorMessage]="getError('pointsSpendThreshold')"
-          ></app-input>
-        </div>
-      </div>
+      <!-- Cashback type and values moved to Rules step -->
     </div>
   `,
   styles: [`

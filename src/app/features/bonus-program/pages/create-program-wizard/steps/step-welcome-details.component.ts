@@ -31,47 +31,7 @@ import { SelectComponent, SelectOption } from '../../../../../shared/components/
         ></textarea>
       </div>
 
-      <div class="form-group">
-        <app-select
-          id="grantType"
-          label="Type to grant"
-          placeholder="Select type"
-          formControlName="grantType"
-          [options]="grantTypeOptions"
-          [required]="true"
-          [errorMessage]="getError('grantType')"
-        ></app-select>
-        <p class="field-hint" *ngIf="form.get('grantType')?.value === 'POINTS'">
-          Grant bonus points that customers can use toward future purchases.
-        </p>
-        <p class="field-hint" *ngIf="form.get('grantType')?.value === 'FIXED_MONEY_KZT'">
-          Grant a fixed amount in KZT (tenge) as bonus balance.
-        </p>
-      </div>
-
-      <div class="form-group">
-        <app-input
-          *ngIf="form.get('grantType')?.value === 'POINTS'"
-          id="grantValue"
-          label="Points to grant"
-          type="number"
-          placeholder="e.g. 500"
-          formControlName="grantValue"
-          [required]="true"
-          [errorMessage]="getError('grantValue')"
-        ></app-input>
-        <app-input
-          *ngIf="form.get('grantType')?.value === 'FIXED_MONEY_KZT'"
-          id="grantValue"
-          label="Amount (KZT)"
-          type="number"
-          placeholder="e.g. 1000"
-          formControlName="grantValue"
-          [required]="true"
-          suffix="₸"
-          [errorMessage]="getError('grantValue')"
-        ></app-input>
-      </div>
+      <!-- Type to grant and amount moved to Rules step -->
     </div>
   `,
   styles: [`

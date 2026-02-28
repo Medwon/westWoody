@@ -10,6 +10,57 @@ import { NumberFieldComponent } from '../../../../../shared/components/number-fi
   imports: [CommonModule, ReactiveFormsModule, SelectComponent, NumberFieldComponent],
   template: `
     <div class="step-form" [formGroup]="form">
+      <!-- Cashback type and rate -->
+      <div class="form-group">
+        <app-select
+          id="cashbackType"
+          label="Cashback type"
+          placeholder="Select cashback type"
+          formControlName="cashbackType"
+          [options]="cashbackTypeOptions"
+          [required]="true"
+        ></app-select>
+        <p class="field-hint" *ngIf="form.get('cashbackType')?.value === 'PERCENTAGE'">
+          Customers earn a percentage of the transaction amount as bonus points.
+        </p>
+        <p class="field-hint" *ngIf="form.get('cashbackType')?.value === 'BONUS_POINTS'">
+          Customers earn a fixed number of bonus points per spend threshold (e.g. 1 point per 1,000 tg).
+        </p>
+      </div>
+
+      <div class="form-group" *ngIf="form.get('cashbackType')?.value === 'PERCENTAGE'">
+        <app-number-field
+          id="cashbackValue"
+          label="Cashback rate (%)"
+          placeholder="e.g. 5"
+          formControlName="cashbackValue"
+          [min]="0"
+        ></app-number-field>
+      </div>
+
+      <div class="form-row" *ngIf="form.get('cashbackType')?.value === 'BONUS_POINTS'">
+        <div class="form-group flex-1">
+          <app-number-field
+            id="cashbackValue"
+            label="Points earned"
+            placeholder="e.g. 1"
+            formControlName="cashbackValue"
+            [min]="0"
+            hint="Points awarded per threshold"
+          ></app-number-field>
+        </div>
+        <div class="form-group flex-1">
+          <app-number-field
+            id="pointsSpendThreshold"
+            label="Per spend amount"
+            placeholder="e.g. 1000"
+            formControlName="pointsSpendThreshold"
+            [min]="0"
+            hint="Spend amount required to earn above points"
+          ></app-number-field>
+        </div>
+      </div>
+
       <!-- Min spend -->
       <div class="form-group">
         <app-number-field
@@ -100,6 +151,8 @@ import { NumberFieldComponent } from '../../../../../shared/components/number-fi
   styles: [`
     .step-form { display: flex; flex-direction: column; gap: 1.5rem; }
     .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+    .form-row { display: flex; gap: 1rem; }
+    .flex-1 { flex: 1; }
     .field-label { font-weight: 500; font-size: 0.875rem; color: #1a202c; margin-bottom: 0.25rem; }
     .field-hint { font-size: 0.8rem; color: #64748b; margin: 0.25rem 0 0 0; }
 
@@ -157,6 +210,11 @@ import { NumberFieldComponent } from '../../../../../shared/components/number-fi
 })
 export class StepRulesComponent {
   @Input() form!: FormGroup;
+
+  cashbackTypeOptions: SelectOption[] = [
+    { value: 'PERCENTAGE', label: 'Percentage (%)' },
+    { value: 'BONUS_POINTS', label: 'Bonus Points' }
+  ];
 
   redeemPresets = [25, 50, 75, 100];
 
